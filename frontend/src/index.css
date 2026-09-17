@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: rgb(var(--bg));
+  --color-surface: rgb(var(--surface));
+  --color-ink: rgb(var(--ink));
+  --color-accent: rgb(var(--accent));
+  --color-accent-text: rgb(var(--accent-text));
+  --color-section: rgb(var(--section));
+  --color-section-glow: rgb(var(--section-glow));
+
+  --font-sans: "Roboto", system-ui, sans-serif;
+
+  --shadow-sm: 0 0 0 1px rgb(var(--edge));
+  --shadow-md: 0 0 0 1px rgb(var(--edge)), 0 6px 18px rgb(var(--shade) / 0.55);
+  --shadow-lg: 0 0 0 1px rgb(var(--edge)), 0 16px 40px rgb(var(--shade) / 0.65);
+}
+
+:root[data-theme="dark"] {
+  --bg: 22 24 38;
+  --surface: 35 37 50;
+  --ink: 233 233 237;
+  --accent: 145 132 217;
+  --accent-text: 210 206 253;
+  --section: 38 42 96;
+  --section-glow: 53 59 128;
+  --edge: 63 66 77;
+  --shade: 0 0 0;
+}
+
+:root[data-theme="light"] {
+  --bg: 243 245 254;
+  --surface: 228 231 245;
+  --ink: 41 43 49;
+  --accent: 93 82 148;
+  --accent-text: 74 65 119;
+  --section: 38 42 96;
+  --section-glow: 53 59 128;
+  --edge: 207 211 229;
+  --shade: 41 43 49;
+}
+
+.lighten {
+  mix-blend-mode: lighten;
+  background-color: transparent;
+}
+
+:root[data-theme="light"] .lighten {
+  mix-blend-mode: normal;
+}
+
+/* Firma Nocturne: las reglas horizontales se desvanecen 48px en cada extremo. */
+.hr {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right,
+      transparent,
+      rgb(var(--ink) / 0.16) 48px,
+      rgb(var(--ink) / 0.16) calc(100% - 48px),
+      transparent);
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.3);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
+}
