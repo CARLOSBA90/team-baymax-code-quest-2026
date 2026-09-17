@@ -1,0 +1,157 @@
+{
+  "description": "Mock de respuestas de la API de tareas (Core API)",
+  "endpoints": {
+    "GET /api/v1/tasks": "Listar tareas con paginación",
+    "GET /api/v1/tasks/:id": "Obtener tarea por ID",
+    "POST /api/v1/tasks": "Crear nueva tarea",
+    "PATCH /api/v1/tasks/:id": "Actualizar tarea",
+    "DELETE /api/v1/tasks/:id": "Eliminar tarea"
+  },
+  "data": {
+    "tasks": [
+      {
+        "id": "tsk_001",
+        "title": "Configurar Better Auth en auth-api",
+        "description": "Seguir el spec-kit de Better Auth para configurar la autenticación",
+        "status": "COMPLETED",
+        "priority": "HIGH",
+        "createdAt": "2026-01-10T09:00:00.000Z",
+        "updatedAt": "2026-01-12T15:30:00.000Z"
+      },
+      {
+        "id": "tsk_002",
+        "title": "Implementar CRUD de proyectos",
+        "description": "Crear resource de proyectos con todas las operaciones CRUD",
+        "status": "IN_PROGRESS",
+        "priority": "HIGH",
+        "createdAt": "2026-01-15T10:00:00.000Z",
+        "updatedAt": "2026-01-18T11:00:00.000Z"
+      },
+      {
+        "id": "tsk_003",
+        "title": "Diseñar esquema de notificaciones",
+        "description": "Definir modelo de datos para el sistema de notificaciones push y email",
+        "status": "PENDING",
+        "priority": "MEDIUM",
+        "createdAt": "2026-01-20T14:00:00.000Z",
+        "updatedAt": "2026-01-20T14:00:00.000Z"
+      },
+      {
+        "id": "tsk_004",
+        "title": "Agregar tests e2e al auth-api",
+        "description": "Tests de integración para signup, signin y sesiones",
+        "status": "PENDING",
+        "priority": "LOW",
+        "createdAt": "2026-02-01T08:00:00.000Z",
+        "updatedAt": "2026-02-01T08:00:00.000Z"
+      },
+      {
+        "id": "tsk_005",
+        "title": "Configurar Docker Compose",
+        "description": "Crear docker-compose.yml para levantar todo el stack local",
+        "status": "CANCELLED",
+        "priority": "MEDIUM",
+        "createdAt": "2026-01-05T12:00:00.000Z",
+        "updatedAt": "2026-01-06T09:00:00.000Z"
+      }
+    ]
+  },
+  "responses": {
+    "findAll": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "tsk_001",
+            "title": "Configurar Better Auth en auth-api",
+            "description": "Seguir el spec-kit de Better Auth para configurar la autenticación",
+            "status": "COMPLETED",
+            "priority": "HIGH",
+            "createdAt": "2026-01-10T09:00:00.000Z",
+            "updatedAt": "2026-01-12T15:30:00.000Z"
+          },
+          {
+            "id": "tsk_002",
+            "title": "Implementar CRUD de proyectos",
+            "description": "Crear resource de proyectos con todas las operaciones CRUD",
+            "status": "IN_PROGRESS",
+            "priority": "HIGH",
+            "createdAt": "2026-01-15T10:00:00.000Z",
+            "updatedAt": "2026-01-18T11:00:00.000Z"
+          }
+        ],
+        "meta": {
+          "total": 5,
+          "page": 1,
+          "limit": 10,
+          "totalPages": 1
+        }
+      }
+    },
+    "findOne": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "tsk_001",
+          "title": "Configurar Better Auth en auth-api",
+          "description": "Seguir el spec-kit de Better Auth para configurar la autenticación",
+          "status": "COMPLETED",
+          "priority": "HIGH",
+          "createdAt": "2026-01-10T09:00:00.000Z",
+          "updatedAt": "2026-01-12T15:30:00.000Z"
+        }
+      }
+    },
+    "create": {
+      "status": 201,
+      "body": {
+        "message": "Tarea creada exitosamente",
+        "data": {
+          "id": "tsk_006",
+          "title": "Nueva tarea de ejemplo",
+          "description": "Descripción de la tarea",
+          "status": "PENDING",
+          "priority": "MEDIUM",
+          "createdAt": "2026-03-01T10:00:00.000Z",
+          "updatedAt": "2026-03-01T10:00:00.000Z"
+        }
+      }
+    },
+    "update": {
+      "status": 200,
+      "body": {
+        "message": "Tarea actualizada exitosamente",
+        "data": {
+          "id": "tsk_002",
+          "title": "Implementar CRUD de proyectos",
+          "status": "COMPLETED",
+          "priority": "HIGH",
+          "updatedAt": "2026-03-01T12:00:00.000Z"
+        }
+      }
+    },
+    "remove": {
+      "status": 204,
+      "body": null
+    },
+    "notFound": {
+      "status": 404,
+      "body": {
+        "statusCode": 404,
+        "message": "Tarea con ID \"tsk_999\" no encontrada",
+        "error": "Not Found"
+      }
+    },
+    "validationError": {
+      "status": 400,
+      "body": {
+        "statusCode": 400,
+        "message": [
+          "title must be longer than or equal to 3 characters",
+          "title should not be empty"
+        ],
+        "error": "Bad Request"
+      }
+    }
+  }
+}

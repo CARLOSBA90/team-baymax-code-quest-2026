@@ -1,0 +1,121 @@
+{
+  "description": "Mock de respuestas de autenticación (Better Auth)",
+  "endpoints": {
+    "POST /api/auth/sign-up/email": "Registro con email y contraseña",
+    "POST /api/auth/sign-in/email": "Login con email y contraseña",
+    "POST /api/auth/sign-out": "Cerrar sesión",
+    "GET /api/auth/get-session": "Obtener sesión actual"
+  },
+  "responses": {
+    "signUp_success": {
+      "status": 200,
+      "body": {
+        "user": {
+          "id": "clx1abc001",
+          "name": "Nuevo Usuario",
+          "email": "nuevo@example.com",
+          "emailVerified": false,
+          "image": null,
+          "createdAt": "2026-03-01T10:00:00.000Z",
+          "updatedAt": "2026-03-01T10:00:00.000Z"
+        },
+        "session": {
+          "id": "ses_001",
+          "token": "mock-session-token-abc123",
+          "expiresAt": "2026-03-08T10:00:00.000Z",
+          "userId": "clx1abc001",
+          "ipAddress": "127.0.0.1",
+          "userAgent": "Mozilla/5.0..."
+        }
+      },
+      "headers": {
+        "Set-Cookie": "better-auth.session_token=mock-session-token-abc123; Path=/; HttpOnly; SameSite=Lax"
+      }
+    },
+    "signUp_emailExists": {
+      "status": 422,
+      "body": {
+        "code": "USER_ALREADY_EXISTS",
+        "message": "User with this email already exists"
+      }
+    },
+    "signIn_success": {
+      "status": 200,
+      "body": {
+        "user": {
+          "id": "clx1abc001",
+          "name": "Carlos Pérez",
+          "email": "carlos@example.com",
+          "emailVerified": true,
+          "image": null,
+          "createdAt": "2026-01-15T10:30:00.000Z",
+          "updatedAt": "2026-03-20T14:00:00.000Z"
+        },
+        "session": {
+          "id": "ses_002",
+          "token": "mock-session-token-def456",
+          "expiresAt": "2026-03-27T14:00:00.000Z",
+          "userId": "clx1abc001",
+          "ipAddress": "127.0.0.1",
+          "userAgent": "Mozilla/5.0..."
+        }
+      },
+      "headers": {
+        "Set-Cookie": "better-auth.session_token=mock-session-token-def456; Path=/; HttpOnly; SameSite=Lax"
+      }
+    },
+    "signIn_invalidCredentials": {
+      "status": 401,
+      "body": {
+        "code": "INVALID_CREDENTIALS",
+        "message": "Invalid email or password"
+      }
+    },
+    "getSession_authenticated": {
+      "status": 200,
+      "body": {
+        "session": {
+          "id": "ses_002",
+          "token": "mock-session-token-def456",
+          "expiresAt": "2026-03-27T14:00:00.000Z",
+          "userId": "clx1abc001",
+          "ipAddress": "127.0.0.1",
+          "userAgent": "Mozilla/5.0..."
+        },
+        "user": {
+          "id": "clx1abc001",
+          "name": "Carlos Pérez",
+          "email": "carlos@example.com",
+          "emailVerified": true,
+          "image": null,
+          "createdAt": "2026-01-15T10:30:00.000Z",
+          "updatedAt": "2026-03-20T14:00:00.000Z"
+        }
+      }
+    },
+    "getSession_noSession": {
+      "status": 401,
+      "body": null
+    },
+    "signOut_success": {
+      "status": 200,
+      "body": {
+        "success": true
+      },
+      "headers": {
+        "Set-Cookie": "better-auth.session_token=; Path=/; HttpOnly; Max-Age=0"
+      }
+    }
+  },
+  "testCredentials": {
+    "_comment": "Credenciales de prueba para desarrollo local",
+    "user1": {
+      "email": "carlos@example.com",
+      "password": "Test1234!"
+    },
+    "user2": {
+      "email": "maria@example.com",
+      "password": "Test1234!"
+    }
+  }
+}

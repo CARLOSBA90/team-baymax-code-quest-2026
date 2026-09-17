@@ -1,0 +1,73 @@
+{
+  "description": "Mock de respuestas de la API de usuarios",
+  "endpoints": {
+    "GET /api/v1/users/me": "Perfil del usuario autenticado",
+    "GET /api/v1/users/:id": "Perfil de un usuario por ID",
+    "PATCH /api/v1/users/me": "Actualizar perfil propio"
+  },
+  "data": {
+    "users": [
+      {
+        "id": "clx1abc001",
+        "name": "Carlos Pérez",
+        "email": "carlos@example.com",
+        "emailVerified": true,
+        "image": null,
+        "createdAt": "2026-01-15T10:30:00.000Z",
+        "updatedAt": "2026-03-20T14:00:00.000Z"
+      },
+      {
+        "id": "clx1abc002",
+        "name": "María García",
+        "email": "maria@example.com",
+        "emailVerified": true,
+        "image": "https://i.pravatar.cc/150?u=maria",
+        "createdAt": "2026-02-10T08:15:00.000Z",
+        "updatedAt": "2026-04-05T11:30:00.000Z"
+      },
+      {
+        "id": "clx1abc003",
+        "name": "Juan López",
+        "email": "juan@example.com",
+        "emailVerified": false,
+        "image": null,
+        "createdAt": "2026-05-01T16:45:00.000Z",
+        "updatedAt": "2026-05-01T16:45:00.000Z"
+      }
+    ]
+  },
+  "responses": {
+    "getProfile": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "clx1abc001",
+          "name": "Carlos Pérez",
+          "email": "carlos@example.com",
+          "emailVerified": true,
+          "image": null,
+          "createdAt": "2026-01-15T10:30:00.000Z",
+          "updatedAt": "2026-03-20T14:00:00.000Z"
+        }
+      }
+    },
+    "updateProfile": {
+      "status": 200,
+      "body": {
+        "message": "Perfil actualizado",
+        "data": {
+          "id": "clx1abc001",
+          "name": "Carlos Pérez Actualizado",
+          "email": "carlos@example.com"
+        }
+      }
+    },
+    "unauthorized": {
+      "status": 401,
+      "body": {
+        "statusCode": 401,
+        "message": "Unauthorized"
+      }
+    }
+  }
+}
