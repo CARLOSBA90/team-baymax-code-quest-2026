@@ -20,12 +20,12 @@ export class PrismaService
     });
   }
 
-  /** Conecta al arrancar para detectar pronto si la base no responde. */
+  /** Inicializa el adaptador; la conexión se abre en la primera consulta. */
   async onModuleInit() {
     await this.$connect();
   }
 
-  /** Cierra las conexiones cuando la app se detiene. */
+  /** Libera el pool cuando Nest cierra la aplicación con app.close(). */
   async onModuleDestroy() {
     await this.$disconnect();
   }
