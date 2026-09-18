@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
-import { trustedOrigins } from './auth/auth.js';
+import { trustedOrigins } from './modules/auth/auth.js';
 
 /** Arranca la API con CORS, prefijo global api y el puerto de PORT. */
 async function bootstrap() {

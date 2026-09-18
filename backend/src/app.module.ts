@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
-import { auth } from './auth/auth.js';
+import { auth } from './modules/auth/auth.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 

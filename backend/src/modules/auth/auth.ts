@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { prisma } from '../prisma/prisma.service.js';
+import { prisma } from '../../prisma/prisma.service.js';
 
 /** Orígenes de TRUSTED_ORIGINS, compartidos con el CORS de Nest. */
 export const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? '')
