@@ -36,7 +36,7 @@ function delay(ms: number = 300): Promise<void> {
 
 export const mockApiClient = {
   /**
-   * Tasks API Mock (Core API :3002)
+   * Tasks API Mock
    */
   tasks: {
     async findAll(page = 1, limit = 10) {
@@ -103,7 +103,7 @@ export const mockApiClient = {
   },
 
   /**
-   * Users API Mock (Auth API :3001)
+   * Users API Mock
    */
   users: {
     async getProfile() {

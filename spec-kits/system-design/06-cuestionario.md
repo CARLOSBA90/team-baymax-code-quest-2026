@@ -1,0 +1,217 @@
+# 06 — Cuestionario y Evaluacion
+
+> Diseno del cuestionario de diagnostico: preguntas, criterios de evaluacion, scoring y perfil resultante.
+
+---
+
+## Objetivo del Cuestionario
+
+El cuestionario convierte las respuestas del usuario en un **AssessmentProfile**:
+un mapa de scores por categoria de habilidad que el algoritmo de rutas usa para generar una ruta personalizada.
+
+El cuestionario no es un test de conocimiento. Es un diagnostico de **intereses, nivel actual y objetivo**.
+
+---
+
+## Estructura del Cuestionario
+
+### Bloque 1: Objetivo Profesional (1 pregunta)
+
+Esta pregunta define la dimension principal del vector del usuario.
+
+| # | Pregunta | Tipo |
+|---|----------|------|
+| 1 | Cual es tu principal objetivo de aprendizaje ahora? | Opcion unica |
+
+Opciones (mapean directamente a `goalCategory`):
+- "Desarrollar aplicaciones web del lado del servidor (backend)" -> `BACKEND`
+- "Desarrollar interfaces de usuario web (frontend)" -> `FRONTEND`
+- "Desarrollo movil (apps para celular)" -> `MOBILE`
+- "Bases de datos, manejo de datos" -> `DATABASES`
+- "DevOps, CI/CD, infraestructura" -> `DEVOPS`
+- "Exploracion general, no tengo objetivo especifico" -> `WEB_FUNDAMENTALS`
+
+### Bloque 2: Nivel Actual por Area (5-7 preguntas de escala)
+
+Cada pregunta evalua el nivel en una SkillCategory usando escala Likert (1-5).
+
+| # | Pregunta | Categoria | Escala |
+|---|----------|-----------|--------|
+| 2 | Como describes tu nivel actual en desarrollo backend (Node.js, APIs, servidores)? | BACKEND | 1-5 |
+| 3 | Como describes tu nivel actual en desarrollo frontend (HTML, CSS, React/Vue)? | FRONTEND | 1-5 |
+| 4 | Como describes tu nivel actual en bases de datos (SQL, PostgreSQL, MongoDB)? | DATABASES | 1-5 |
+| 5 | Tienes experiencia con DevOps, Docker o CI/CD? | DEVOPS | 1-5 |
+| 6 | Has trabajado con desarrollo movil (Flutter, React Native)? | MOBILE | 1-5 |
+| 7 | Que tan comodo te sientes con TypeScript / JavaScript moderno? | WEB_FUNDAMENTALS | 1-5 |
+
+Valores de la escala:
+- 1: "Nunca lo he tocado"
+- 2: "Lo conozco de nombre o vi un tutorial"
+- 3: "Hice algunos proyectos pequenos"
+- 4: "Lo uso regularmente en proyectos"
+- 5: "Tengo experiencia profesional solida"
+
+### Bloque 3: Intereses y Disponibilidad (2-3 preguntas)
+
+| # | Pregunta | Tipo |
+|---|----------|------|
+| 8 | Ademas de tu objetivo principal, que otras areas te interesan? | Multi-seleccion (hasta 2) |
+| 9 | Cuantas horas por semana puedes dedicar al estudio? | Opcion unica |
+| 10 | En cuantos cursos quieres enfocarte al mismo tiempo? | Opcion unica |
+
+Opciones para pregunta 9 (disponibilidad):
+- "Menos de 2 horas" -> `weeklyHours: 2`
+- "Entre 2 y 5 horas" -> `weeklyHours: 4`
+- "Entre 5 y 10 horas" -> `weeklyHours: 8`
+- "Mas de 10 horas" -> `weeklyHours: 15`
+
+Opciones para pregunta 10 (enfoque):
+- "Quiero enfoque total (1-3 cursos)" -> `maxCourses: 3`
+- "Ruta mediana (4-6 cursos)" -> `maxCourses: 6`
+- "Ruta completa (hasta 10 cursos)" -> `maxCourses: 10`
+
+---
+
+## Calculo del AssessmentProfile
+
+### Suma de Scores por Categoria
+
+Cada respuesta de la escala 1-5 se multiplica por 5, dando un rango de 5-25 por categoria.
+Las preguntas de intereses adicionales (Bloque 3) agregan un bonus de 3 puntos a las categorias seleccionadas.
+
+```typescript
+// Ejemplo de calculo
+const profileScores = {
+  BACKEND: (pregunta2.value * 5) + (interesBackend ? 3 : 0),  // max: 28
+  FRONTEND: (pregunta3.value * 5) + (interesFrontend ? 3 : 0), // max: 28
+  DATABASES: pregunta4.value * 5,                               // max: 25
+  DEVOPS: pregunta5.value * 5,                                  // max: 25
+  MOBILE: pregunta6.value * 5,                                  // max: 25
+  WEB_FUNDAMENTALS: pregunta7.value * 5,                        // max: 25
+};
+```
+
+### Determinacion del Nivel del Usuario (para filtrar cursos)
+
+```typescript
+function calcUserLevel(scores: Record<string, number>, goal: string): 1 | 2 | 3 {
+  const goalScore = scores[goal] ?? 0;
+  if (goalScore >= 20) return 3; // advanced
+  if (goalScore >= 10) return 2; // intermediate
+  return 1;                       // beginner
+}
+```
+
+### Desviacion de Intereses (para rutas hibridas)
+
+Si el usuario selecciona intereses secundarios, el algoritmo puede incluir hasta 2 cursos
+de las areas secundarias para generar una ruta mas "full-stack" o transversal.
+
+```
+Criterio: si un area secundaria tiene score >= 10, incluir hasta 1 curso de esa area
+en la ruta (siempre que el prerequisito lo permita).
+```
+
+---
+
+## Guardado del Historico
+
+Cada vez que el usuario completa el cuestionario, se crea un nuevo `Assessment` con sus `AssessmentAnswer`.
+No se sobreescribe el anterior. Esto permite:
+
+- Ver la evolucion del perfil del usuario a lo largo del tiempo
+- Comparar rutas generadas en diferentes momentos
+- Detectar si el usuario cambia de objetivo
+
+```
+User
+ |
+ +-- Assessment 1 (completado en sep-2026, perfil: { BACKEND: 20, FRONTEND: 10 })
+ |     +-- Roadmap 1.1 (ruta generada desde Assessment 1)
+ |
+ +-- Assessment 2 (completado en oct-2026, perfil: { BACKEND: 25, DEVOPS: 15 })
+       +-- Roadmap 2.1 (nueva ruta con perfil actualizado)
+```
+
+---
+
+## Consolidacion de Rutas
+
+Si el usuario completa el cuestionario por segunda vez:
+- Se genera un nuevo `Assessment` y se puede generar una nueva `Roadmap` desde el.
+- Las rutas anteriores se pueden `ARCHIVE` (no borrar, mantener historico).
+- El usuario elige cual ruta marcar como `ACTIVE`.
+
+---
+
+## Preguntas del Cuestionario en la Base de Datos
+
+Las preguntas se guardan en la tabla `Question` (ver entidades). Esto permite:
+- Agregar o desactivar preguntas sin necesidad de deploy
+- Versionado del cuestionario (campo `version` en `Assessment`)
+- A/B testing de preguntas en el futuro
+
+### Seed de Preguntas (para el MVP)
+
+```typescript
+// prisma/seed.ts — seed de preguntas iniciales
+const questions = [
+  {
+    text: 'Cual es tu principal objetivo de aprendizaje ahora?',
+    category: 'BACKEND', // categoria de referencia
+    order: 1,
+    options: [
+      { text: 'Desarrollo backend (APIs, servidores)', value: 5, order: 1 },
+      { text: 'Desarrollo frontend (UI, React)', value: 1, order: 2 },
+      // ...
+    ],
+  },
+  {
+    text: 'Como describes tu nivel actual en desarrollo backend?',
+    category: 'BACKEND',
+    order: 2,
+    options: [
+      { text: 'Nunca lo he tocado', value: 1, order: 1 },
+      { text: 'Vi algunos tutoriales', value: 2, order: 2 },
+      { text: 'Hice proyectos pequenos', value: 3, order: 3 },
+      { text: 'Lo uso regularmente', value: 4, order: 4 },
+      { text: 'Experiencia profesional solida', value: 5, order: 5 },
+    ],
+  },
+  // ... resto de preguntas
+];
+```
+
+---
+
+## Flujo Tecnico: Frontend -> Backend
+
+```
+Usuario responde el cuestionario en React
+        |
+        v
+POST /api/v1/assessments
+Body: {
+  answers: [
+    { questionId: "q1", optionId: "opt3" },
+    { questionId: "q2", optionId: "opt4" },
+    ...
+  ]
+}
+        |
+        v
+AssessmentsController.submit()
+        |
+        v
+AssessmentsService.submit(userId, answers):
+  1. Crear Assessment { userId, version: N }
+  2. Guardar AssessmentAnswer por cada respuesta
+  3. Calcular profileScores segun las opciones elegidas
+  4. Actualizar Assessment.profileScores y Assessment.completedAt
+  5. Retornar: { assessmentId, profileScores, goalCategory }
+        |
+        v
+Frontend recibe el resultado y redirige a:
+  POST /api/v1/roadmaps/generate
+  Body: { assessmentId, weeklyHours, maxCourses }
+```

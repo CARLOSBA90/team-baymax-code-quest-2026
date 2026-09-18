@@ -1,10 +1,10 @@
-# 🏗 NestJS Scaffolding — Spec-Kit
+# NestJS Scaffolding — Spec-Kit
 
-> Guía paso a paso para crear un backend NestJS desde cero siguiendo las convenciones de CodeQuest.
+> Guia paso a paso para configurar el backend NestJS como un Monolito Modular siguiendo las convenciones de CodeQuest.
 
 ---
 
-## 📋 Prerrequisitos
+## Prerrequisitos
 
 ```bash
 # Verificar versiones
@@ -14,102 +14,78 @@ pnpm -v   # >= 9.x
 # Instalar NestJS CLI globalmente
 pnpm add -g @nestjs/cli
 
-# Verificar instalación
+# Verificar instalacion
 nest --version
 ```
 
 ---
 
-## 🚀 Paso 1: Crear el Proyecto
+## Paso 1: El Proyecto Backend
+
+El backend de CodeQuest es un **unico proyecto NestJS** ubicado en `backend/`. No se crea ni se separa en multiples servicios.
 
 ```bash
-# Desde la carpeta backend/
+# Instalar dependencias del backend existente
+cd backend
+pnpm install
+```
+
+> El proyecto ya fue inicializado. No se ejecuta `nest new` nuevamente a menos que se parta desde cero.
+
+---
+
+## Paso 2: Dependencias Base
+
+Instalar en el backend todas las dependencias necesarias:
+
+```bash
 cd backend
 
-# Crear nuevo proyecto NestJS
-nest new auth-api --package-manager pnpm --strict
-# ó
-nest new core-api --package-manager pnpm --strict
-# ó
-nest new notifications-api --package-manager pnpm --strict
-```
-
-> 💡 El flag `--strict` habilita TypeScript strict mode desde el inicio.
-
----
-
-## 📦 Paso 2: Dependencias Base
-
-Instalar en cada backend las dependencias comunes:
-
-```bash
-cd backend/<nombre-del-backend>
-
-# Validación y transformación
+# Validacion y transformacion
 pnpm add class-validator class-transformer
 
-# Configuración
-pnpm add @nestjs/config
-
-# Base de datos (Prisma)
-pnpm add @prisma/client
-pnpm add -D prisma
-
-# Swagger (documentación API)
+# Documentacion API
 pnpm add @nestjs/swagger
 
-# Dev dependencies
-pnpm add -D @types/node
-```
-
-### Dependencias específicas por backend
-
-```bash
-# Solo para auth-api
-pnpm add better-auth @thallesp/nestjs-better-auth
-
-# Solo para notifications-api
-pnpm add @nestjs/bull bull        # Colas de trabajo
-pnpm add nodemailer               # Envío de emails
-pnpm add -D @types/nodemailer
+# (Ya instalados por el scaffold base)
+# @nestjs/config, @prisma/client, prisma, better-auth, @thallesp/nestjs-better-auth
 ```
 
 ---
 
-## ⚙️ Paso 3: Configuración Inicial
+## Paso 3: Configuracion Inicial
 
-### 3.1 — Habilitar validación global
+### 3.1 — Habilitar validacion global
 
 ```typescript
 // src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false, // Requerido para Better Auth
+  });
 
-  // Validación global con class-validator
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,            // Elimina propiedades no definidas en DTO
-      forbidNonWhitelisted: true, // Lanza error si envían propiedades extra
-      transform: true,            // Transforma payloads a instancias de DTO
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
 
-  // CORS
   app.enableCors({
-    origin: ['http://localhost:5173'], // Frontend React
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
     credentials: true,
   });
 
-  // Prefijo global de API
   app.setGlobalPrefix('api/v1');
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`Server running on http://localhost:${port}`);
 }
 bootstrap();
 ```
@@ -133,16 +109,24 @@ export class AppModule {}
 ```
 
 ```bash
-# .env.example (crear en la raíz de cada backend)
+# .env.example (en la raiz del backend/)
 PORT=3001
-DATABASE_URL=postgresql://user:password@localhost:5432/codequest_auth
+DATABASE_URL=postgresql://user:password@localhost:5432/codequest
 NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+
+# Better Auth
+BETTER_AUTH_SECRET=your-secret-here
+
+# Discord OAuth
+DISCORD_CLIENT_ID=your-discord-client-id
+DISCORD_CLIENT_SECRET=your-discord-client-secret
 ```
 
 ### 3.3 — Configurar Prisma
 
 ```bash
-# Inicializar Prisma
+# Inicializar Prisma (si no esta inicializado)
 npx prisma init
 
 # Esto crea:
@@ -161,7 +145,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Agregar modelos aquí...
+// Agregar modelos aqui...
 ```
 
 ### 3.4 — Crear PrismaService
@@ -189,7 +173,7 @@ export class PrismaService
 ```typescript
 // src/prisma/prisma.module.ts
 import { Global, Module } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from './prisma.service.js';
 
 @Global()
 @Module({
@@ -201,29 +185,30 @@ export class PrismaModule {}
 
 ---
 
-## 📐 Paso 4: Estructura de Carpetas
+## Paso 4: Estructura de Carpetas
 
 Consulta [structure.md](./structure.md) para la estructura completa recomendada.
 
 ---
 
-## 🔧 Paso 5: Crear un Resource (CRUD)
+## Paso 5: Crear un Modulo (Resource CRUD)
 
-Usa el CLI de NestJS para generar un resource completo:
+Usa el CLI de NestJS para generar un resource completo dentro del directorio `modules/`:
 
 ```bash
 # Genera controller, service, module, DTOs y entity
-nest generate resource tasks --no-spec
+nest generate resource modules/roadmaps --no-spec
 
 # O con el shorthand
-nest g res tasks --no-spec
+nest g res modules/assessments --no-spec
+nest g res modules/notifications --no-spec
 ```
 
-Esto genera la estructura base. Consulta el [ejemplo completo de resource](./example-resource/) para ver cómo implementar un CRUD completo con Prisma.
+Esto genera la estructura base. Consulta el [ejemplo completo de resource](./example-resource/) para ver como implementar un CRUD completo con Prisma.
 
 ---
 
-## 📝 Paso 6: Swagger (Documentación)
+## Paso 6: Swagger (Documentacion)
 
 ```typescript
 // src/main.ts (agregar antes de app.listen)
@@ -231,37 +216,36 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 // ... dentro de bootstrap()
 const config = new DocumentBuilder()
-  .setTitle('CodeQuest Auth API')
-  .setDescription('API de autenticación y gestión de usuarios')
+  .setTitle('CodeQuest API')
+  .setDescription('API de CodeQuest — Monolito Modular')
   .setVersion('1.0')
-  .addBearerAuth()
+  .addCookieAuth('better-auth.session_token')
   .build();
 
 const document = SwaggerModule.createDocument(app, config);
 SwaggerModule.setup('api/docs', app, document);
 ```
 
-> Accede a la documentación en `http://localhost:3001/api/docs`
+> Accede a la documentacion en `http://localhost:3001/api/docs`
 
 ---
 
-## ✅ Checklist de Setup
+## Checklist de Setup
 
-- [ ] Proyecto creado con `nest new`
-- [ ] Dependencias instaladas
+- [ ] Dependencias instaladas (`pnpm install` en `backend/`)
 - [ ] `ValidationPipe` global configurado
-- [ ] CORS habilitado
-- [ ] `ConfigModule` importado
-- [ ] `.env.example` creado
-- [ ] Prisma inicializado
+- [ ] CORS habilitado con `credentials: true`
+- [ ] `ConfigModule` importado en `AppModule`
+- [ ] `.env` creado a partir de `.env.example`
+- [ ] Prisma inicializado y schema configurado
 - [ ] PrismaService y PrismaModule creados
 - [ ] Swagger configurado
-- [ ] Primer resource generado con el CLI
+- [ ] Primer modulo generado con el CLI
 
 ---
 
-## 🔗 Recursos Relacionados
+## Recursos Relacionados
 
-- [Estructura de carpetas →](./structure.md)
-- [Ejemplo de resource CRUD →](./example-resource/)
-- [Better Auth setup →](../better-auth/README.md)
+- [Estructura de carpetas](./structure.md)
+- [Ejemplo de resource CRUD](./example-resource/)
+- [Better Auth setup](../better-auth/README.md)

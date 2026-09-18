@@ -1,146 +1,159 @@
-# 🏰 CodeQuest
+# CodeQuest
 
-> Plataforma modular con arquitectura de microservicios: **3 backends NestJS + 1 frontend React**.
-
----
-
-## 📋 Tabla de Contenidos
-
-- [Arquitectura](#-arquitectura)
-- [Tech Stack](#-tech-stack)
-- [Estructura del Repositorio](#-estructura-del-repositorio)
-- [Estrategia de Ramas Git](#-estrategia-de-ramas-git)
-- [Cómo Empezar](#-cómo-empezar)
-- [Backends](#-backends)
-- [Frontend](#-frontend)
-- [Spec-Kits](#-spec-kits)
-- [Contribuir](#-contribuir)
+> Plataforma modular con arquitectura de Monolito Modular: **1 backend NestJS + 1 frontend React**.
 
 ---
 
-## 🏗 Arquitectura
+## Tabla de Contenidos
 
-CodeQuest sigue una arquitectura de **microservicios** con un frontend unificado que consume múltiples APIs independientes.
+- [Arquitectura](#arquitectura)
+- [Tech Stack](#tech-stack)
+- [Estructura del Repositorio](#estructura-del-repositorio)
+- [Estrategia de Ramas Git](#estrategia-de-ramas-git)
+- [Como Empezar](#como-empezar)
+- [Backend](#backend)
+- [Frontend](#frontend)
+- [Spec-Kits](#spec-kits)
+- [Contribuir](#contribuir)
+
+---
+
+## Arquitectura
+
+CodeQuest sigue una arquitectura de **Monolito Modular**: un unico backend NestJS organizado por modulos de dominio independientes, consumido por un frontend React.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    FRONTEND (React)                     │
-│                   localhost:5173                         │
-└──────────┬──────────────┬──────────────┬────────────────┘
-           │              │              │
-           ▼              ▼              ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐
-│  Backend #1  │ │  Backend #2  │ │     Backend #3       │
-│  Auth API    │ │  Core API    │ │   Notifications API  │
-│  :3001       │ │  :3002       │ │   :3003              │
-│              │ │              │ │                      │
-│ Better Auth  │ │ Lógica de    │ │ Emails, push,        │
-│ Usuarios     │ │ negocio      │ │ webhooks             │
-│ Sesiones     │ │ Resources    │ │                      │
-└──────┬───────┘ └──────┬───────┘ └──────────┬───────────┘
-       │                │                    │
-       ▼                ▼                    ▼
-┌─────────────────────────────────────────────────────────┐
-│                   PostgreSQL Database                   │
-│              (puede ser 1 DB o varias)                  │
-└─────────────────────────────────────────────────────────┘
++--------------------------------------------------+
+|               FRONTEND (React)                   |
+|              localhost:5173                      |
++--------------------------------------------------+
+                        |
+                        | HTTP (cookies)
+                        v
++--------------------------------------------------+
+|           BACKEND NestJS (Monolito Modular)      |
+|               localhost:3001                     |
+|                                                  |
+|  /api/auth/*    - AuthModule (Better Auth)       |
+|  /api/v1/users  - UsersModule                    |
+|  /api/v1/roadmaps      - RoadmapsModule          |
+|  /api/v1/assessments   - AssessmentsModule       |
+|  /api/v1/notifications - NotificationsModule     |
++--------------------------------------------------+
+                        |
+                        v
++--------------------------------------------------+
+|              PostgreSQL Database                 |
++--------------------------------------------------+
 ```
 
-### Responsabilidades por Backend
+### Modulos del Backend
 
-| Backend | Puerto | Dominio | Descripción |
-|---------|--------|---------|-------------|
-| **Auth API** | `:3001` | Autenticación | Better Auth, gestión de usuarios, sesiones, roles |
-| **Core API** | `:3002` | Negocio | Lógica principal, resources CRUD, reglas de negocio |
-| **Notifications API** | `:3003` | Notificaciones | Emails, push notifications, webhooks, eventos |
+| Modulo | Ruta base | Descripcion |
+|--------|-----------|-------------|
+| **AuthModule** | `/api/auth/*` | Better Auth, login con Discord, sesiones |
+| **UsersModule** | `/api/v1/users` | Perfil de usuario, gestion de cuenta |
+| **AssessmentsModule** | `/api/v1/assessments` | Cuestionario de habilidades e intereses |
+| **RoadmapsModule** | `/api/v1/roadmaps` | Rutas de aprendizaje generadas, progreso |
+| **NotificationsModule** | `/api/v1/notifications` | Emails, preferencias de notificacion |
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Backend
-| Tecnología | Uso |
+| Tecnologia | Uso |
 |------------|-----|
-| **NestJS** | Framework principal para los 3 backends |
-| **Better Auth** | Autenticación y gestión de sesiones |
-| **@thallesp/nestjs-better-auth** | Integración de Better Auth con NestJS |
+| **NestJS** | Framework principal (Monolito Modular) |
+| **Better Auth** | Autenticacion y gestion de sesiones |
+| **@thallesp/nestjs-better-auth** | Integracion de Better Auth con NestJS |
+| **Discord OAuth** | Proveedor de autenticacion (requerimiento del brief) |
 | **PostgreSQL** | Base de datos relacional |
 | **Prisma** | ORM y migraciones |
-| **class-validator** | Validación de DTOs |
-| **class-transformer** | Transformación de objetos |
+| **class-validator** | Validacion de DTOs |
+| **class-transformer** | Transformacion de objetos |
 
 ### Frontend
-| Tecnología | Uso |
+| Tecnologia | Uso |
 |------------|-----|
 | **React** | UI del frontend |
-| **TypeScript** | Tipado estático |
-| **better-auth/react** | Cliente de autenticación |
-| **TanStack Query** | Gestión de estado del servidor |
+| **TypeScript** | Tipado estatico |
+| **better-auth/react** | Cliente de autenticacion |
+| **TanStack Query** | Gestion de estado del servidor |
 
 ### DevOps & Tooling
-| Tecnología | Uso |
+| Tecnologia | Uso |
 |------------|-----|
 | **pnpm** | Package manager |
-| **Docker** | Contenedores para desarrollo y producción |
+| **Docker** | Contenedores para desarrollo y produccion |
 | **ESLint + Prettier** | Linting y formateo |
 
 ---
 
-## 📁 Estructura del Repositorio
+## Estructura del Repositorio
 
 ```
 codequest/
-├── README.md                    # ← Estás aquí
-├── backend/
-│   ├── auth-api/                # Backend #1 — Autenticación
-│   │   └── src/
-│   ├── core-api/                # Backend #2 — Lógica de negocio
-│   │   └── src/
-│   └── notifications-api/       # Backend #3 — Notificaciones
-│       └── src/
-├── frontend/
-│   └── src/                     # Frontend React
-├── spec-kits/                   # 📘 Documentación y guías
-│   ├── nestjs-scaffolding/      # Guía de scaffolding NestJS
-│   ├── better-auth/             # Instructivo Better Auth
-│   └── mocks/                   # Mocks para dev (backend + frontend)
-└── docker-compose.yml           # (futuro) Orquestación local
++-- README.md
++-- backend/                         # Backend NestJS (Monolito Modular)
+|   +-- src/
+|   |   +-- main.ts
+|   |   +-- app.module.ts
+|   |   +-- common/                  # Filtros, guards, interceptores globales
+|   |   +-- config/                  # Variables de entorno
+|   |   +-- prisma/                  # PrismaService y PrismaModule
+|   |   +-- modules/
+|   |       +-- auth/                # Better Auth + Discord
+|   |       +-- users/               # Perfil de usuario
+|   |       +-- assessments/         # Cuestionario
+|   |       +-- roadmaps/            # Rutas de aprendizaje
+|   |       +-- notifications/       # Notificaciones
+|   +-- prisma/
+|       +-- schema.prisma
++-- frontend/
+|   +-- src/                         # Frontend React + Vite
++-- spec-kits/                       # Documentacion y guias
+|   +-- nestjs-scaffolding/          # Guia de scaffolding NestJS
+|   +-- better-auth/                 # Instructivo Better Auth + Discord
+|   +-- mocks/                       # Mocks para dev
++-- tasks/                           # Seguimiento de tareas del equipo
++-- docker-compose.yml               # (futuro) Orquestacion local
 ```
 
 ---
 
-## 🌿 Estrategia de Ramas Git
+## Estrategia de Ramas Git
 
 Utilizamos un flujo basado en **Git Flow simplificado** con 2 ramas principales y ramas de trabajo.
 
 ```
-main ─────────●────────────────●────────────── producción
-              │                ▲
-              │                │ merge
-              ▼                │
-dev  ─────●───●───●───●───●───●──────────────── integración
-          │       │       ▲
-          │       │       │ merge
-          ▼       ▼       │
-feature/  ●───●   ●───●───● ← ramas de trabajo
+main -----+-----------------------------+-------------- produccion
+          |                             ^
+          |                             | merge
+          v                             |
+dev  -----+---+---+---+---+---+--------+-------------- integracion
+          |       |       ^
+          |       |       | merge
+          v       v       |
+feature/  +---+   +---+---+ <- ramas de trabajo
 ```
 
 ### Ramas Principales
 
-| Rama | Propósito | Protección |
+| Rama | Proposito | Proteccion |
 |------|-----------|------------|
-| `main` | **Producción.** Código estable y desplegado. | PR obligatorio, mínimo 1 review |
-| `dev` | **Integración.** Rama base para desarrollo activo. | PR obligatorio |
+| `main` | Produccion. Codigo estable y desplegado. | PR obligatorio, minimo 1 review |
+| `dev` | Integracion. Rama base para desarrollo activo. | PR obligatorio |
 
 ### Ramas de Trabajo
 
 | Prefijo | Uso | Ejemplo |
 |---------|-----|---------|
 | `feature/` | Nueva funcionalidad | `feature/user-registration` |
-| `fix/` | Corrección de bug | `fix/login-redirect` |
-| `hotfix/` | Corrección urgente en producción | `hotfix/session-expiry` |
-| `refactor/` | Refactorización sin cambio funcional | `refactor/auth-module` |
-| `docs/` | Solo documentación | `docs/api-endpoints` |
+| `fix/` | Correccion de bug | `fix/login-redirect` |
+| `hotfix/` | Correccion urgente en produccion | `hotfix/session-expiry` |
+| `refactor/` | Refactorizacion sin cambio funcional | `refactor/auth-module` |
+| `docs/` | Solo documentacion | `docs/api-endpoints` |
 
 ### Convenciones de Nombrado
 
@@ -151,8 +164,8 @@ git checkout -b fix/cors-headers
 git checkout -b hotfix/token-expiry
 
 # Commits (Conventional Commits)
-git commit -m "feat(core-api): add tasks CRUD endpoints"
-git commit -m "fix(auth-api): resolve session cookie domain"
+git commit -m "feat(roadmaps): add roadmap generator endpoint"
+git commit -m "fix(auth): resolve discord oauth callback"
 git commit -m "docs: update better-auth setup guide"
 ```
 
@@ -166,13 +179,13 @@ git commit -m "docs: update better-auth setup guide"
    ```
 2. Desarrollar y hacer commits con **Conventional Commits**
 3. Crear **Pull Request** hacia `dev`
-4. Code review + aprobación
+4. Code review + aprobacion
 5. Merge a `dev`
-6. Cuando `dev` es estable → PR hacia `main` (release)
+6. Cuando `dev` es estable -> PR hacia `main` (release)
 
 ---
 
-## 🚀 Cómo Empezar
+## Como Empezar
 
 ### Prerrequisitos
 
@@ -181,73 +194,58 @@ git commit -m "docs: update better-auth setup guide"
 - **PostgreSQL** >= 16
 - **Git**
 
-### Instalación
+### Instalacion
 
 ```bash
 # 1. Clonar el repositorio
 git clone <repo-url> codequest
 cd codequest
 
-# 2. Instalar dependencias de cada backend
-cd backend/auth-api && pnpm install && cd ../..
-cd backend/core-api && pnpm install && cd ../..
-cd backend/notifications-api && pnpm install && cd ../..
+# 2. Instalar dependencias del backend
+cd backend && pnpm install && cd ..
 
 # 3. Instalar dependencias del frontend
 cd frontend && pnpm install && cd ..
 
 # 4. Configurar variables de entorno
-# Cada backend tiene su propio .env (ver .env.example en cada uno)
+# Copiar .env.example a .env en cada directorio y completar los valores
 ```
 
 ### Levantar el Proyecto
 
 ```bash
-# Terminal 1 — Auth API
-cd backend/auth-api && pnpm run start:dev
+# Terminal 1 - Backend (NestJS)
+cd backend && pnpm start:dev
 
-# Terminal 2 — Core API
-cd backend/core-api && pnpm run start:dev
-
-# Terminal 3 — Notifications API
-cd backend/notifications-api && pnpm run start:dev
-
-# Terminal 4 — Frontend
-cd frontend && pnpm run dev
-```
-
----
-
-## 🔧 Backends
-
-Cada backend es un proyecto NestJS independiente. Consulta los spec-kits para saber cómo crear y configurar cada uno:
-
-- 📘 [Scaffolding NestJS](./spec-kits/nestjs-scaffolding/README.md) — Cómo crear un backend desde cero
-- 📘 [Better Auth](./spec-kits/better-auth/README.md) — Cómo integrar autenticación
-- 📘 [Mocks](./spec-kits/mocks/README.md) — Datos mock para desarrollo
-
-### Comunicación Entre Backends
-
-Los backends se comunican entre sí mediante **HTTP interno** (para simplicidad inicial). El frontend solo habla con los endpoints expuestos de cada backend.
-
-```
-Frontend ──→ Auth API    (login, register, session)
-Frontend ──→ Core API    (CRUD de recursos)
-Frontend ──→ Notif API   (preferencias de notificación)
-
-Core API ──→ Auth API    (validar tokens internamente)
-Core API ──→ Notif API   (disparar notificaciones)
+# Terminal 2 - Frontend (React + Vite)
+cd frontend && pnpm dev
 ```
 
 ---
 
 ## Backend
 
-> **Estado actual:** `backend/` es **un único** servicio NestJS (no los tres descritos arriba) con autenticación por Better Auth sobre PostgreSQL (Neon) y Prisma 7. Todas las rutas cuelgan del prefijo `/api`, y Better Auth atiende `/api/auth/*`.
+El backend es un unico proyecto NestJS Modular. Consulta los spec-kits para saber como crear y configurar cada modulo:
 
-### Levantarlo
+- [Scaffolding NestJS](./spec-kits/nestjs-scaffolding/README.md) — Como crear y estructurar el backend modular
+- [Better Auth + Discord](./spec-kits/better-auth/README.md) — Como integrar autenticacion con Discord
+- [Mocks](./spec-kits/mocks/README.md) — Datos mock para desarrollo
 
-Requisitos: Node.js >= 22.22.1 (lo exige `@thallesp/nestjs-better-auth`), pnpm y una base PostgreSQL (Neon).
+### Comunicacion Frontend -> Backend
+
+El frontend se comunica con un unico backend. Todos los modulos estan expuestos desde el mismo proceso NestJS:
+
+```
+Frontend ---> /api/auth/*         (login, register, session, discord)
+Frontend ---> /api/v1/users       (perfil de usuario)
+Frontend ---> /api/v1/assessments (cuestionario de habilidades)
+Frontend ---> /api/v1/roadmaps    (rutas de aprendizaje generadas)
+Frontend ---> /api/v1/notifications (preferencias y notificaciones)
+```
+
+### Levantar el backend
+
+Requiere Node.js >= 22.22.1 (lo exige `@thallesp/nestjs-better-auth`), pnpm y una base PostgreSQL (Neon).
 
 ```bash
 cd backend
@@ -266,43 +264,47 @@ npx prisma generate
 pnpm start:dev
 
 # Verificar
-curl http://localhost:3001/api/health   # {"data":{"status":"ok"}}
+curl http://localhost:3001/api/v1/health   # {"data":{"status":"ok"}}
 ```
 
 Notas:
 
-- Si cambias `prisma/schema.prisma`, crea la migración con `npx prisma migrate dev --name <nombre>`. En Prisma 7 `migrate dev` **no** regenera el cliente: corre `npx prisma generate` después.
-- Para regenerar los modelos de Better Auth (por ejemplo, al agregar un plugin): `npx auth@latest generate --config src/auth/auth.ts --output prisma/schema.prisma`. El paquete `@better-auth/cli` está deprecado; su reemplazo es `auth`.
+- Better Auth atiende `/api/auth/*`. Los modulos propios usan el prefijo global `/api/v1`.
+- Si cambias `prisma/schema.prisma`, crea la migracion con `npx prisma migrate dev --name <nombre>`. En Prisma 7 `migrate dev` **no** regenera el cliente: corre `npx prisma generate` despues.
+- Para regenerar los modelos de Better Auth (por ejemplo, al agregar un plugin): `npx auth@latest generate --config src/modules/auth/auth.ts --output prisma/schema.prisma`. El paquete `@better-auth/cli` esta deprecado; su reemplazo es `auth`.
 - `AuthModule` instala un **guard global**: todo endpoint nuevo queda protegido salvo que lleve `@AllowAnonymous()` u `@OptionalAuth()`.
 - Para Discord, registra este Redirect URI en el Developer Portal (OAuth2): `http://localhost:3001/api/auth/callback/discord`.
 
-### Endpoints
+### Endpoints disponibles
 
-| Método | Ruta | Sesión | Descripción |
+| Metodo | Ruta | Sesion | Descripcion |
 |--------|------|--------|-------------|
-| `GET` | `/api/health` | No | Health check |
-| `POST` | `/api/auth/sign-up/email` | No | Registro con email y contraseña (mínimo 8 caracteres) |
-| `POST` | `/api/auth/sign-in/email` | No | Inicio de sesión con email y contraseña |
+| `GET` | `/api/v1/health` | No | Health check |
+| `POST` | `/api/auth/sign-up/email` | No | Registro con email y contrasena (minimo 8 caracteres) |
+| `POST` | `/api/auth/sign-in/email` | No | Inicio de sesion con email y contrasena |
 | `POST` | `/api/auth/sign-in/social` | No | Inicia el login OAuth (`provider: "discord"`) |
-| `GET` | `/api/auth/get-session` | Opcional | Sesión actual (`null` si no hay cookie válida) |
-| `POST` | `/api/auth/sign-out` | Sí | Cierra la sesión |
-| `GET` | `/api/users/me` | Sí | Perfil del usuario autenticado (`401` sin sesión) |
+| `GET` | `/api/auth/get-session` | Opcional | Sesion actual (`null` si no hay cookie valida) |
+| `POST` | `/api/auth/sign-out` | Si | Cierra la sesion |
+| `GET` | `/api/v1/users/me` | Si | Perfil del usuario autenticado (`401` sin sesion) |
 
-La sesión viaja en la cookie `better-auth.session_token` y dura 7 días.
+La sesion viaja en la cookie `better-auth.session_token` y dura 7 dias. El login con Discord se inicia con `POST /api/auth/sign-in/social`; la ruta `GET /api/auth/signin/discord` no existe en Better Auth 1.7.
 
 ### Probar con Postman
 
 Antes de empezar:
 
-- Postman guarda las cookies por dominio, así que después del registro o del login las siguientes requests a `localhost:3001` ya van autenticadas.
-- Agrega el header `Origin: http://localhost:5173` (o cualquier origen de `TRUSTED_ORIGINS`) a los `POST` de `/api/auth/*`; conviene definirlo a nivel de colección. Better Auth lo exige cuando la request lleva cookies y, sin él, responde `403 MISSING_OR_NULL_ORIGIN`.
+- Postman guarda las cookies por dominio, asi que despues del registro o del login las siguientes requests a `localhost:3001` ya van autenticadas.
+- Better Auth exige el header `Origin` con un origen de `TRUSTED_ORIGINS` en los `POST` que llevan cookies; sin el responde `403 MISSING_OR_NULL_ORIGIN`. Para no agregarlo a mano, crea una coleccion y en su pestana **Scripts > Pre-request** agrega:
+
+  ```js
+  pm.request.headers.upsert({ key: 'Origin', value: 'http://localhost:5173' });
+  ```
 
 **1. Registro**
 
 ```http
 POST http://localhost:3001/api/auth/sign-up/email
 Content-Type: application/json
-Origin: http://localhost:5173
 
 {
   "name": "Test User",
@@ -311,14 +313,13 @@ Origin: http://localhost:5173
 }
 ```
 
-Responde `200` con `{ token, user }` y deja la cookie de sesión. El usuario queda en la tabla `user` y la contraseña (hasheada) en `account`.
+Responde `200` con `{ token, user }` y deja la cookie de sesion. El usuario queda en la tabla `user` y la contrasena (hasheada) en `account`.
 
-**2. Inicio de sesión**
+**2. Inicio de sesion**
 
 ```http
 POST http://localhost:3001/api/auth/sign-in/email
 Content-Type: application/json
-Origin: http://localhost:5173
 
 {
   "email": "test@example.com",
@@ -326,48 +327,20 @@ Origin: http://localhost:5173
 }
 ```
 
-Responde `200` con `{ redirect: false, token, user }`, o `401` si las credenciales son inválidas.
+Responde `200` con `{ redirect: false, token, user }`, o `401` si las credenciales son invalidas.
 
-**3. Sesión actual**
+**3. Sesion actual**
 
 ```http
 GET http://localhost:3001/api/auth/get-session
 ```
 
-Responde `{ session, user }`; sin cookie válida responde `null`.
+Responde `{ session, user }`; sin cookie valida responde `null`.
 
-**4. Login con Discord**
-
-```http
-POST http://localhost:3001/api/auth/sign-in/social
-Content-Type: application/json
-Origin: http://localhost:5173
-
-{
-  "provider": "discord"
-}
-```
-
-Responde `{ url, redirect: true }`, donde `url` apunta a `discord.com/api/oauth2/authorize`. Postman sirve para comprobar que la URL se genera, pero el flujo completo requiere un navegador: Better Auth guarda una cookie firmada `better-auth.state` que debe volver en el callback. Para completarlo, abre `http://localhost:3001/api/health` en el navegador y ejecuta en la consola:
-
-```js
-const res = await fetch('/api/auth/sign-in/social', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    provider: 'discord',
-    callbackURL: 'http://localhost:3001/api/users/me',
-  }),
-});
-location.href = (await res.json()).url;
-```
-
-Tras autorizar en Discord, el callback crea la sesión y redirige a `/api/users/me`. Si `DISCORD_CLIENT_ID` o `DISCORD_CLIENT_SECRET` están vacías, este endpoint responde `500` (`OAuth provider requires clientId` en el log).
-
-**5. Perfil del usuario autenticado**
+**4. Perfil del usuario autenticado**
 
 ```http
-GET http://localhost:3001/api/users/me
+GET http://localhost:3001/api/v1/users/me
 ```
 
 ```json
@@ -381,42 +354,79 @@ GET http://localhost:3001/api/users/me
 }
 ```
 
-Sin sesión responde `401 Unauthorized`.
+Sin sesion responde `401 Unauthorized`.
+
+**5. Cerrar sesion**
+
+```http
+POST http://localhost:3001/api/auth/sign-out
+Content-Type: application/json
+
+{}
+```
+
+Responde `{ "success": true }`. Despues, `/api/v1/users/me` vuelve a responder `401`.
+
+### Probar el login con Discord
+
+Postman solo sirve para comprobar que `POST /api/auth/sign-in/social` con `{ "provider": "discord" }` devuelve `{ url, redirect: true }`. El flujo completo requiere un navegador: Better Auth guarda una cookie firmada `better-auth.state` que debe volver en el callback.
+
+1. Abre `http://localhost:3001/api/v1/health` en el navegador (usa `localhost`, no `127.0.0.1`).
+2. En la consola del navegador ejecuta:
+
+   ```js
+   const res = await fetch('/api/auth/sign-in/social', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       provider: 'discord',
+       callbackURL: 'http://localhost:3001/api/v1/users/me',
+     }),
+   });
+   const data = await res.json();
+   console.log(res.status, data);
+   if (data.url) location.href = data.url;
+   ```
+
+3. Autoriza en Discord antes de 5 minutos. Si tardas mas, la cookie de estado vence y el callback termina en `/api/auth/error?error=state_mismatch`; en ese caso repite el paso 2.
+4. El callback crea el usuario y la sesion y redirige a `/api/v1/users/me` con tu perfil de Discord.
+
+Si `DISCORD_CLIENT_ID` o `DISCORD_CLIENT_SECRET` estan vacias, `sign-in/social` responde `500` (`OAuth provider requires clientId` en el log).
 
 ---
 
-## 🎨 Frontend
+## Frontend
 
-> ⚠️ **El frontend será desarrollado por el programador frontend.** Este repositorio provee mocks y guías para facilitar su trabajo.
+> El frontend sera desarrollado por el programador frontend. Este repositorio provee mocks y guias para facilitar su trabajo.
 
 Recursos disponibles:
-- 📘 [Mocks de Frontend](./spec-kits/mocks/frontend/) — Mocks de auth context, API client
-- 📘 [Setup Better Auth (React)](./spec-kits/better-auth/setup-frontend.md) — Guía del cliente de auth
+- [Mocks de Frontend](./spec-kits/mocks/frontend/) — Mocks de auth context, API client
+- [Setup Better Auth (React)](./spec-kits/better-auth/setup-frontend.md) — Guia del cliente de auth con Discord
 
 ---
 
-## 📘 Spec-Kits
+## Spec-Kits
 
-Los **spec-kits** son documentación viva del proyecto. Contienen guías, ejemplos y mocks.
+Los **spec-kits** son documentacion viva del proyecto. Contienen guias, ejemplos y mocks.
 
-| Spec-Kit | Descripción | Link |
+| Spec-Kit | Descripcion | Link |
 |----------|-------------|------|
-| **NestJS Scaffolding** | Cómo crear y estructurar un backend NestJS | [Ver guía](./spec-kits/nestjs-scaffolding/README.md) |
-| **Better Auth** | Instructivo paso a paso de autenticación | [Ver guía](./spec-kits/better-auth/README.md) |
+| **NestJS Scaffolding** | Como crear y estructurar el backend NestJS modular | [Ver guia](./spec-kits/nestjs-scaffolding/README.md) |
+| **Better Auth** | Instructivo paso a paso de autenticacion con Discord | [Ver guia](./spec-kits/better-auth/README.md) |
 | **Mocks** | Datos mock para backend y frontend | [Ver mocks](./spec-kits/mocks/README.md) |
 
 ---
 
-## 🤝 Contribuir
+## Contribuir
 
-1. Lee los [spec-kits](#-spec-kits) antes de empezar
-2. Sigue la [estrategia de ramas](#-estrategia-de-ramas-git)
+1. Lee los [spec-kits](#spec-kits) antes de empezar
+2. Sigue la [estrategia de ramas](#estrategia-de-ramas-git)
 3. Usa **Conventional Commits** para los mensajes
 4. Crea un **PR** hacia `dev` y solicita review
-5. Documenta cualquier decisión de arquitectura nueva
+5. Documenta cualquier decision de arquitectura nueva
 
 ---
 
-## 📄 Licencia
+## Licencia
 
-MIT — Ver [LICENSE](./LICENSE) para más detalles.
+MIT — Ver [LICENSE](./LICENSE) para mas detalles.

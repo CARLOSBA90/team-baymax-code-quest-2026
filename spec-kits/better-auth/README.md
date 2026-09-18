@@ -1,111 +1,110 @@
-# 🔐 Better Auth — Spec-Kit
+# Better Auth — Spec-Kit
 
-> Instructivo paso a paso para implementar autenticación con Better Auth en el proyecto CodeQuest.
-
----
-
-## ¿Qué es Better Auth?
-
-[Better Auth](https://www.better-auth.com/) es una librería de autenticación moderna para TypeScript que proporciona:
-
-- ✅ Autenticación por email/contraseña
-- ✅ OAuth (Google, GitHub, etc.)
-- ✅ Gestión de sesiones
-- ✅ Sistema de roles
-- ✅ Two-Factor Authentication (2FA)
-- ✅ Rate limiting integrado
-
-### ¿Por qué Better Auth?
-
-| Característica | Better Auth | Auth.js | Passport |
-|---------------|-------------|---------|----------|
-| TypeScript nativo | ✅ | ✅ | ❌ |
-| Zero config DB | ✅ | ❌ | ❌ |
-| Sesiones built-in | ✅ | ✅ | ❌ |
-| NestJS support | ✅ (vía plugin) | ❌ | ✅ |
-| React hooks | ✅ | ✅ | ❌ |
+> Instructivo paso a paso para implementar autenticacion con Better Auth en el proyecto CodeQuest.
+> Incluye autenticacion con Discord (requerimiento obligatorio de la hackathon).
 
 ---
 
-## 📋 Prerrequisitos
+## Que es Better Auth?
 
-- NestJS backend ya scaffolded (ver [NestJS Scaffolding](../nestjs-scaffolding/README.md))
+[Better Auth](https://www.better-auth.com/) es una libreria de autenticacion moderna para TypeScript que proporciona:
+
+- Autenticacion por email/contrasena
+- OAuth social (Discord, Google, GitHub, etc.)
+- Gestion de sesiones
+- Sistema de roles
+- Rate limiting integrado
+
+### Por que Better Auth?
+
+| Caracteristica | Better Auth | Auth.js | Passport |
+|----------------|-------------|---------|----------|
+| TypeScript nativo | Si | Si | No |
+| Zero config DB | Si | No | No |
+| Sesiones built-in | Si | Si | No |
+| NestJS support | Si (via plugin) | No | Si |
+| React hooks | Si | Si | No |
+| Discord OAuth | Si | Si | Si |
+
+---
+
+## Prerrequisitos
+
+- Backend NestJS ya scaffolded (ver [NestJS Scaffolding](../nestjs-scaffolding/README.md))
 - PostgreSQL corriendo
 - Prisma configurado
+- Aplicacion Discord creada en [Discord Developer Portal](https://discord.com/developers/applications)
 
 ---
 
-## 📂 Guías de Implementación
+## Guias de Implementacion
 
 ### 1. [Setup Backend (NestJS)](./setup-backend.md)
-Configuración completa del servidor de autenticación:
-- Instalación de dependencias
-- Configuración del `auth.ts`
-- Integración con NestJS via `AuthModule`
+Configuracion completa del servidor de autenticacion:
+- Instalacion de dependencias
+- Configuracion del `auth.ts` con soporte para Discord OAuth
+- Integracion con NestJS via `AuthModule`
 - Guards y decoradores
 - Ejemplo de endpoint protegido
 
 ### 2. [Setup Frontend (React)](./setup-frontend.md)
-Configuración del cliente en React:
-- Instalación del cliente
+Configuracion del cliente en React:
+- Instalacion del cliente
 - `createAuthClient` y hooks
-- Componentes de login/registro
-- Protección de rutas
+- Boton de inicio de sesion con Discord
+- Proteccion de rutas
 
 ---
 
-## 🏗 Arquitectura de Auth en CodeQuest
+## Arquitectura de Auth en CodeQuest (Monolito Modular)
 
 ```
-┌────────────────────┐
-│   Frontend React   │
-│                    │
-│  createAuthClient  │
-│  useSession()      │
-│  signIn / signOut  │
-└────────┬───────────┘
-         │ HTTP (cookies)
-         ▼
-┌────────────────────┐     ┌──────────────────┐
-│   Auth API (:3001) │────▶│   PostgreSQL     │
-│                    │     │                  │
-│   Better Auth      │     │  - user          │
-│   /api/auth/*      │     │  - session       │
-│                    │     │  - account        │
-│   Custom endpoints │     │  - verification  │
-│   /api/v1/users/*  │     │                  │
-└────────────────────┘     └──────────────────┘
-         ▲
-         │ HTTP interno (validar tokens)
-         │
-┌────────────────────┐
-│  Core API (:3002)  │
-│  Notif API (:3003) │
-│                    │
-│  Validan sesiones  │
-│  contra Auth API   │
-└────────────────────┘
++------------------------+
+|    Frontend React      |
+|                        |
+|  createAuthClient      |
+|  useSession()          |
+|  signIn.social()       |
+|  (Discord OAuth)       |
++----------+-------------+
+           |
+           | HTTP (cookies)
+           v
++---------------------------------------------+     +--------------------+
+|    Backend NestJS (:3001)                   |     |    PostgreSQL       |
+|                                             |     |                    |
+|  /api/auth/*  - Better Auth handlers        +---->+  user              |
+|  /api/v1/*    - Modulos de negocio          |     |  session           |
+|                                             |     |  account           |
+|  AuthModule instala guard global:           |     |  verification      |
+|  - Todos los endpoints protegidos           |     |                    |
+|  - @AllowAnonymous() para endpoints publicos|     |                    |
++---------------------------------------------+     +--------------------+
 ```
+
+> Sin llamadas HTTP entre servicios internos. Todo en el mismo proceso de Node.js.
 
 ---
 
-## ⚠️ Importante
+## Importante
 
-> **Este spec-kit es un INSTRUCTIVO de aprendizaje.** No implementa Better Auth completo en el proyecto.
+> Este spec-kit es un INSTRUCTIVO de aprendizaje. No implementa Better Auth completo en el proyecto.
 > Su objetivo es que el desarrollador entienda los conceptos y pueda implementarlo siguiendo los pasos.
 
-### Orden de implementación recomendado:
+### Orden de implementacion recomendado:
 
-1. Leer esta guía completa
-2. Hacer el [setup del backend](./setup-backend.md)
-3. Probar con Postman/Thunder Client
-4. Hacer el [setup del frontend](./setup-frontend.md)
-5. Integrar con el flujo completo
+1. Leer esta guia completa
+2. Crear aplicacion Discord en el Developer Portal
+3. Hacer el [setup del backend](./setup-backend.md)
+4. Probar con Postman/Thunder Client
+5. Hacer el [setup del frontend](./setup-frontend.md)
+6. Integrar con el flujo completo
 
 ---
 
-## 🔗 Recursos Externos
+## Recursos Externos
 
-- [Documentación oficial de Better Auth](https://www.better-auth.com/docs)
+- [Documentacion oficial de Better Auth](https://www.better-auth.com/docs)
 - [GitHub: nestjs-better-auth](https://github.com/ThallesP/nestjs-better-auth)
-- [Better Auth — Database Adapters](https://www.better-auth.com/docs/adapters)
+- [Better Auth — Social Providers (Discord)](https://www.better-auth.com/docs/authentication/discord)
+- [Discord Developer Portal](https://discord.com/developers/applications)

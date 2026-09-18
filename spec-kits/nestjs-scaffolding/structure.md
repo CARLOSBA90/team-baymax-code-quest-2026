@@ -1,77 +1,93 @@
-# 📂 Estructura de Carpetas — NestJS Backend
+# Estructura de Carpetas — NestJS Backend (Monolito Modular)
 
-> Estructura recomendada para cada backend de CodeQuest.
+> Estructura recomendada para el backend de CodeQuest. Un unico proyecto NestJS con modulos de dominio independientes.
 
 ---
 
 ## Estructura General
 
 ```
-backend/<nombre-api>/
-├── src/
-│   ├── main.ts                         # Entry point, bootstrap
-│   ├── app.module.ts                   # Root module
-│   ├── app.controller.ts              # Health check / root endpoint
-│   ├── app.service.ts                 # App service
-│   │
-│   ├── common/                         # 🔧 Código compartido dentro del backend
-│   │   ├── decorators/                # Decoradores custom
-│   │   │   └── current-user.decorator.ts
-│   │   ├── filters/                   # Exception filters
-│   │   │   └── http-exception.filter.ts
-│   │   ├── guards/                    # Guards de autorización
-│   │   │   └── roles.guard.ts
-│   │   ├── interceptors/             # Interceptors
-│   │   │   └── logging.interceptor.ts
-│   │   ├── pipes/                     # Pipes de validación custom
-│   │   └── interfaces/               # Interfaces y tipos compartidos
-│   │       └── pagination.interface.ts
-│   │
-│   ├── config/                        # ⚙️ Configuración
-│   │   ├── app.config.ts             # Configuración de la app
-│   │   └── database.config.ts        # Configuración de DB
-│   │
-│   ├── prisma/                        # 🗄️ Prisma ORM
-│   │   ├── prisma.module.ts
-│   │   └── prisma.service.ts
-│   │
-│   └── modules/                       # 📦 Módulos de negocio (resources)
-│       ├── tasks/
-│       │   ├── tasks.module.ts
-│       │   ├── tasks.controller.ts
-│       │   ├── tasks.service.ts
-│       │   ├── dto/
-│       │   │   ├── create-task.dto.ts
-│       │   │   └── update-task.dto.ts
-│       │   └── entities/
-│       │       └── task.entity.ts
-│       │
-│       └── users/
-│           ├── users.module.ts
-│           ├── users.controller.ts
-│           ├── users.service.ts
-│           ├── dto/
-│           │   ├── create-user.dto.ts
-│           │   └── update-user.dto.ts
-│           └── entities/
-│               └── user.entity.ts
-│
-├── prisma/
-│   ├── schema.prisma                  # Schema de la base de datos
-│   ├── migrations/                    # Migraciones auto-generadas
-│   └── seed.ts                        # Seed de datos iniciales
-│
-├── test/
-│   ├── app.e2e-spec.ts               # Tests end-to-end
-│   └── jest-e2e.json
-│
-├── .env.example                       # Template de variables de entorno
-├── .eslintrc.js                       # Configuración ESLint
-├── .prettierrc                        # Configuración Prettier
-├── nest-cli.json                      # Configuración NestJS CLI
-├── package.json
-├── tsconfig.json
-└── tsconfig.build.json
+backend/
++-- src/
+|   +-- main.ts                         # Entry point, bootstrap
+|   +-- app.module.ts                   # Root module
+|   +-- app.controller.ts               # Health check / root endpoint
+|   +-- app.service.ts                  # App service
+|   |
+|   +-- common/                         # Codigo compartido dentro del backend
+|   |   +-- decorators/                 # Decoradores custom
+|   |   |   +-- current-user.decorator.ts
+|   |   +-- filters/                    # Exception filters
+|   |   |   +-- http-exception.filter.ts
+|   |   +-- guards/                     # Guards de autorizacion
+|   |   |   +-- roles.guard.ts
+|   |   +-- interceptors/               # Interceptors
+|   |   |   +-- logging.interceptor.ts
+|   |   +-- pipes/                      # Pipes de validacion custom
+|   |   +-- interfaces/                 # Interfaces y tipos compartidos
+|   |       +-- pagination.interface.ts
+|   |
+|   +-- config/                         # Configuracion
+|   |   +-- app.config.ts               # Configuracion de la app
+|   |   +-- database.config.ts          # Configuracion de DB
+|   |
+|   +-- prisma/                         # Prisma ORM
+|   |   +-- prisma.module.ts
+|   |   +-- prisma.service.ts
+|   |
+|   +-- modules/                        # Modulos de dominio (resources)
+|       +-- auth/                       # Configuracion de Better Auth + Discord
+|       |   +-- auth.ts                 # Instancia de betterAuth()
+|       |
+|       +-- users/                      # Perfil y gestion de usuarios
+|       |   +-- users.module.ts
+|       |   +-- users.controller.ts
+|       |   +-- users.service.ts
+|       |   +-- dto/
+|       |   |   +-- update-user.dto.ts
+|       |   +-- entities/
+|       |       +-- user.entity.ts
+|       |
+|       +-- assessments/                # Cuestionario de habilidades
+|       |   +-- assessments.module.ts
+|       |   +-- assessments.controller.ts
+|       |   +-- assessments.service.ts
+|       |   +-- dto/
+|       |   |   +-- submit-assessment.dto.ts
+|       |   +-- entities/
+|       |       +-- assessment.entity.ts
+|       |
+|       +-- roadmaps/                   # Rutas de aprendizaje generadas
+|       |   +-- roadmaps.module.ts
+|       |   +-- roadmaps.controller.ts
+|       |   +-- roadmaps.service.ts
+|       |   +-- dto/
+|       |   |   +-- create-roadmap.dto.ts
+|       |   |   +-- update-roadmap.dto.ts
+|       |   +-- entities/
+|       |       +-- roadmap.entity.ts
+|       |
+|       +-- notifications/              # Notificaciones y preferencias
+|           +-- notifications.module.ts
+|           +-- notifications.controller.ts
+|           +-- notifications.service.ts
+|           +-- dto/
+|               +-- update-preferences.dto.ts
+|
++-- prisma/
+|   +-- schema.prisma                   # Schema de la base de datos
+|   +-- migrations/                     # Migraciones auto-generadas
+|   +-- seed.ts                         # Seed de datos iniciales
+|
++-- test/
+|   +-- app.e2e-spec.ts                 # Tests end-to-end
+|
++-- .env.example                        # Template de variables de entorno
++-- .prettierrc                         # Configuracion Prettier
++-- nest-cli.json                       # Configuracion NestJS CLI
++-- package.json
++-- tsconfig.json
++-- tsconfig.build.json
 ```
 
 ---
@@ -80,13 +96,13 @@ backend/<nombre-api>/
 
 ### Archivos
 
-| Tipo | Convención | Ejemplo |
+| Tipo | Convencion | Ejemplo |
 |------|------------|---------|
-| Module | `<nombre>.module.ts` | `tasks.module.ts` |
-| Controller | `<nombre>.controller.ts` | `tasks.controller.ts` |
-| Service | `<nombre>.service.ts` | `tasks.service.ts` |
-| DTO | `<accion>-<nombre>.dto.ts` | `create-task.dto.ts` |
-| Entity | `<nombre>.entity.ts` | `task.entity.ts` |
+| Module | `<nombre>.module.ts` | `roadmaps.module.ts` |
+| Controller | `<nombre>.controller.ts` | `roadmaps.controller.ts` |
+| Service | `<nombre>.service.ts` | `roadmaps.service.ts` |
+| DTO | `<accion>-<nombre>.dto.ts` | `create-roadmap.dto.ts` |
+| Entity | `<nombre>.entity.ts` | `roadmap.entity.ts` |
 | Guard | `<nombre>.guard.ts` | `roles.guard.ts` |
 | Filter | `<nombre>.filter.ts` | `http-exception.filter.ts` |
 | Interceptor | `<nombre>.interceptor.ts` | `logging.interceptor.ts` |
@@ -95,47 +111,49 @@ backend/<nombre-api>/
 
 ### Clases y Tipos
 
-| Tipo | Convención | Ejemplo |
+| Tipo | Convencion | Ejemplo |
 |------|------------|---------|
-| Clase | PascalCase | `TasksController` |
-| Service | PascalCase + Service | `TasksService` |
-| DTO | PascalCase + Dto | `CreateTaskDto` |
-| Entity | PascalCase + Entity | `TaskEntity` |
+| Clase | PascalCase | `RoadmapsController` |
+| Service | PascalCase + Service | `RoadmapsService` |
+| DTO | PascalCase + Dto | `CreateRoadmapDto` |
+| Entity | PascalCase + Entity | `RoadmapEntity` |
 | Interface | PascalCase (con prefijo I opcional) | `PaginationResult` |
 
-### Métodos del Controller
+### Metodos del Controller
 
-| Operación | Método HTTP | Nombre del método | Ruta |
+| Operacion | Metodo HTTP | Nombre del metodo | Ruta |
 |-----------|-------------|-------------------|------|
-| Listar | `GET` | `findAll()` | `/tasks` |
-| Obtener uno | `GET` | `findOne()` | `/tasks/:id` |
-| Crear | `POST` | `create()` | `/tasks` |
-| Actualizar | `PATCH` | `update()` | `/tasks/:id` |
-| Eliminar | `DELETE` | `remove()` | `/tasks/:id` |
+| Listar | `GET` | `findAll()` | `/roadmaps` |
+| Obtener uno | `GET` | `findOne()` | `/roadmaps/:id` |
+| Crear | `POST` | `create()` | `/roadmaps` |
+| Actualizar | `PATCH` | `update()` | `/roadmaps/:id` |
+| Eliminar | `DELETE` | `remove()` | `/roadmaps/:id` |
 
 ---
 
-## Reglas de Organización
+## Reglas de Organizacion
 
-1. **Un módulo por dominio** — Cada entidad/recurso tiene su propio módulo
-2. **`common/` para código reutilizable** — Guards, filters, decorators que se usan en múltiples módulos
+1. **Un modulo por dominio** — Cada entidad/recurso tiene su propio modulo bajo `src/modules/`
+2. **`common/` para codigo reutilizable** — Guards, filters, decorators compartidos entre modulos
 3. **DTOs siempre** — Nunca aceptar `any` o `body` sin tipar
 4. **Entities para respuesta** — Las entities definen la forma de la respuesta (no confundir con el model de Prisma)
-5. **Sin lógica en controllers** — Los controllers solo delegan al service
-6. **Un service, una responsabilidad** — Si un service crece mucho, dividirlo
+5. **Sin logica en controllers** — Los controllers solo delegan al service
+6. **Un service, una responsabilidad** — Si un service crece mucho, dividirlo en sub-servicios
 
 ---
 
-## Ejemplo de Generación con CLI
+## Ejemplo de Generacion con CLI
 
 ```bash
-# Generar un módulo completo
-nest g res modules/tasks --no-spec
+# Generar un modulo completo dentro de modules/
+nest g res modules/roadmaps --no-spec
+nest g res modules/assessments --no-spec
+nest g res modules/notifications --no-spec
 
 # Generar componentes individuales
-nest g module modules/tasks
-nest g controller modules/tasks
-nest g service modules/tasks
+nest g module modules/roadmaps
+nest g controller modules/roadmaps
+nest g service modules/roadmaps
 
 # Generar elementos comunes
 nest g guard common/guards/roles
@@ -143,4 +161,4 @@ nest g filter common/filters/http-exception
 nest g interceptor common/interceptors/logging
 ```
 
-> ⚠️ **Nota:** Siempre usar `--no-spec` si no vas a escribir tests unitarios inmediatamente. Se pueden agregar después.
+> Nota: Siempre usar `--no-spec` si no vas a escribir tests unitarios inmediatamente. Se pueden agregar despues.
