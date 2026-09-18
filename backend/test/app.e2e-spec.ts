@@ -12,15 +12,21 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    // Misma configuración que src/main.ts.
+    app = moduleFixture.createNestApplication({ bodyParser: false });
+    app.setGlobalPrefix('api');
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/api/health (GET) is public', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect({ data: { status: 'ok' } });
+  });
+
+  it('/api/users/me (GET) requires a session', () => {
+    return request(app.getHttpServer()).get('/api/users/me').expect(401);
   });
 
   afterEach(async () => {

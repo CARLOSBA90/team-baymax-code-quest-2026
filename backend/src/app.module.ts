@@ -4,6 +4,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { auth } from './auth/auth.js';
+import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
@@ -11,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule.forRoot({ auth }),
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
