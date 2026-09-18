@@ -1,87 +1,102 @@
-# 📡 API Endpoints — Documentación
+# API Endpoints — Documentacion
 
-> Contrato de API entre backends y frontend. Referencia rápida de todos los endpoints disponibles.
-
----
-
-## 🔐 Auth API (`:3001`)
-
-### Endpoints de Better Auth (automáticos)
-
-| Método | Ruta | Descripción | Auth |
-|--------|------|-------------|------|
-| `POST` | `/api/auth/sign-up/email` | Registro con email/password | ❌ |
-| `POST` | `/api/auth/sign-in/email` | Login con email/password | ❌ |
-| `POST` | `/api/auth/sign-out` | Cerrar sesión | ✅ |
-| `GET` | `/api/auth/get-session` | Obtener sesión actual | ✅ |
-
-### Endpoints Custom
-
-| Método | Ruta | Descripción | Auth |
-|--------|------|-------------|------|
-| `GET` | `/api/v1/users/me` | Perfil del usuario autenticado | ✅ |
-| `PATCH` | `/api/v1/users/me` | Actualizar perfil propio | ✅ |
-| `GET` | `/api/v1/users/public-stats` | Estadísticas públicas | ❌ |
+> Contrato de API entre el backend (Monolito Modular) y el frontend. Referencia rapida de todos los endpoints disponibles.
+> Todos los endpoints se sirven desde un unico backend en el puerto configurado (default: `:3001`).
 
 ---
 
-## 📦 Core API (`:3002`)
+## Modulo de Autenticacion
 
-### Tasks Resource
+### Endpoints de Better Auth (automaticos)
 
-| Método | Ruta | Descripción | Auth | Body |
+Manejados internamente por Better Auth bajo `/api/auth/*`:
+
+| Metodo | Ruta | Descripcion | Auth |
+|--------|------|-------------|------|
+| `POST` | `/api/auth/sign-up/email` | Registro con email/password | No |
+| `POST` | `/api/auth/sign-in/email` | Login con email/password | No |
+| `GET`  | `/api/auth/signin/discord` | Inicio de flujo Discord OAuth | No |
+| `GET`  | `/api/auth/callback/discord` | Callback de Discord OAuth (manejado por Better Auth) | No |
+| `POST` | `/api/auth/sign-out` | Cerrar sesion | Si |
+| `GET`  | `/api/auth/get-session` | Obtener sesion actual | Si |
+
+### Endpoints Custom de Usuarios
+
+| Metodo | Ruta | Descripcion | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/v1/users/me` | Perfil del usuario autenticado | Si |
+| `PATCH` | `/api/v1/users/me` | Actualizar perfil propio | Si |
+
+---
+
+## Modulo de Evaluacion (Assessment)
+
+| Metodo | Ruta | Descripcion | Auth | Body |
 |--------|------|-------------|------|------|
-| `GET` | `/api/v1/tasks` | Listar tareas | ✅ | — |
-| `GET` | `/api/v1/tasks/:id` | Obtener tarea por ID | ✅ | — |
-| `POST` | `/api/v1/tasks` | Crear tarea | ✅ | `CreateTaskDto` |
-| `PATCH` | `/api/v1/tasks/:id` | Actualizar tarea | ✅ | `UpdateTaskDto` |
-| `DELETE` | `/api/v1/tasks/:id` | Eliminar tarea | ✅ | — |
+| `GET` | `/api/v1/assessments/questions` | Obtener preguntas del cuestionario | Si | — |
+| `POST` | `/api/v1/assessments/submit` | Enviar respuestas del cuestionario | Si | `SubmitAssessmentDto` |
+| `GET` | `/api/v1/assessments/my-result` | Obtener resultado del assessment propio | Si | — |
 
-#### Query Params (GET /tasks)
+#### SubmitAssessmentDto
 
-| Param | Tipo | Default | Descripción |
+```json
+{
+  "answers": [
+    { "questionId": "string", "value": "string | number" }
+  ]
+}
+```
+
+---
+
+## Modulo de Rutas de Aprendizaje (Roadmaps)
+
+| Metodo | Ruta | Descripcion | Auth | Body |
+|--------|------|-------------|------|------|
+| `GET` | `/api/v1/roadmaps` | Listar rutas del usuario | Si | — |
+| `GET` | `/api/v1/roadmaps/:id` | Obtener ruta por ID | Si | — |
+| `POST` | `/api/v1/roadmaps/generate` | Generar ruta basada en assessment | Si | `GenerateRoadmapDto` |
+| `PATCH` | `/api/v1/roadmaps/:id/progress` | Actualizar progreso de la ruta | Si | `UpdateProgressDto` |
+
+#### Query Params (GET /roadmaps)
+
+| Param | Tipo | Default | Descripcion |
 |-------|------|---------|-------------|
-| `page` | `number` | `1` | Número de página |
-| `limit` | `number` | `10` | Items por página |
+| `page` | `number` | `1` | Numero de pagina |
+| `limit` | `number` | `10` | Items por pagina |
 
-#### CreateTaskDto
+#### GenerateRoadmapDto
 
 ```json
 {
-  "title": "string (required, 3-100 chars)",
-  "description": "string (optional, max 500 chars)",
-  "priority": "LOW | MEDIUM | HIGH | URGENT (optional, default: MEDIUM)"
+  "assessmentId": "string (required)",
+  "title": "string (optional)"
 }
 ```
 
-#### UpdateTaskDto
+#### UpdateProgressDto
 
 ```json
 {
-  "title": "string (optional)",
-  "description": "string (optional)",
-  "priority": "LOW | MEDIUM | HIGH | URGENT (optional)",
-  "status": "PENDING | IN_PROGRESS | COMPLETED | CANCELLED (optional)"
+  "courseId": "string",
+  "completed": "boolean"
 }
 ```
 
 ---
 
-## 🔔 Notifications API (`:3003`)
+## Modulo de Notificaciones
 
-> ⚠️ Endpoints pendientes de definición. Se actualizará cuando el backend de notificaciones esté en desarrollo.
-
-### Endpoints planificados
-
-| Método | Ruta | Descripción | Auth |
+| Metodo | Ruta | Descripcion | Auth |
 |--------|------|-------------|------|
-| `GET` | `/api/v1/notifications` | Listar notificaciones del usuario | ✅ |
-| `PATCH` | `/api/v1/notifications/:id/read` | Marcar como leída | ✅ |
-| `POST` | `/api/v1/notifications/preferences` | Actualizar preferencias | ✅ |
+| `GET` | `/api/v1/notifications` | Listar notificaciones del usuario | Si |
+| `PATCH` | `/api/v1/notifications/:id/read` | Marcar como leida | Si |
+| `GET` | `/api/v1/notifications/preferences` | Obtener preferencias | Si |
+| `PATCH` | `/api/v1/notifications/preferences` | Actualizar preferencias | Si |
 
 ---
 
-## 📋 Formato de Respuestas
+## Formato de Respuestas
 
 ### Respuesta exitosa (un item)
 
@@ -94,7 +109,7 @@
 }
 ```
 
-### Respuesta exitosa (lista con paginación)
+### Respuesta exitosa (lista con paginacion)
 
 ```json
 {
@@ -127,7 +142,7 @@
 }
 ```
 
-### Error de validación
+### Error de validacion
 
 ```json
 {
@@ -142,15 +157,15 @@
 
 ---
 
-## 🔑 Autenticación
+## Autenticacion
 
-Todos los endpoints marcados con ✅ requieren una **cookie de sesión** válida de Better Auth.
+Todos los endpoints marcados con "Si" en la columna Auth requieren una **cookie de sesion** valida de Better Auth.
 
 ```
 Cookie: better-auth.session_token=<token>
 ```
 
-El frontend envía esta cookie automáticamente si las requests incluyen `credentials: 'include'`.
+El frontend envia esta cookie automaticamente si las requests incluyen `credentials: 'include'`.
 
 ### Respuesta cuando no autenticado
 
