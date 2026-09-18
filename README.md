@@ -241,7 +241,7 @@ Core API ──→ Notif API   (disparar notificaciones)
 
 ---
 
-## ⚙️ Backend
+## Backend
 
 > **Estado actual:** `backend/` es **un único** servicio NestJS (no los tres descritos arriba) con autenticación por Better Auth sobre PostgreSQL (Neon) y Prisma 7. Todas las rutas cuelgan del prefijo `/api`, y Better Auth atiende `/api/auth/*`.
 
@@ -262,7 +262,7 @@ cp .env.example .env
 npx prisma migrate deploy
 npx prisma generate
 
-# 3. Levantar en modo watch → http://localhost:3001
+# 3. Levantar en modo watch en http://localhost:3001
 pnpm start:dev
 
 # Verificar
