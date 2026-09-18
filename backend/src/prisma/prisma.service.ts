@@ -7,29 +7,29 @@ import {
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 
+/** Cliente de Prisma conectado a PostgreSQL mediante el adaptador PrismaPg. */
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  /** Crea el cliente con la conexión de DATABASE_URL. */
   constructor() {
     super({
       adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
     });
   }
 
+  /** Conecta al arrancar para detectar pronto si la base no responde. */
   async onModuleInit() {
     await this.$connect();
   }
 
+  /** Cierra las conexiones cuando la app se detiene. */
   async onModuleDestroy() {
     await this.$disconnect();
   }
 }
 
-/**
- * Instancia única del cliente. Better Auth se configura fuera del contenedor
- * de Nest (src/auth/auth.ts), así que ambos comparten este mismo objeto para
- * no abrir dos pools de conexiones contra la base de datos.
- */
+// Instancia única compartida por Nest y Better Auth para no abrir dos pools.
 export const prisma = new PrismaService();

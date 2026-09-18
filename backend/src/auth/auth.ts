@@ -3,7 +3,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from '../prisma/prisma.service.js';
 
-/** Orígenes permitidos, compartidos por Better Auth y el CORS de Nest. */
+/** Orígenes de TRUSTED_ORIGINS, compartidos con el CORS de Nest. */
 export const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? '')
   .split(',')
   .map((origin) => origin.trim())
@@ -38,4 +38,5 @@ export const auth = betterAuth({
   trustedOrigins,
 });
 
+/** Tipo de la sesión (session y user) inferido de esta configuración. */
 export type Session = typeof auth.$Infer.Session;

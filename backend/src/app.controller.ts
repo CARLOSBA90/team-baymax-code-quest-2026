@@ -6,10 +6,7 @@ import { AppService } from './app.service.js';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  /**
-   * GET /api/health
-   * Público: queda fuera del guard global de AuthModule.
-   */
+  /** GET /api/health. Público, queda fuera del guard global de AuthModule. */
   @Get('health')
   @AllowAnonymous()
   getHealth() {

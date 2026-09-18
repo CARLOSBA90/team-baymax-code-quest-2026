@@ -7,10 +7,7 @@ import { UsersService } from './users.service.js';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  /**
-   * GET /api/users/me
-   * Protegido por el guard global de AuthModule: sin sesión responde 401.
-   */
+  /** GET /api/users/me. Requiere sesión; sin ella el guard responde 401. */
   @Get('me')
   getProfile(@Session() session: UserSession) {
     return this.usersService.getProfile(session.user);

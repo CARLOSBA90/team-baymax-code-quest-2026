@@ -3,6 +3,7 @@ import type { Session } from '../../auth/auth.js';
 
 @Injectable()
 export class UsersService {
+  /** Devuelve solo id, name, email e image del usuario de la sesión. */
   getProfile(user: Session['user']) {
     return {
       data: {
