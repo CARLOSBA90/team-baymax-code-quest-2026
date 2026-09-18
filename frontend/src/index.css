@@ -53,11 +53,13 @@
 .hr {
   height: 1px;
   border: 0;
-  background: linear-gradient(to right,
-      transparent,
-      rgb(var(--ink) / 0.16) 48px,
-      rgb(var(--ink) / 0.16) calc(100% - 48px),
-      transparent);
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgb(var(--ink) / 0.16) 48px,
+    rgb(var(--ink) / 0.16) calc(100% - 48px),
+    transparent
+  );
 }
 
 ::selection {
