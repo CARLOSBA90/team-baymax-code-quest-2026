@@ -243,6 +243,156 @@ Frontend ---> /api/v1/roadmaps    (rutas de aprendizaje generadas)
 Frontend ---> /api/v1/notifications (preferencias y notificaciones)
 ```
 
+### Levantar el backend
+
+Requiere Node.js >= 22.22.1 (lo exige `@thallesp/nestjs-better-auth`), pnpm y una base PostgreSQL (Neon).
+
+```bash
+cd backend
+pnpm install
+
+# 1. Variables de entorno: completar DATABASE_URL, DIRECT_URL,
+#    BETTER_AUTH_SECRET y, para login con Discord, DISCORD_CLIENT_ID/SECRET
+cp .env.example .env
+
+# 2. Aplicar migraciones y generar el cliente de Prisma
+#    (se genera en src/generated/prisma, que no se versiona)
+npx prisma migrate deploy
+npx prisma generate
+
+# 3. Levantar en modo watch en http://localhost:3001
+pnpm start:dev
+
+# Verificar
+curl http://localhost:3001/api/v1/health   # {"data":{"status":"ok"}}
+```
+
+Notas:
+
+- Better Auth atiende `/api/auth/*`. Los modulos propios usan el prefijo global `/api/v1`.
+- Si cambias `prisma/schema.prisma`, crea la migracion con `npx prisma migrate dev --name <nombre>`. En Prisma 7 `migrate dev` **no** regenera el cliente: corre `npx prisma generate` despues.
+- Para regenerar los modelos de Better Auth (por ejemplo, al agregar un plugin): `npx auth@latest generate --config src/modules/auth/auth.ts --output prisma/schema.prisma`. El paquete `@better-auth/cli` esta deprecado; su reemplazo es `auth`.
+- `AuthModule` instala un **guard global**: todo endpoint nuevo queda protegido salvo que lleve `@AllowAnonymous()` u `@OptionalAuth()`.
+- Para Discord, registra este Redirect URI en el Developer Portal (OAuth2): `http://localhost:3001/api/auth/callback/discord`.
+
+### Endpoints disponibles
+
+| Metodo | Ruta | Sesion | Descripcion |
+|--------|------|--------|-------------|
+| `GET` | `/api/v1/health` | No | Health check |
+| `POST` | `/api/auth/sign-up/email` | No | Registro con email y contrasena (minimo 8 caracteres) |
+| `POST` | `/api/auth/sign-in/email` | No | Inicio de sesion con email y contrasena |
+| `POST` | `/api/auth/sign-in/social` | No | Inicia el login OAuth (`provider: "discord"`) |
+| `GET` | `/api/auth/get-session` | Opcional | Sesion actual (`null` si no hay cookie valida) |
+| `POST` | `/api/auth/sign-out` | Si | Cierra la sesion |
+| `GET` | `/api/v1/users/me` | Si | Perfil del usuario autenticado (`401` sin sesion) |
+
+La sesion viaja en la cookie `better-auth.session_token` y dura 7 dias. El login con Discord se inicia con `POST /api/auth/sign-in/social`; la ruta `GET /api/auth/signin/discord` no existe en Better Auth 1.7.
+
+### Probar con Postman
+
+Antes de empezar:
+
+- Postman guarda las cookies por dominio, asi que despues del registro o del login las siguientes requests a `localhost:3001` ya van autenticadas.
+- Better Auth exige el header `Origin` con un origen de `TRUSTED_ORIGINS` en los `POST` que llevan cookies; sin el responde `403 MISSING_OR_NULL_ORIGIN`. Para no agregarlo a mano, crea una coleccion y en su pestana **Scripts > Pre-request** agrega:
+
+  ```js
+  pm.request.headers.upsert({ key: 'Origin', value: 'http://localhost:5173' });
+  ```
+
+**1. Registro**
+
+```http
+POST http://localhost:3001/api/auth/sign-up/email
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test@example.com",
+  "password": "SecurePassword123!"
+}
+```
+
+Responde `200` con `{ token, user }` y deja la cookie de sesion. El usuario queda en la tabla `user` y la contrasena (hasheada) en `account`.
+
+**2. Inicio de sesion**
+
+```http
+POST http://localhost:3001/api/auth/sign-in/email
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SecurePassword123!"
+}
+```
+
+Responde `200` con `{ redirect: false, token, user }`, o `401` si las credenciales son invalidas.
+
+**3. Sesion actual**
+
+```http
+GET http://localhost:3001/api/auth/get-session
+```
+
+Responde `{ session, user }`; sin cookie valida responde `null`.
+
+**4. Perfil del usuario autenticado**
+
+```http
+GET http://localhost:3001/api/v1/users/me
+```
+
+```json
+{
+  "data": {
+    "id": "1KkA8ZO6hbceNrnjIJprFf0uhn9asbq5",
+    "name": "Test User",
+    "email": "test@example.com",
+    "image": null
+  }
+}
+```
+
+Sin sesion responde `401 Unauthorized`.
+
+**5. Cerrar sesion**
+
+```http
+POST http://localhost:3001/api/auth/sign-out
+Content-Type: application/json
+
+{}
+```
+
+Responde `{ "success": true }`. Despues, `/api/v1/users/me` vuelve a responder `401`.
+
+### Probar el login con Discord
+
+Postman solo sirve para comprobar que `POST /api/auth/sign-in/social` con `{ "provider": "discord" }` devuelve `{ url, redirect: true }`. El flujo completo requiere un navegador: Better Auth guarda una cookie firmada `better-auth.state` que debe volver en el callback.
+
+1. Abre `http://localhost:3001/api/v1/health` en el navegador (usa `localhost`, no `127.0.0.1`).
+2. En la consola del navegador ejecuta:
+
+   ```js
+   const res = await fetch('/api/auth/sign-in/social', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       provider: 'discord',
+       callbackURL: 'http://localhost:3001/api/v1/users/me',
+     }),
+   });
+   const data = await res.json();
+   console.log(res.status, data);
+   if (data.url) location.href = data.url;
+   ```
+
+3. Autoriza en Discord antes de 5 minutos. Si tardas mas, la cookie de estado vence y el callback termina en `/api/auth/error?error=state_mismatch`; en ese caso repite el paso 2.
+4. El callback crea el usuario y la sesion y redirige a `/api/v1/users/me` con tu perfil de Discord.
+
+Si `DISCORD_CLIENT_ID` o `DISCORD_CLIENT_SECRET` estan vacias, `sign-in/social` responde `500` (`OAuth provider requires clientId` en el log).
+
 ---
 
 ## Frontend

@@ -12,15 +12,28 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    // Misma configuración que src/main.ts.
+    app = moduleFixture.createNestApplication({ bodyParser: false });
+    app.setGlobalPrefix('api/v1');
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/api/v1/health (GET) is public', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/v1/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect({ data: { status: 'ok' } });
+  });
+
+  it('/api/v1/users/me (GET) requires a session', () => {
+    return request(app.getHttpServer()).get('/api/v1/users/me').expect(401);
+  });
+
+  it('/api/auth/* stays outside the global prefix', () => {
+    return request(app.getHttpServer())
+      .get('/api/auth/ok')
+      .expect(200)
+      .expect({ ok: true });
   });
 
   afterEach(async () => {
