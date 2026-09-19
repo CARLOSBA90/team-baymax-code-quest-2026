@@ -1,69 +1,63 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Nebula — único sistema de diseño de la app (design.md).
+   Los tokens viven en :root (sin scope) y se registran en @theme
+   para que Tailwind genere utilidades normales (bg-surface-solid,
+   text-primary, shadow-card, rounded-card, font-display, ...)
+   en vez de arbitrary values `[var(--x)]` en cada componente.
+   ============================================================ */
 @theme {
-  --color-bg: rgb(var(--bg));
-  --color-surface: rgb(var(--surface));
-  --color-ink: rgb(var(--ink));
-  --color-accent: rgb(var(--accent));
-  --color-accent-text: rgb(var(--accent-text));
-  --color-section: rgb(var(--section));
-  --color-section-glow: rgb(var(--section-glow));
+  --color-bg-base: #0b0a10;
+  --color-bg-surface: rgba(20, 18, 30, 0.74);
+  --color-bg-surface-solid: #14121e;
+  --color-bg-field: rgba(255, 255, 255, 0.03);
+  --color-bg-field-focus: rgba(255, 255, 255, 0.05);
+  --color-bg-ghost: rgba(255, 255, 255, 0.035);
+  --color-bg-ghost-hover: rgba(255, 255, 255, 0.07);
 
-  --font-sans: "Roboto", system-ui, sans-serif;
+  --color-border-card: rgba(167, 139, 250, 0.16);
+  --color-border-field: rgba(255, 255, 255, 0.1);
+  --color-border-field-hover: rgba(255, 255, 255, 0.16);
+  --color-border-ghost: rgba(255, 255, 255, 0.12);
+  --color-border-ghost-hover: rgba(255, 255, 255, 0.2);
+  --color-border-divider: rgba(255, 255, 255, 0.12);
 
-  --shadow-sm: 0 0 0 1px rgb(var(--edge));
-  --shadow-md: 0 0 0 1px rgb(var(--edge)), 0 6px 18px rgb(var(--shade) / 0.55);
-  --shadow-lg: 0 0 0 1px rgb(var(--edge)), 0 16px 40px rgb(var(--shade) / 0.65);
+  --color-text-primary: #f4f2fa;
+  --color-text-body: #e6e3f0;
+  --color-text-label: #b8b4c7;
+  --color-text-secondary: #9b97ad;
+  --color-text-muted: #8b87a0;
+  --color-text-placeholder: #827e99;
+  --color-text-field: #f0eef7;
+
+  --color-accent: #7c3aed;
+  --color-accent-hover: #8b5cf6;
+  --color-accent-soft: #c4b5fd;
+  --color-accent-soft-hover: #ddd6fe;
+  --color-accent-ring: rgba(139, 92, 246, 0.22);
+
+  --color-brand-discord: #5865f2;
+  --color-success: #34d399;
+  --color-danger: #f87171;
+
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+
+  --radius-card: 22px;
+  --radius-control: 12px;
+
+  --shadow-card: 0 30px 70px -20px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-primary: 0 10px 26px -10px rgba(124, 58, 237, 0.8);
+  --shadow-ring-focus: 0 0 0 3px rgba(139, 92, 246, 0.22);
 }
 
-:root[data-theme="dark"] {
-  --bg: 22 24 38;
-  --surface: 35 37 50;
-  --ink: 233 233 237;
-  --accent: 145 132 217;
-  --accent-text: 210 206 253;
-  --section: 38 42 96;
-  --section-glow: 53 59 128;
-  --edge: 63 66 77;
-  --shade: 0 0 0;
-}
-
-:root[data-theme="light"] {
-  --bg: 243 245 254;
-  --surface: 228 231 245;
-  --ink: 41 43 49;
-  --accent: 93 82 148;
-  --accent-text: 74 65 119;
-  --section: 38 42 96;
-  --section-glow: 53 59 128;
-  --edge: 207 211 229;
-  --shade: 41 43 49;
-}
-
-.lighten {
-  mix-blend-mode: lighten;
-  background-color: transparent;
-}
-
-:root[data-theme="light"] .lighten {
-  mix-blend-mode: normal;
-}
-
-/* Firma Nocturne: las reglas horizontales se desvanecen 48px en cada extremo. */
-.hr {
-  height: 1px;
-  border: 0;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgb(var(--ink) / 0.16) 48px,
-    rgb(var(--ink) / 0.16) calc(100% - 48px),
-    transparent
-  );
+:root {
+  color-scheme: dark;
 }
 
 ::selection {
-  background: rgb(var(--accent) / 0.3);
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 html {
@@ -71,5 +65,78 @@ html {
 }
 
 body {
-  @apply bg-bg font-sans text-[15px] leading-relaxed text-ink antialiased;
+  @apply bg-bg-base font-body text-[15px] leading-relaxed text-text-body antialiased;
+}
+
+/* Fondo Nebula: dot-grid + halo violeta + halo cian, en capas de background-image.
+   Fuente: design.md §3. */
+.nebula {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-bg-base);
+  background-image:
+    /* 1. Halo violeta, detrás de la card */
+    radial-gradient(circle at 50% 12%, rgba(124, 58, 237, 0.3) 0%, rgba(124, 58, 237, 0) 58%),
+    /* 2. Contrapunto frío, esquina inferior izquierda */
+    radial-gradient(circle at 12% 88%, rgba(34, 211, 238, 0.1) 0%, rgba(34, 211, 238, 0) 45%),
+    /* 3. Retícula de puntos */ radial-gradient(rgba(167, 139, 250, 0.17) 1.2px, transparent 1.2px);
+  background-size:
+    100% 100%,
+    100% 100%,
+    26px 26px;
+}
+
+/* Responsive del fondo Nebula (design.md §4.3): separación de puntos 22px en
+   móvil (<640px) vs 26px en desktop/tablet. Usado por NebulaBackground. */
+@media (max-width: 639px) {
+  .nebula--responsive {
+    background-size:
+      100% 100%,
+      100% 100%,
+      22px 22px;
+  }
+}
+
+/* Viñeta: apaga los puntos alrededor del contenido. Va sobre el fondo y debajo
+   de la card (z-index del contenido: 2). */
+.nebula::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 45%,
+    rgba(11, 10, 16, 0) 30%,
+    rgba(11, 10, 16, 0.85) 100%
+  );
+}
+
+/* AuthCard (design.md §5.3): sin soporte de backdrop-filter, la card usa fondo sólido en
+   vez del translúcido `--color-bg-surface`, para no perder legibilidad sobre los puntos del fondo. */
+@supports not (backdrop-filter: blur(1px)) {
+  .nebula-card {
+    background: var(--color-bg-surface-solid);
+  }
+}
+
+/* Fix de autofill de Chrome: --color-bg-field es semitransparente y no tapa el amarillo
+   de autofill, así que se fuerza un fondo sólido vía box-shadow inset.
+   Fuente: design.md §11. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #16141f inset;
+  -webkit-text-fill-color: #f0eef7;
+  caret-color: #f0eef7;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Movimiento reducido: design.md §8. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

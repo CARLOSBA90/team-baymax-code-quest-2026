@@ -1,34 +1,26 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { AuthSocialSignInButtons } from "@/components/auth";
-import { AuthDivider } from "@/components/auth/AuthDivider";
 
 type AuthCardProps = {
   title: string;
-  footer: React.ReactNode;
+  description?: string;
+  footer: ReactNode;
 };
 
-export function AuthCard({ title, footer, children }: PropsWithChildren<AuthCardProps>) {
+export function AuthCard({
+  title,
+  description,
+  footer,
+  children,
+}: PropsWithChildren<AuthCardProps>) {
   return (
-    <div className="flex min-h-full">
-      <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4 py-16 dark:bg-black">
-        <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <header className="mb-4 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {title}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Elige el servicio de tu preferencia
-            </p>
-          </header>
-          <AuthSocialSignInButtons />
-          <AuthDivider />
-          {children}
-          <footer className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">
-            {footer}
-          </footer>
-        </div>
-      </div>
+    <div className="nebula-card flex w-full flex-col gap-5 rounded-3xl border border-border-card bg-bg-surface p-[26px_22px_24px] backdrop-blur-lg shadow-card sm:w-113 sm:rounded-card sm:p-[34px_36px_30px]">
+      <header className="flex flex-col gap-1.5 text-center">
+        <h2 className="font-display text-2xl font-semibold text-text-primary">{title}</h2>
+        {description && <p className="font-body text-sm text-text-secondary">{description}</p>}
+      </header>
+      {children}
+      <footer className="text-center font-body text-sm text-text-muted">{footer}</footer>
     </div>
   );
 }
@@ -42,7 +34,7 @@ export const AuthLink = ({ href, label }: AuthLinkProps) => {
   return (
     <Link
       to={href}
-      className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-50 cursor-pointer"
+      className="font-semibold text-accent-soft underline-offset-4 transition-colors hover:text-accent-soft-hover hover:underline"
     >
       {label}
     </Link>
