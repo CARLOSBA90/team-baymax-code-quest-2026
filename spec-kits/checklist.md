@@ -5,7 +5,7 @@
 
 ---
 
-## 🔴 Bloqueantes
+ ## 
 
 - [x] **Base de datos en la nube (Neon) provisionada y accesible**
 - [x] **Migraciones aplicadas** (`pnpm prisma migrate deploy`)
@@ -89,13 +89,7 @@
 ### 🟢 Pulido UI & Responsive
 - [ ] Diseño responsive (mobile-first para la demo)
 - [ ] Estados de carga (`skeleton` o `spinner`) en todas las vistas con fetch
-- [ ] Manejo de errores de red con mensajes amigables al usuario
-- [ ] Favicon y `<title>` personalizados por página
-
-### 🟢 Despliegue Frontend
-- [ ] Variable de entorno `VITE_API_URL` apuntando al backend de producción
-- [ ] Frontend desplegado (Vercel / Netlify / Cloudflare Pages)
-- [ ] CORS del backend configurado con el dominio de producción del frontend (`TRUSTED_ORIGINS`)
+- [ ] Manejo de errores de red con mensajes amigables al usuario 
 
 ---
 
