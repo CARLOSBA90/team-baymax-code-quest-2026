@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { FullScreenSpinner } from "@/router/FullScreenSpinner";
-import { SessionError } from "@/router/SessionError";
+import { SessionError } from "@/components/auth/SessionError";
+import { FullScreenSpinner } from "@/components/ui/FullScreenSpinner";
 import { useGuardSession } from "@/router/useGuardSession";
 
 export function GuestRoute() {
