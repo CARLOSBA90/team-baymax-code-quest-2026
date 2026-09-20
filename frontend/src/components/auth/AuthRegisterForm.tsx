@@ -1,13 +1,18 @@
 import type { ChangeEvent, FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useRegister } from "@/api/queries/auth";
+import { getAuthErrorMessage } from "@/lib";
 import { type RegisterFormValues, registerSchema } from "@/schemas/";
+import { AuthLink } from "./AuthCard";
 import { PasswordField } from "./PasswordField";
 import { PrimaryButton } from "./PrimaryButton";
 import { TextField } from "./TextField";
 
-type FormStatus = "idle" | "submitting" | "error";
 type FormErrors = Partial<Record<keyof RegisterFormValues, string>>;
 type TextFieldName = "name" | "email" | "password" | "confirmPassword";
+
+const REGISTER_REDIRECT_DELAY_MS = 4000;
 
 const INITIAL_VALUES: RegisterFormValues = {
   name: "",
@@ -20,11 +25,21 @@ const INITIAL_VALUES: RegisterFormValues = {
 export function AuthRegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [status, setStatus] = useState<FormStatus>("idle");
+  const { mutate, isPending, isError, isSuccess, error, reset } = useRegister();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isSuccess) return;
+    const timeoutId = window.setTimeout(() => {
+      navigate("/auth/login");
+    }, REGISTER_REDIRECT_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [isSuccess, navigate]);
 
   const handleFieldChange = (field: TextFieldName) => (event: ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
     setValues((prev) => ({ ...prev, [field]: value }));
+    if (isError) reset();
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
@@ -51,21 +66,38 @@ export function AuthRegisterForm() {
     }
 
     setErrors({});
-    setStatus("submitting");
-
-    // TODO: conectar a Better Auth (fuera de este change). Aquí iría la llamada real de
-    // registro con `result.data` (campos ya validados, incluida la coincidencia de
-    // contraseñas). Se simula un fallo genérico para dejar el flujo de UI completo.
-    window.setTimeout(() => {
-      setStatus("error");
-    }, 600);
+    mutate({
+      name: result.data.name,
+      email: result.data.email,
+      password: result.data.password,
+    });
   };
 
-  const isSubmitting = status === "submitting";
+  const isSubmitting = isPending;
+  const isLocked = isPending || isSuccess;
 
   return (
     <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-      {status === "error" && (
+      {isSuccess && (
+        <div
+          role="status"
+          className="flex flex-col gap-2 rounded-xl px-3 py-3 font-body text-xs"
+          style={{
+            backgroundColor: "rgba(74, 222, 128, 0.10)",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: "rgba(74, 222, 128, 0.30)",
+            color: "#86EFAC",
+          }}
+        >
+          <p>
+            ¡Cuenta creada con éxito! Revisa tu correo para verificar tu cuenta. Te llevaremos al
+            inicio de sesión en unos segundos.
+          </p>
+          <AuthLink href="/auth/login" label="Ir a iniciar sesión" />
+        </div>
+      )}
+      {isError && (
         <div
           role="alert"
           className="rounded-xl px-3 py-3 font-body text-xs"
@@ -77,7 +109,7 @@ export function AuthRegisterForm() {
             color: "#FCA5A5",
           }}
         >
-          No pudimos crear tu cuenta. Intenta nuevamente.
+          {getAuthErrorMessage(error)}
         </div>
       )}
       <div className="flex flex-col gap-4">
@@ -89,7 +121,7 @@ export function AuthRegisterForm() {
           value={values.name}
           onChange={handleFieldChange("name")}
           error={errors.name}
-          disabled={isSubmitting}
+          disabled={isLocked}
         />
         <TextField
           id="email"
@@ -101,7 +133,7 @@ export function AuthRegisterForm() {
           value={values.email}
           onChange={handleFieldChange("email")}
           error={errors.email}
-          disabled={isSubmitting}
+          disabled={isLocked}
         />
         <PasswordField
           id="password"
@@ -111,7 +143,7 @@ export function AuthRegisterForm() {
           value={values.password}
           onChange={handleFieldChange("password")}
           error={errors.password}
-          disabled={isSubmitting}
+          disabled={isLocked}
         />
         <PasswordField
           id="confirmPassword"
@@ -121,7 +153,7 @@ export function AuthRegisterForm() {
           value={values.confirmPassword}
           onChange={handleFieldChange("confirmPassword")}
           error={errors.confirmPassword}
-          disabled={isSubmitting}
+          disabled={isLocked}
         />
         <div className="flex flex-col gap-4">
           <label
@@ -134,7 +166,7 @@ export function AuthRegisterForm() {
               name="acceptTerms"
               checked={values.acceptTerms}
               onChange={handleAcceptTermsChange}
-              disabled={isSubmitting}
+              disabled={isLocked}
               aria-invalid={errors.acceptTerms ? "true" : undefined}
               aria-describedby={errors.acceptTerms ? "acceptTerms-error" : undefined}
               className="h-4 w-4 shrink-0 accent-accent disabled:cursor-not-allowed disabled:opacity-50"
@@ -148,7 +180,12 @@ export function AuthRegisterForm() {
           )}
         </div>
       </div>
-      <PrimaryButton type="submit" loading={isSubmitting} loadingLabel="Creando cuenta…">
+      <PrimaryButton
+        type="submit"
+        disabled={isSuccess}
+        loading={isSubmitting}
+        loadingLabel="Creando cuenta…"
+      >
         Crear cuenta
       </PrimaryButton>
     </form>

@@ -4,7 +4,7 @@ export const Root = () => {
   const { pathname } = useLocation();
 
   if (pathname === "/") {
-    return <Navigate to="/auth/login" />;
+    return <Navigate to="/dashboard/roadmaps" replace />;
   }
 
   return <Outlet />;
