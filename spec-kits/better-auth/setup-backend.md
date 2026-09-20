@@ -394,7 +394,7 @@ Cookie: better-auth.session_token=<token>
 - **`callbackURL`** enviado desde el front debe ser una URL absoluta y su origen debe estar en `trustedOrigins`; si no, Better Auth lo rechaza.
 - **Password**: `minPasswordLength: 6`.
 - **`requireEmailVerification: true`**: un sign-in con email sin verificar responde `403` con codigo `EMAIL_NOT_VERIFIED`. No se reenvia el correo porque `sendOnSignIn` no esta configurado.
-- **Header `X-Verification-Url` (solo desarrollo)**: en `POST /api/auth/sign-up/email` la respuesta incluye la URL de verificacion para poder probar sin correo. Solo se emite si `EXPOSE_VERIFICATION_URL === 'true' && NODE_ENV !== 'production'`. Para que el navegador pueda leerlo, el CORS de `main.ts` debe incluir `exposedHeaders: ['X-Verification-Url']`.
+- **Header `X-Verification-Url` (solo desarrollo)**: en `POST /api/auth/sign-up/email` la respuesta incluye la URL de verificacion para poder probar sin correo. Solo se emite si `EXPOSE_VERIFICATION_URL === 'true' && NODE_ENV === 'development'` (con `NODE_ENV` sin definir, `staging`, `test` o `production` no se emite). La URL (sin el email) solo se registra en el log cuando `NODE_ENV === 'development'`. Para que el navegador pueda leerlo, el CORS de `main.ts` debe incluir `exposedHeaders: ['X-Verification-Url']`.
 - **Trampa con `AsyncLocalStorage`**: en better-auth 1.7.5 el contexto NO se propaga entre `sendVerificationEmail` y la respuesta HTTP. Solucion usada: un `Map` indexado por email (TTL 60s) que guarda la URL en `sendVerificationEmail` y se lee en `hooks.after` para setear el header.
 
 ---

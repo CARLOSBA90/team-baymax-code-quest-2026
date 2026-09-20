@@ -207,7 +207,7 @@ describe('auth configuration', () => {
   });
 
   describe('verification URL logging', () => {
-    it('logs the URL when NODE_ENV is not production', async () => {
+    it('logs the URL, without the email, in development', async () => {
       process.env.NODE_ENV = 'development';
       const { config } = await load();
 
@@ -219,19 +219,23 @@ describe('auth configuration', () => {
       expect(mocks.logLog).toHaveBeenCalledExactlyOnceWith(
         expect.stringContaining('http://verify/1'),
       );
+      expect(mocks.logLog.mock.calls[0][0]).not.toContain('a@b.com');
     });
 
-    it('does not log the URL in production', async () => {
-      process.env.NODE_ENV = 'production';
-      const { config } = await load();
+    it.each(['production', 'staging', 'test', undefined])(
+      'does not log anything when NODE_ENV=%s',
+      async (nodeEnv) => {
+        if (nodeEnv !== undefined) process.env.NODE_ENV = nodeEnv;
+        const { config } = await load();
 
-      await config.emailVerification.sendVerificationEmail({
-        user: { email: 'a@b.com' },
-        url: 'http://verify/1',
-      });
+        await config.emailVerification.sendVerificationEmail({
+          user: { email: 'a@b.com' },
+          url: 'http://verify/1',
+        });
 
-      expect(mocks.logLog).not.toHaveBeenCalled();
-    });
+        expect(mocks.logLog).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe('X-Verification-Url header hook', () => {
@@ -309,6 +313,16 @@ describe('auth configuration', () => {
       expect(setHeader).not.toHaveBeenCalled();
     });
 
+    it('does not expose the URL outside development even with the flag on', async () => {
+      process.env.NODE_ENV = 'staging';
+      const { config } = await load();
+      await send(config, 'a@b.com');
+
+      const setHeader = await signUp(config, 'a@b.com');
+
+      expect(setHeader).not.toHaveBeenCalled();
+    });
+
     it('does not set the header for an unknown email', async () => {
       const { config } = await load();
       await send(config, 'a@b.com');
@@ -374,10 +388,13 @@ describe('auth configuration', () => {
   describe('isVerificationUrlExposed', () => {
     it.each([
       ['true', 'development', true],
-      ['true', undefined, true],
+      ['true', undefined, false],
       ['true', 'production', false],
+      ['true', 'staging', false],
+      ['true', 'test', false],
       ['false', 'development', false],
       [undefined, 'development', false],
+      [undefined, undefined, false],
     ])('EXPOSE=%s NODE_ENV=%s -> %s', async (flag, nodeEnv, expected) => {
       if (flag !== undefined) process.env.EXPOSE_VERIFICATION_URL = flag;
       if (nodeEnv !== undefined) process.env.NODE_ENV = nodeEnv;

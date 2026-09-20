@@ -61,10 +61,10 @@ const socialProviders = {
 export const VERIFICATION_URL_HEADER = 'X-Verification-Url';
 const VERIFICATION_URL_TTL_MS = 60_000;
 
-/** true solo si EXPOSE_VERIFICATION_URL === 'true' y NODE_ENV !== 'production'. */
+/** true solo si EXPOSE_VERIFICATION_URL === 'true' y NODE_ENV === 'development'. */
 export const isVerificationUrlExposed = (): boolean =>
   process.env.EXPOSE_VERIFICATION_URL === 'true' &&
-  process.env.NODE_ENV !== 'production';
+  process.env.NODE_ENV === 'development';
 
 const verificationUrls = new Map<string, { url: string; expires: number }>();
 
@@ -105,8 +105,8 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     // Sin mailer real: en desarrollo la URL se registra en el log.
     sendVerificationEmail: ({ user, url }) => {
-      if (process.env.NODE_ENV !== 'production') {
-        logger.log(`Verificación de email para ${user.email}: ${url}`);
+      if (process.env.NODE_ENV === 'development') {
+        logger.log(`URL de verificación: ${url}`);
       }
       if (isVerificationUrlExposed()) {
         storeVerificationUrl(user.email, url);

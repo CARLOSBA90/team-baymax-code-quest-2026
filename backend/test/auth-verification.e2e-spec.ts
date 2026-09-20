@@ -24,11 +24,12 @@ vi.mock('../src/prisma/prisma.service.js', () => {
 type Env = { flag?: string; nodeEnv?: string };
 
 /** Arranca la app real (AuthModule + CORS como main.ts) con el entorno dado. */
-async function bootstrap({ flag, nodeEnv = 'development' }: Env) {
+async function bootstrap({ flag, nodeEnv }: Env) {
   process.env.BETTER_AUTH_SECRET = 'e2e-secret-e2e-secret-e2e-secret-1234';
   process.env.BETTER_AUTH_URL = 'http://localhost:3001';
   process.env.TRUSTED_ORIGINS = ORIGIN;
-  process.env.NODE_ENV = nodeEnv;
+  // Vacío = sin definir (dotenv no pisa variables ya presentes).
+  process.env.NODE_ENV = nodeEnv ?? '';
   // Vacío en lugar de delete: ConfigModule.forRoot() recargaría el .env local.
   process.env.EXPOSE_VERIFICATION_URL = flag ?? '';
 
@@ -75,7 +76,7 @@ describe('Auth verification URL (e2e)', () => {
 
   describe('EXPOSE_VERIFICATION_URL=true en desarrollo', () => {
     beforeEach(async () => {
-      app = await bootstrap({ flag: 'true' });
+      app = await bootstrap({ flag: 'true', nodeEnv: 'development' });
     });
 
     it('sign-up devuelve 200 y X-Verification-Url', async () => {
@@ -124,13 +125,13 @@ describe('Auth verification URL (e2e)', () => {
   });
 
   it('flag desactivado: sin cabecera', async () => {
-    app = await bootstrap({ flag: 'false' });
+    app = await bootstrap({ flag: 'false', nodeEnv: 'development' });
     const res = await signUp(app, 'off@example.com').expect(200);
     expect(res.headers[HEADER]).toBeUndefined();
   });
 
   it('flag vacío: sin cabecera', async () => {
-    app = await bootstrap({});
+    app = await bootstrap({ nodeEnv: 'development' });
     const res = await signUp(app, 'unset@example.com').expect(200);
     expect(res.headers[HEADER]).toBeUndefined();
   });
@@ -138,6 +139,18 @@ describe('Auth verification URL (e2e)', () => {
   it('NODE_ENV=production con flag activo: sin cabecera', async () => {
     app = await bootstrap({ flag: 'true', nodeEnv: 'production' });
     const res = await signUp(app, 'prod@example.com').expect(200);
+    expect(res.headers[HEADER]).toBeUndefined();
+  });
+
+  it('NODE_ENV=staging con flag activo: sin cabecera', async () => {
+    app = await bootstrap({ flag: 'true', nodeEnv: 'staging' });
+    const res = await signUp(app, 'staging@example.com').expect(200);
+    expect(res.headers[HEADER]).toBeUndefined();
+  });
+
+  it('NODE_ENV sin definir con flag activo: sin cabecera', async () => {
+    app = await bootstrap({ flag: 'true' });
+    const res = await signUp(app, 'noenv@example.com').expect(200);
     expect(res.headers[HEADER]).toBeUndefined();
   });
 });
