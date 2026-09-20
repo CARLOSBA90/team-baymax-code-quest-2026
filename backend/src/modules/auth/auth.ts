@@ -4,6 +4,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { createAuthMiddleware } from 'better-auth/api';
 import { prisma } from '../../prisma/prisma.service.js';
+import { AuthValidator } from './auth.validator.js';
 
 const logger = new Logger('Auth');
 
@@ -127,6 +128,21 @@ export const auth = betterAuth({
   },
 
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/sign-up/email') return;
+
+      const validated = AuthValidator.validateSignUpPayload(ctx.body);
+      await AuthValidator.assertEmailNotRegistered(
+        validated.email,
+        prisma?.user,
+      );
+
+      if (ctx.body && typeof ctx.body === 'object') {
+        (ctx.body as Record<string, unknown>).email = validated.email;
+        (ctx.body as Record<string, unknown>).name = validated.name;
+      }
+    }),
+
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== '/sign-up/email') return;
       const email = (ctx.body as { email?: unknown } | undefined)?.email;
