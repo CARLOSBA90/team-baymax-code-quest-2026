@@ -5,7 +5,13 @@ const mocks = vi.hoisted(() => ({
   databaseAdapter: { type: 'prisma-adapter' },
   logLog: vi.fn(),
   logWarn: vi.fn(),
-  prisma: { type: 'shared-prisma-client' },
+  prisma: {
+    type: 'shared-prisma-client',
+    user: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+    },
+  },
   prismaAdapter: vi.fn(),
 }));
 
@@ -22,9 +28,13 @@ vi.mock('better-auth', () => ({
 vi.mock('better-auth/adapters/prisma', () => ({
   prismaAdapter: mocks.prismaAdapter,
 }));
-vi.mock('better-auth/api', () => ({
-  createAuthMiddleware: mocks.createAuthMiddleware,
-}));
+vi.mock('better-auth/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('better-auth/api')>();
+  return {
+    ...actual,
+    createAuthMiddleware: mocks.createAuthMiddleware,
+  };
+});
 vi.mock('../../prisma/prisma.service.js', () => ({
   prisma: mocks.prisma,
 }));
@@ -47,6 +57,10 @@ type Config = {
   };
   socialProviders: Record<string, { clientId: string; clientSecret: string }>;
   hooks: {
+    before: (ctx: {
+      path: string;
+      body?: unknown;
+    }) => Promise<void>;
     after: (ctx: {
       path: string;
       body?: unknown;
@@ -382,6 +396,69 @@ describe('auth configuration', () => {
 
       expect(module.takeVerificationUrl('a@b.com')).toBe('http://verify/1');
       expect(module.takeVerificationUrl('a@b.com')).toBeUndefined();
+    });
+  });
+
+  describe('sign-up validation hook (before)', () => {
+    it('ignores paths other than /sign-up/email', async () => {
+      const { config } = await load();
+      await expect(
+        config.hooks.before({
+          path: '/sign-in/email',
+          body: { invalid: 'payload' },
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('rejects invalid payload on /sign-up/email', async () => {
+      const { config } = await load();
+      await expect(
+        config.hooks.before({
+          path: '/sign-up/email',
+          body: { name: '', email: 'notanemail', password: '12' },
+        }),
+      ).rejects.toThrow('El nombre es obligatorio');
+    });
+
+    it('rejects when email is already registered in prisma', async () => {
+      mocks.prisma.user.findUnique.mockResolvedValueOnce({
+        id: 'user-existing',
+        email: 'existing@example.com',
+      });
+      const { config } = await load();
+
+      await expect(
+        config.hooks.before({
+          path: '/sign-up/email',
+          body: {
+            name: 'Existing User',
+            email: 'existing@example.com',
+            password: 'password123',
+          },
+        }),
+      ).rejects.toThrow('El correo electrónico ya está registrado');
+
+      expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'existing@example.com' },
+      });
+    });
+
+    it('normalizes email and name in ctx.body when valid', async () => {
+      mocks.prisma.user.findUnique.mockResolvedValueOnce(null);
+      const { config } = await load();
+      const body = {
+        name: '  Juan Perez  ',
+        email: '  JUAN@EXAMPLE.COM  ',
+        password: 'password123',
+      };
+
+      await config.hooks.before({
+        path: '/sign-up/email',
+        body,
+      });
+
+      expect(body.email).toBe('juan@example.com');
+      expect(body.name).toBe('Juan Perez');
     });
   });
 
