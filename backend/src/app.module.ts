@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AssessmentsModule } from './modules/assessments/assessments.module.js';
 import { auth } from './modules/auth/auth.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -13,6 +14,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     PrismaModule,
     AuthModule.forRoot({ auth }),
     UsersModule,
+    AssessmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

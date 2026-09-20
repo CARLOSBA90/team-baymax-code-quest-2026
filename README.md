@@ -260,7 +260,10 @@ cp .env.example .env
 npx prisma migrate deploy
 npx prisma generate
 
-# 3. Levantar en modo watch en http://localhost:3001
+# 3. Poblar el banco de preguntas iniciales (Seed) 
+pnpm prisma db seed
+
+# 4. Levantar en modo watch en http://localhost:3001
 pnpm start:dev
 
 # Verificar
