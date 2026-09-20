@@ -196,9 +196,14 @@ const questionsToSeed: SeedQuestion[] = [
 async function main() {
   console.log('Iniciando seed de preguntas para CodeQuest...');
 
-  // Limpiar preguntas anteriores para asegurar idempotencia (evita duplicados si se corre varias veces)
-  await prisma.questionOption.deleteMany();
-  await prisma.question.deleteMany();
+  // Evitar fallos por restricciones de clave foránea o duplicados si ya existen preguntas
+  const existingQuestionsCount = await prisma.question.count();
+  if (existingQuestionsCount > 0) {
+    console.log(
+      `✓ Ya existen ${existingQuestionsCount} preguntas en la base de datos. Saltando seed.`,
+    );
+    return;
+  }
 
   for (const q of questionsToSeed) {
     const createdQuestion = await prisma.question.create({
