@@ -19,6 +19,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  assessments   Assessment[] 
 
   @@unique([email])
   @@map("user")
@@ -70,4 +71,69 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+enum SkillCategory {
+  BACKEND
+  FRONTEND
+  DEVOPS
+  DATABASES
+  MOBILE
+  TESTING
+  WEB_FUNDAMENTALS
+}
+
+model Question {
+  id        String          @id @default(cuid())
+  text      String
+  category  SkillCategory
+  order     Int
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  options   QuestionOption[]
+  answers   AssessmentAnswer[]
+
+  @@map("question")
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  value      Int      // Puntaje de la opción (1 a 5)
+  order      Int
+
+  @@map("question_option")
+}
+
+model Assessment {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version       Int                @default(1)
+  completedAt   DateTime?
+  createdAt     DateTime           @default(now())
+  profileScores Json?              // Mapa de resultados, ej: {"BACKEND": 20, "FRONTEND": 10}
+  goalCategory  SkillCategory?
+
+  answers       AssessmentAnswer[]
+
+  @@map("assessment")
+}
+
+model AssessmentAnswer {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question   @relation(fields: [questionId], references: [id])
+  optionId     String?
+  freeText     String?
+  numericValue Int?
+
+  @@unique([assessmentId, questionId])
+  @@map("assessment_answer")
 }
