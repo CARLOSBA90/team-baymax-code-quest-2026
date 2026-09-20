@@ -23,14 +23,14 @@
 - [ ] Implementar `CatalogModule` + `CatalogService.importFromCsv()`
 - [ ] Endpoint `POST /api/v1/catalog/import` (solo admin/interno)
 - [ ] Seed del catálogo con el CSV preparado
-- [ ] Endpoint `GET /api/v1/catalog/courses` (lista paginada para el frontend)
+- [ ] Endpoint `GET /api/v1/catalog/courses` (lista paginada para el frontend — posible implementación de scrapper con cron scheduled)
 
 ### 🔴 Módulo: Roadmaps (`roadmaps`) — BLOQUEANTE para Frontend de resultados
 > Depende de: Catálogo terminado + Assessment terminado ✅
 - [ ] Crear modelos Prisma `Roadmap` y `RoadmapItem` y migración
 - [ ] Implementar `RoadmapGeneratorService` (Camino A: reglas determinísticas por `profileScores`)
 - [ ] Endpoint `POST /api/v1/roadmaps/generate` (genera y persiste la ruta según último assessment)
-- [ ] Endpoint `GET /api/v1/roadmaps/mine` (retorna la ruta activa del usuario autenticado)
+- [ ] Endpoint `GET /api/v1/roadmaps/` (retorna las rutas del usuario autenticado)
 - [ ] Endpoint `GET /api/v1/roadmaps/:id` (detalle con los `RoadmapItem` y cursos)
 
 ### 🟡 Módulo: Progreso (`progress`)
@@ -42,7 +42,7 @@
 ### ✅ Módulo: Assessments — COMPLETADO
 - [x] `GET /api/v1/assessments/questions` — Catálogo de preguntas activas
 - [x] `POST /api/v1/assessments/submit` — Submit y cálculo de `profileScores`
-- [x] `GET /api/v1/assessments/my-result` — Resultado del último assessment
+- [ ] Deshabilitar endpoint `GET /api/v1/assessments/my-result` (el flujo mostrará directamente el roadmap generado por el assessment)
 
 ### ✅ Módulo: Auth — COMPLETADO
 - [x] Email/Password con verificación obligatoria
