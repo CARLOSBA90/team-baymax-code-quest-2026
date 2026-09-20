@@ -1,6 +1,7 @@
 export * from "./AuthCard";
 export * from "./AuthDivider";
 export * from "./AuthLoginForm";
+export * from "./AuthNotice";
 export * from "./AuthRegisterForm";
 export * from "./AuthSocialSignInButtons";
 export * from "./OAuthButton";
