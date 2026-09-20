@@ -13,12 +13,14 @@ async function bootstrap() {
   app.enableCors({
     origin: trustedOrigins,
     credentials: true,
+    // Permite al frontend leer la URL de verificación (solo en desarrollo).
+    exposedHeaders: ['X-Verification-Url'],
   });
 
   // Sin opciones a propósito: AuthModule ya excluye /api/auth del prefijo y
   // pasar exclude aquí reemplazaría esa exclusión.
   app.setGlobalPrefix('api/v1');
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001);
 }
 await bootstrap();

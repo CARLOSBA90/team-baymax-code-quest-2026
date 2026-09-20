@@ -47,16 +47,17 @@ describe('bootstrap', () => {
     expect(mocks.app.enableCors).toHaveBeenCalledExactlyOnceWith({
       origin: mocks.trustedOrigins,
       credentials: true,
+      exposedHeaders: ['X-Verification-Url'],
     });
     expect(mocks.app.setGlobalPrefix).toHaveBeenCalledExactlyOnceWith('api/v1');
     expect(mocks.app.listen).toHaveBeenCalledExactlyOnceWith('4310');
   });
 
-  it('listens on port 3000 when PORT is absent', async () => {
+  it('listens on port 3001 when PORT is absent', async () => {
     delete process.env.PORT;
 
     await import('./main.js');
 
-    expect(mocks.app.listen).toHaveBeenCalledExactlyOnceWith(3000);
+    expect(mocks.app.listen).toHaveBeenCalledExactlyOnceWith(3001);
   });
 });
