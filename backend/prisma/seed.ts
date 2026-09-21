@@ -1,6 +1,13 @@
 import 'dotenv/config';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { prisma } from '../src/prisma/prisma.service.js';
 import { SkillCategory } from '../src/generated/prisma/enums.js';
+import { CatalogService } from '../src/modules/catalog/catalog.service.js';
+
+const COURSES_CSV_PATH = fileURLToPath(
+  new URL('./seed/courses.csv', import.meta.url),
+);
 
 interface SeedOption {
   text: string;
@@ -193,7 +200,7 @@ const questionsToSeed: SeedQuestion[] = [
   },
 ];
 
-async function main() {
+async function seedQuestions() {
   console.log('Iniciando seed de preguntas para CodeQuest...');
 
   // Evitar fallos por restricciones de clave foránea o duplicados si ya existen preguntas
@@ -229,6 +236,26 @@ async function main() {
       `✓ Pregunta ${createdQuestion.order} creada con ${createdQuestion.options.length} opciones [${createdQuestion.category}]`,
     );
   }
+}
+
+/** Importa el CSV del catálogo; reimportarlo no duplica ni reescribe cursos. */
+async function seedCourses() {
+  console.log('Importando catálogo desde prisma/seed/courses.csv...');
+
+  const csv = await readFile(COURSES_CSV_PATH, 'utf8');
+  const { message, data } = await new CatalogService(prisma).importFromCsv(csv);
+
+  console.log(message);
+  for (const error of data.errors) {
+    console.warn(
+      `Fila ${error.row ?? '-'} (${error.slug ?? '-'}): ${error.message}`,
+    );
+  }
+}
+
+async function main() {
+  await seedQuestions();
+  await seedCourses();
 
   console.log('Seed completado exitosamente.');
 }

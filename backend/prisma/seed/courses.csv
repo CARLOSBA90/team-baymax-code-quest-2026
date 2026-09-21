@@ -1,0 +1,12 @@
+slug,title,url,description,level,tags,durationHours
+javascript-moderno,JavaScript Moderno: Guía para dominar el lenguaje,https://cursos.devtalles.com/courses/javascript-moderno,Fundamentos y características modernas del lenguaje.,beginner,"javascript,web-fundamentals",
+typescript-guia-completa,TypeScript: Tu completa guía y manual de mano,https://cursos.devtalles.com/courses/typescript,Tipado estático para aplicaciones JavaScript.,beginner,"typescript,javascript",
+node-de-cero-a-experto,Node: De cero a experto,https://cursos.devtalles.com/courses/node-de-cero-a-experto,Servidores y APIs REST con Node y Express.,intermediate,"node,express,javascript",
+nestjs-backend-escalable,NestJS: Desarrollo backend escalable con Node,https://cursos.devtalles.com/courses/nestjs,APIs modulares con NestJS y bases de datos relacionales.,intermediate,"nestjs,backend,typescript,postgresql",
+react-de-cero-a-experto,React: De cero a experto,https://cursos.devtalles.com/courses/react-de-cero-a-experto,"Componentes, hooks y manejo de estado en React.",intermediate,"react,frontend,javascript",
+angular-de-cero-a-experto,Angular: De cero a experto,https://cursos.devtalles.com/courses/angular-de-cero-a-experto,Aplicaciones web con Angular y TypeScript.,intermediate,"angular,frontend,typescript",
+vue-de-cero-a-experto,Vue.js: De cero a experto,https://cursos.devtalles.com/courses/vue-de-cero-a-experto,Aplicaciones reactivas con Vue.,intermediate,"vue,frontend,javascript",
+nextjs-framework-de-react,Next.js: El framework de React para producción,https://cursos.devtalles.com/courses/nextjs,Renderizado en servidor y aplicaciones full stack con Next.js.,advanced,"react,frontend,typescript",
+flutter-guia-completa,Flutter: Tu guía completa de desarrollo para iOS y Android,https://cursos.devtalles.com/courses/flutter,Aplicaciones móviles multiplataforma con Flutter.,intermediate,"flutter,mobile",
+react-native-apps-nativas,React Native: Aplicaciones nativas para iOS y Android,https://cursos.devtalles.com/courses/react-native,Aplicaciones móviles nativas con React Native.,advanced,"react-native,mobile,react",
+docker-guia-practica,Docker: Guía práctica de uso para desarrolladores,https://cursos.devtalles.com/courses/docker,Contenedores e imágenes para desarrollo y despliegue.,intermediate,"docker,devops,ci-cd",
