@@ -137,3 +137,83 @@ model AssessmentAnswer {
   @@unique([assessmentId, questionId])
   @@map("assessment_answer")
 }
+
+enum CourseStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_REVIEW
+}
+
+enum PrerequisiteType {
+  REQUIRED
+  RECOMMENDED
+}
+
+enum ImportSource {
+  CSV
+  SCRAPER
+  MANUAL
+}
+
+enum ImportStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+model Course {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  title           String
+  url             String
+  description     String?
+  level           Int          // 1 beginner, 2 intermediate, 3 advanced
+  durationHours   Int?
+  status          CourseStatus @default(ACTIVE)
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  skills        CourseSkill[]
+  prerequisites CoursePrerequisite[] @relation("CoursePrerequisites")
+  requiredBy    CoursePrerequisite[] @relation("PrerequisiteOf")
+
+  @@map("course")
+}
+
+model CourseSkill {
+  id       String        @id @default(cuid())
+  courseId String
+  course   Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  skill    SkillCategory
+  weight   Float         // Peso del skill en el curso (0.0 a 1.0)
+
+  @@unique([courseId, skill])
+  @@map("course_skill")
+}
+
+model CoursePrerequisite {
+  id                   String           @id @default(cuid())
+  courseId             String
+  course               Course           @relation("CoursePrerequisites", fields: [courseId], references: [id])
+  prerequisiteCourseId String
+  prerequisite         Course           @relation("PrerequisiteOf", fields: [prerequisiteCourseId], references: [id])
+  type                 PrerequisiteType @default(REQUIRED)
+
+  @@unique([courseId, prerequisiteCourseId])
+  @@map("course_prerequisite")
+}
+
+model CatalogImport {
+  id         String       @id @default(cuid())
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  source     ImportSource
+  status     ImportStatus @default(RUNNING)
+  created    Int          @default(0)
+  updated    Int          @default(0)
+  errors     String?      // Lista de errores serializada como JSON
+
+  @@map("catalog_import")
+}
