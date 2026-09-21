@@ -26,7 +26,7 @@ reviews:
     drafts: false          # ignora PRs en borrador
     base_branches:
       - main
-      - develop
+      - dev
 
   # Ignora archivos que no aportan a la revisión
   path_filters:
