@@ -156,6 +156,14 @@ export const auth = betterAuth({
   },
 
   trustedOrigins,
+
+  // En producción el frontend vive en otro dominio: las cookies deben ser
+  // cross-site. En desarrollo no se toca la configuración por defecto.
+  ...(process.env.NODE_ENV === 'production' && {
+    advanced: {
+      defaultCookieAttributes: { sameSite: 'none', secure: true },
+    },
+  }),
 });
 
 /** Tipo de la sesión (session y user) inferido de esta configuración. */
