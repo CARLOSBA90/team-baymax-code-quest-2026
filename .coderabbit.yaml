@@ -1,0 +1,45 @@
+# .coderabbit.yaml
+language: es-ES
+
+reviews:
+  # 'chill' = solo se enfoca en bugs, seguridad y errores de lógica (menos comentarios)
+  profile: chill
+
+  # Reduce el ruido visual del resumen
+  high_level_summary: true      # resumen breve del PR
+  poem: false                   # sin el poema
+  sequence_diagrams: false      # sin diagramas de secuencia
+  changed_files_summary: false  # sin tabla de archivos cambiados
+  collapse_walkthrough: true    # walkthrough colapsado por defecto
+  review_status: true
+  request_changes_workflow: false
+
+  # Instrucciones globales para bajar el ruido aún más
+  instructions: |
+    Responde SIEMPRE en español.
+    Sé conciso: comenta únicamente bugs reales, problemas de seguridad y errores de lógica.
+    No comentes sobre estilo, formato, orden de imports ni longitud de línea (lo maneja el linter/formatter).
+    No repitas lo obvio ni elogies el código. Un solo comentario por problema.
+
+  auto_review:
+    enabled: true
+    drafts: false          # ignora PRs en borrador
+    base_branches:
+      - main
+      - dev
+
+  # Ignora archivos que no aportan a la revisión
+  path_filters:
+    - "!**/*.lock"
+    - "!**/*.min.js"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/vendor/**"
+    - "!**/node_modules/**"
+    - "!**/*.generated.*"
+    - "!**/coverage/**"
+    - "!**/__snapshots__/**"
+    - "!**/*.snap"
+
+chat:
+  auto_reply: true
