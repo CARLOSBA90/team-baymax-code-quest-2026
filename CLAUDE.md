@@ -39,9 +39,13 @@ pnpm build                      # tsc -b then vite build
 pnpm typecheck                  # tsc -b only
 pnpm check                      # biome lint + format check, no writes
 pnpm check:fix                  # biome lint + format, writes fixes
+
+pnpm test                       # vitest run (specs in src/**/__tests__/*.spec.{ts,tsx})
+pnpm test:watch
+pnpm test:coverage              # v8 coverage with thresholds (80% lines/functions/statements, 70% branches)
 ```
 
-No test runner is configured on the frontend.
+Frontend tests use Vitest + jsdom + Testing Library; see `frontend/CLAUDE.md` for conventions.
 
 ## Architecture: plan vs. current state
 
@@ -52,7 +56,7 @@ What actually exists today:
 - `backend/` is **one** freshly scaffolded NestJS app (untracked in git as of this writing), not three. It listens on `PORT ?? 3000`, `AppModule` is empty, and there is no `prisma/` directory, no `.env.example`, and no Better Auth wiring yet.
 - `better-auth`, `@thallesp/nestjs-better-auth`, `@nestjs/config`, `@prisma/client`, and `prisma` are already **installed** but not yet used anywhere in `src/`.
 - `class-validator`, `class-transformer`, and `@nestjs/swagger` are **not** installed, even though the spec-kits assume them.
-- `frontend/` is a React 19 + Vite + Tailwind v4 starter with a placeholder `App.tsx`. No router, no auth client, no API layer yet. The `package.json` `name` is still `javi-herrera-portfolio` from the template.
+- `frontend/` is a React 19 + Vite + Tailwind v4 SPA (`package.json` name `code-quest-frontend-app`). It has `react-router-dom` routing (`GuestRoute` for `/auth/*`, `ProtectedRoute` for `/dashboard/*`), a Better Auth client (`src/lib/auth-client.ts`), an API layer (axios + TanStack React Query in `src/api/`), login/register pages and a dashboard roadmaps page, and Vitest tests for the auth flow.
 
 When implementing, decide explicitly whether to keep the single-service layout or split into the three services the docs describe — don't assume the docs match the tree.
 
