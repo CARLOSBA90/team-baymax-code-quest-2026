@@ -1,0 +1,108 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
+  "files": {
+    "includes": ["**", "!dist", "!node_modules", "!coverage", "!.git", "!design-specs"]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+
+      "a11y": {
+        "preset": "recommended"
+      },
+
+      "complexity": {
+        "noForEach": "warn",
+        "noUselessThisAlias": "error",
+        "useOptionalChain": "error"
+      },
+
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "noUnreachable": "error",
+        "noUnusedFunctionParameters": "warn",
+        "useExhaustiveDependencies": "warn"
+      },
+
+      "performance": {
+        "noAccumulatingSpread": "warn"
+      },
+
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+
+      "style": {
+        "noInferrableTypes": "error",
+        "noNegationElse": "warn",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["../*", "../**"],
+                "message": "Usa el alias @/ (otra carpeta) o ./ (fichero hermano); nunca ../"
+              },
+              {
+                "group": [
+                  "@/components/*/*",
+                  "@/api/queries/*/*",
+                  "@/api/services/*",
+                  "@/pages/*/*"
+                ],
+                "message": "Importa desde el barrel (index.ts) de la carpeta, no desde el fichero concreto"
+              }
+            ]
+          }
+        },
+        "useConst": "error",
+        "useImportType": "error"
+      },
+
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noMisleadingCharacterClass": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnsafeDeclarationMerging": "error",
+        "useAwait": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "css": {
+    "parser": {
+      "cssModules": true,
+      "tailwindDirectives": true
+    }
+  }
+}

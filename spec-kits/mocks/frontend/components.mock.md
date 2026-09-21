@@ -1,19 +1,19 @@
-# 🧩 Guía de Uso de Mocks — Frontend React
+# Guia de Uso de Mocks — Frontend React
 
-> Cómo usar los mocks disponibles para desarrollar componentes sin depender del backend.
+> Como usar los mocks disponibles para desarrollar componentes sin depender del backend.
 
 ---
 
-## 📋 Mocks Disponibles
+## Mocks Disponibles
 
-| Archivo | Propósito |
+| Archivo | Proposito |
 |---------|-----------|
-| `auth-context.mock.tsx` | Simular estados de autenticación en tests y storybook |
+| `auth-context.mock.tsx` | Simular estados de autenticacion en tests y storybook |
 | `api-client.mock.ts` | Reemplazar llamadas a la API con datos fake + latencia simulada |
 
 ---
 
-## 🔐 Mock de Auth Context
+## Mock de Auth Context
 
 ### Caso 1: Testear un componente con usuario autenticado
 
@@ -29,21 +29,21 @@ test('muestra el nombre del usuario autenticado', () => {
     </MockAuthProvider>
   );
 
-  expect(screen.getByText('Carlos Pérez')).toBeInTheDocument();
+  expect(screen.getByText('Carlos Perez')).toBeInTheDocument();
 });
 ```
 
-### Caso 2: Testear componente sin sesión
+### Caso 2: Testear componente sin sesion
 
 ```tsx
-test('muestra mensaje de login cuando no hay sesión', () => {
+test('muestra mensaje de login cuando no hay sesion', () => {
   render(
     <MockAuthProvider session={mockSession.unauthenticated}>
       <UserProfile />
     </MockAuthProvider>
   );
 
-  expect(screen.getByText('Iniciar sesión')).toBeInTheDocument();
+  expect(screen.getByText('Iniciar sesion')).toBeInTheDocument();
 });
 ```
 
@@ -61,30 +61,15 @@ test('muestra skeleton mientras carga', () => {
 });
 ```
 
-### Caso 4: Testear con usuario no verificado
-
-```tsx
-test('muestra alerta de verificación de email', () => {
-  render(
-    <MockAuthProvider session={mockSession.unverified}>
-      <UserProfile />
-    </MockAuthProvider>
-  );
-
-  expect(screen.getByText('Verifica tu email')).toBeInTheDocument();
-});
-```
-
 ---
 
-## 📡 Mock de API Client
+## Mock de API Client
 
-### Uso básico: Obtener tareas
+### Uso basico: Obtener tareas
 
 ```tsx
 import { mockApiClient } from '@/mocks/api-client.mock';
 
-// En tu componente o hook
 async function loadTasks() {
   const response = await mockApiClient.tasks.findAll();
   console.log(response.data);  // Array de tareas
@@ -147,14 +132,14 @@ function TaskList() {
 
 ---
 
-## 🔄 Cambiar entre Mock y API Real
+## Cambiar entre Mock y API Real
 
-Patrón recomendado para switchear fácilmente entre mocks y API real:
+Patron recomendado para switchear facilmente entre mocks y API real:
 
 ```typescript
 // src/lib/api.ts
 import { mockApiClient } from '@/mocks/api-client.mock';
-import { realApiClient } from '@/lib/api-client'; // Tu cliente real
+import { realApiClient } from '@/lib/api-client';
 
 // Usar variable de entorno para decidir
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
@@ -170,7 +155,7 @@ VITE_USE_MOCKS=true
 VITE_USE_MOCKS=false
 ```
 
-Así en tus componentes siempre importas de `@/lib/api` y el switch es transparente:
+Asi en tus componentes siempre importas de `@/lib/api` y el switch es transparente:
 
 ```tsx
 import { api } from '@/lib/api';
@@ -180,31 +165,30 @@ const tasks = await api.tasks.findAll();
 
 ---
 
-## 📚 Datos Mock Disponibles
+## Datos Mock Disponibles
 
-### Usuarios (`mockUsers`)
+### Usuarios
 
 | Key | Nombre | Email | Verificado |
 |-----|--------|-------|------------|
-| `carlos` | Carlos Pérez | carlos@example.com | ✅ |
-| `maria` | María García | maria@example.com | ✅ |
-| `unverified` | Juan López | juan@example.com | ❌ |
+| `carlos` | Carlos Perez | carlos@example.com | Si |
+| `maria` | Maria Garcia | maria@example.com | Si |
+| `unverified` | Juan Lopez | juan@example.com | No |
 
 ### Tareas (5 tareas mock)
 
-| ID | Título | Status | Prioridad |
+| ID | Titulo | Status | Prioridad |
 |----|--------|--------|-----------|
 | `tsk_001` | Configurar Better Auth | COMPLETED | HIGH |
 | `tsk_002` | Implementar CRUD de proyectos | IN_PROGRESS | HIGH |
-| `tsk_003` | Diseñar esquema de notificaciones | PENDING | MEDIUM |
+| `tsk_003` | Disenar esquema de notificaciones | PENDING | MEDIUM |
 | `tsk_004` | Agregar tests e2e | PENDING | LOW |
 | `tsk_005` | Configurar Docker Compose | CANCELLED | MEDIUM |
 
 ---
 
-## 💡 Tips
+## Tips
 
-1. **Simula latencia**: El `api-client.mock.ts` ya incluye delays realistas (200-800ms)
-2. **Errores**: Puedes forzar errores pasando IDs inexistentes (ej: `tasks.findOne('invalid')`)
-3. **Storybook**: Los mocks son perfectos para stories
-4. **No commitear datos reales**: Los mocks usan datos ficticios a propósito
+1. Simula latencia: El `api-client.mock.ts` ya incluye delays realistas (200-800ms)
+2. Errores: Puedes forzar errores pasando IDs inexistentes (ej: `tasks.findOne('invalid')`)
+3. No commitear datos reales: Los mocks usan datos ficticios a proposito

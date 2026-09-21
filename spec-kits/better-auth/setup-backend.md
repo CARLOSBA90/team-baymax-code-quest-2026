@@ -1,30 +1,30 @@
-# 🔐 Better Auth — Setup Backend (NestJS)
+# Better Auth — Setup Backend (NestJS)
 
-> Guía paso a paso para configurar Better Auth en un backend NestJS.
+> Guia para configurar Better Auth en el backend NestJS de CodeQuest (Monolito Modular).
+> Incluye configuracion de Discord OAuth.
 
 ---
 
-## 📦 Paso 1: Instalar Dependencias
+## Paso 1: Instalar Dependencias
 
 ```bash
-cd backend/auth-api
+cd backend
 
-# Better Auth core + integración NestJS
-pnpm add better-auth @thallesp/nestjs-better-auth
+# Better Auth core + integracion NestJS (ya instalados en el scaffold base)
+# pnpm add better-auth @thallesp/nestjs-better-auth
 
-# Adapter de base de datos (Prisma)
-# Si ya tienes Prisma instalado, no hace falta reinstalarlo
-pnpm add @prisma/client
+# Verificar que esten en package.json
+pnpm list better-auth @thallesp/nestjs-better-auth
 ```
 
 ---
 
-## ⚙️ Paso 2: Configurar la Instancia de Better Auth
+## Paso 2: Configurar la Instancia de Better Auth
 
-Crear el archivo de configuración central de Better Auth:
+Crear el archivo de configuracion central de Better Auth con soporte para Discord:
 
 ```typescript
-// src/auth/auth.ts
+// src/modules/auth/auth.ts
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { PrismaClient } from '@prisma/client';
@@ -37,15 +37,23 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
 
-  // Métodos de autenticación habilitados
+  // Metodos de autenticacion habilitados
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Poner en true en producción
+    requireEmailVerification: false,
   },
 
-  // Configuración de sesión
+  // Proveedores sociales — Discord es requerimiento de la hackathon
+  socialProviders: {
+    discord: {
+      clientId: process.env.DISCORD_CLIENT_ID as string,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET as string,
+    },
+  },
+
+  // Configuracion de sesion
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 días
+    expiresIn: 60 * 60 * 24 * 7, // 7 dias
     updateAge: 60 * 60 * 24,      // Actualizar cada 24 horas
     cookieCache: {
       enabled: true,
@@ -54,27 +62,46 @@ export const auth = betterAuth({
   },
 
   // URLs permitidas (CORS de Better Auth)
-  trustedOrigins: ['http://localhost:5173'],
+  trustedOrigins: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+  ],
 });
 
 // Exportar el tipo para usar en decoradores
 export type Session = typeof auth.$Infer.Session;
 ```
 
+> Variables requeridas en `.env`:
+> - `DISCORD_CLIENT_ID` — Client ID de tu aplicacion en Discord Developer Portal
+> - `DISCORD_CLIENT_SECRET` — Client Secret de tu aplicacion en Discord Developer Portal
+> - `FRONTEND_URL` — URL del frontend (default: `http://localhost:5173`)
+
 ---
 
-## 🗄️ Paso 3: Generar Schema de Base de Datos
+## Paso 3: Configurar Discord OAuth en el Developer Portal
 
-Better Auth necesita tablas específicas en tu base de datos. Tienes 2 opciones:
+1. Ir a [Discord Developer Portal](https://discord.com/developers/applications)
+2. Crear una nueva aplicacion o abrir la existente
+3. Ir a la seccion "OAuth2"
+4. Agregar el redirect URI:
+   - Desarrollo: `http://localhost:3001/api/auth/callback/discord`
+   - Produccion: `https://tu-dominio.com/api/auth/callback/discord`
+5. Copiar el **Client ID** y **Client Secret** al `.env`
 
-### Opción A: Generar con CLI de Better Auth (Recomendado)
+---
+
+## Paso 4: Generar Schema de Base de Datos
+
+Better Auth necesita tablas especificas en tu base de datos. Tienes 2 opciones:
+
+### Opcion A: Generar con CLI de Better Auth (Recomendado)
 
 ```bash
-# Genera las migraciones necesarias automáticamente
-npx @better-auth/cli generate --config ./src/auth/auth.ts --output ./prisma/migrations
+# Genera las migraciones necesarias automaticamente
+npx @better-auth/cli generate --config ./src/modules/auth/auth.ts --output ./prisma/migrations
 ```
 
-### Opción B: Agregar manualmente al schema de Prisma
+### Opcion B: Agregar manualmente al schema de Prisma
 
 ```prisma
 // prisma/schema.prisma
@@ -106,18 +133,18 @@ model Session {
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  accountId         String
-  providerId        String
-  userId            String
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken       String?
-  refreshToken      String?
-  idToken           String?
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
   accessTokenExpiresAt  DateTime?
   refreshTokenExpiresAt DateTime?
-  scope             String?
-  password          String?
+  scope                 String?
+  password              String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,7 +161,7 @@ model Verification {
 }
 ```
 
-Después de agregar los modelos:
+Despues de agregar los modelos:
 
 ```bash
 npx prisma migrate dev --name add-better-auth-tables
@@ -143,21 +170,19 @@ npx prisma generate
 
 ---
 
-## 🔌 Paso 4: Integrar con NestJS
+## Paso 5: Integrar con NestJS
 
-### 4.1 — Desactivar Body Parser por defecto
-
-Better Auth necesita manejar el body de las requests internamente:
+### 5.1 — Configurar main.ts
 
 ```typescript
 // src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { AppModule } from './app.module';
+import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    bodyParser: false, // ⚠️ REQUERIDO para Better Auth
+    bodyParser: false, // REQUERIDO para Better Auth
   });
 
   app.useGlobalPipes(
@@ -169,8 +194,8 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://localhost:5173'],
-    credentials: true, // ⚠️ Necesario para cookies de sesión
+    origin: [process.env.FRONTEND_URL || 'http://localhost:5173'],
+    credentials: true, // Necesario para cookies de sesion
   });
 
   app.setGlobalPrefix('api/v1');
@@ -180,22 +205,26 @@ async function bootstrap() {
 bootstrap();
 ```
 
-### 4.2 — Registrar AuthModule
+### 5.2 — Registrar AuthModule en AppModule
 
 ```typescript
 // src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { PrismaModule } from './prisma/prisma.module';
-import { auth } from './auth/auth';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { auth } from './modules/auth/auth.js';
+import { UsersModule } from './modules/users/users.module.js';
+import { RoadmapsModule } from './modules/roadmaps/roadmaps.module.js';
+import { AssessmentsModule } from './modules/assessments/assessments.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
 
-    // Registrar Better Auth
+    // Registrar Better Auth (instala guard global automaticamente)
     AuthModule.forRoot({
       auth,
       bodyParser: {
@@ -204,18 +233,24 @@ import { auth } from './auth/auth';
         rawBody: true,
       },
     }),
+
+    // Modulos de dominio
+    UsersModule,
+    RoadmapsModule,
+    AssessmentsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
 ```
 
-> ✅ Con esto, Better Auth maneja automáticamente todas las rutas bajo `/api/auth/*` (signup, signin, signout, session, etc.)
+> Con esto, Better Auth maneja automaticamente todas las rutas bajo `/api/auth/*` (signup, signin, signout, session, discord callback, etc.)
 
 ---
 
-## 🛡️ Paso 5: Proteger Endpoints
+## Paso 6: Proteger Endpoints
 
-El `AuthModule` habilita un **guard global** por defecto. Todos los endpoints están protegidos salvo que los marques explícitamente como públicos.
+El `AuthModule` habilita un **guard global** por defecto. Todos los endpoints estan protegidos salvo que los marques explicitamente como publicos.
 
 ### Decoradores Disponibles
 
@@ -229,8 +264,8 @@ import {
 
 | Decorador | Uso |
 |-----------|-----|
-| `@Session()` | Inyecta la sesión del usuario en el método |
-| `@AllowAnonymous()` | Hace el endpoint público (sin auth) |
+| `@Session()` | Inyecta la sesion del usuario en el metodo |
+| `@AllowAnonymous()` | Hace el endpoint publico (sin auth) |
 | `@OptionalAuth()` | Permite acceso con o sin auth |
 
 ### Ejemplo: Controller con Endpoints Protegidos
@@ -243,14 +278,13 @@ import {
   AllowAnonymous,
   OptionalAuth,
 } from '@thallesp/nestjs-better-auth';
-import type { Session as UserSession } from '../auth/auth';
+import type { Session as UserSession } from '../auth/auth.js';
 
 @Controller('users')
 export class UsersController {
   /**
    * GET /api/v1/users/me
-   * Endpoint PROTEGIDO — requiere sesión válida
-   * Retorna el perfil del usuario autenticado
+   * Endpoint PROTEGIDO - requiere sesion valida
    */
   @Get('me')
   async getProfile(@Session() session: UserSession) {
@@ -259,20 +293,20 @@ export class UsersController {
         id: session.user.id,
         name: session.user.name,
         email: session.user.email,
+        image: session.user.image,
       },
     };
   }
 
   /**
    * PATCH /api/v1/users/me
-   * Endpoint PROTEGIDO — actualizar perfil
+   * Endpoint PROTEGIDO - actualizar perfil
    */
   @Patch('me')
   async updateProfile(
     @Session() session: UserSession,
     @Body() body: { name?: string },
   ) {
-    // Aquí iría la lógica de actualización
     return {
       message: 'Perfil actualizado',
       data: { id: session.user.id, name: body.name },
@@ -281,7 +315,7 @@ export class UsersController {
 
   /**
    * GET /api/v1/users/public-stats
-   * Endpoint PÚBLICO — no requiere auth
+   * Endpoint PUBLICO - no requiere auth
    */
   @Get('public-stats')
   @AllowAnonymous()
@@ -290,25 +324,12 @@ export class UsersController {
       data: { totalUsers: 150, activeToday: 42 },
     };
   }
-
-  /**
-   * GET /api/v1/users/greeting
-   * Endpoint OPCIONAL — funciona con y sin auth
-   */
-  @Get('greeting')
-  @OptionalAuth()
-  async getGreeting(@Session() session?: UserSession) {
-    if (session) {
-      return { message: `Hola, ${session.user.name}!` };
-    }
-    return { message: 'Hola, visitante!' };
-  }
 }
 ```
 
 ---
 
-## 🧪 Paso 6: Probar con Postman/Thunder Client
+## Paso 7: Probar con Postman/Thunder Client
 
 ### Registrar un usuario
 
@@ -323,7 +344,7 @@ Content-Type: application/json
 }
 ```
 
-### Iniciar sesión
+### Iniciar sesion con email
 
 ```http
 POST http://localhost:3001/api/auth/sign-in/email
@@ -335,9 +356,23 @@ Content-Type: application/json
 }
 ```
 
-> La respuesta incluirá una cookie `better-auth.session_token`. El navegador la envía automáticamente en las siguientes requests.
+### Iniciar sesion con Discord (flujo OAuth)
 
-### Obtener sesión actual
+El flujo de Discord es redireccionado desde el frontend. El inicio es un POST (no existe `GET /api/auth/signin/discord`):
+
+```
+POST http://localhost:3001/api/auth/sign-in/social
+Content-Type: application/json
+
+{ "provider": "discord", "callbackURL": "http://localhost:5173/" }
+```
+
+Better Auth maneja el callback automaticamente en:
+```
+GET http://localhost:3001/api/auth/callback/discord
+```
+
+### Obtener sesion actual
 
 ```http
 GET http://localhost:3001/api/auth/get-session
@@ -353,10 +388,22 @@ Cookie: better-auth.session_token=<token>
 
 ---
 
-## ✅ Checklist de Implementación
+## Notas de la implementacion actual (email, verificacion y providers)
 
-- [ ] Instalar `better-auth` y `@thallesp/nestjs-better-auth`
-- [ ] Crear `src/auth/auth.ts` con la config de Better Auth
+- **Providers sociales**: Google (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`), GitHub (`GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`) y Discord (`DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`). Callbacks: `http://localhost:3001/api/auth/callback/{google|github|discord}` (cambiar host en produccion).
+- **`callbackURL`** enviado desde el front debe ser una URL absoluta y su origen debe estar en `trustedOrigins`; si no, Better Auth lo rechaza.
+- **Password**: `minPasswordLength: 6`.
+- **`requireEmailVerification: true`**: un sign-in con email sin verificar responde `403` con codigo `EMAIL_NOT_VERIFIED`. No se reenvia el correo porque `sendOnSignIn` no esta configurado.
+- **Header `X-Verification-Url` (solo desarrollo)**: en `POST /api/auth/sign-up/email` la respuesta incluye la URL de verificacion para poder probar sin correo. Solo se emite si `EXPOSE_VERIFICATION_URL === 'true' && NODE_ENV === 'development'` (con `NODE_ENV` sin definir, `staging`, `test` o `production` no se emite). La URL (sin el email) solo se registra en el log cuando `NODE_ENV === 'development'`. Para que el navegador pueda leerlo, el CORS de `main.ts` debe incluir `exposedHeaders: ['X-Verification-Url']`.
+- **Trampa con `AsyncLocalStorage`**: en better-auth 1.7.5 el contexto NO se propaga entre `sendVerificationEmail` y la respuesta HTTP. Solucion usada: un `Map` indexado por email (TTL 60s) que guarda la URL en `sendVerificationEmail` y se lee en `hooks.after` para setear el header.
+
+---
+
+## Checklist de Implementacion
+
+- [ ] Crear aplicacion en Discord Developer Portal y obtener Client ID/Secret
+- [ ] Agregar variables de entorno al `.env` (DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET)
+- [ ] Crear `src/modules/auth/auth.ts` con la config de Better Auth y Discord
 - [ ] Generar/agregar tablas de auth en el schema de Prisma
 - [ ] Correr migraciones (`prisma migrate dev`)
 - [ ] Desactivar `bodyParser` en `main.ts`
@@ -364,21 +411,24 @@ Cookie: better-auth.session_token=<token>
 - [ ] Registrar `AuthModule.forRoot()` en `AppModule`
 - [ ] Crear un endpoint protegido de prueba
 - [ ] Probar signup + signin con Postman
-- [ ] Verificar que la sesión persiste
+- [ ] Probar flujo Discord OAuth
+- [ ] Verificar que la sesion persiste
 
 ---
 
-## ⚠️ Errores Comunes
+## Errores Comunes
 
-| Error | Causa | Solución |
+| Error | Causa | Solucion |
 |-------|-------|----------|
 | `Cannot parse body` | Body parser no desactivado | Agregar `bodyParser: false` en `NestFactory.create` |
 | `CORS blocked` | Frontend no en `trustedOrigins` | Agregar la URL del frontend a `trustedOrigins` y CORS |
 | `Session not found` | Cookie no enviada | Verificar `credentials: true` en CORS y en el fetch del frontend |
 | `Table not found` | Migraciones no corridas | Ejecutar `npx prisma migrate dev` |
+| `Discord redirect_uri_mismatch` | URI no registrado en Discord | Agregar `http://localhost:3001/api/auth/callback/discord` al Discord Developer Portal |
+| `Invalid DISCORD_CLIENT_ID` | Variable de entorno vacia | Verificar `.env` y que la app no haya cargado variables en cache |
 
 ---
 
-## 🔗 Siguiente Paso
+## Siguiente Paso
 
-→ [Setup Frontend (React)](./setup-frontend.md)
+[Setup Frontend (React)](./setup-frontend.md)

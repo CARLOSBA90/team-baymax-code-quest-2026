@@ -1,10 +1,11 @@
-# 🎨 Better Auth — Setup Frontend (React)
+# Better Auth — Setup Frontend (React)
 
-> Guía para configurar el cliente de Better Auth en el frontend React.
+> Guia para configurar el cliente de Better Auth en el frontend React.
+> Incluye inicio de sesion con Discord.
 
 ---
 
-## 📦 Paso 1: Instalar Dependencias
+## Paso 1: Instalar Dependencias
 
 ```bash
 cd frontend
@@ -13,33 +14,33 @@ cd frontend
 pnpm add better-auth
 ```
 
-> 💡 El paquete `better-auth` incluye `better-auth/react` con hooks optimizados para React.
+> El paquete `better-auth` incluye `better-auth/react` con hooks optimizados para React.
 
 ---
 
-## ⚙️ Paso 2: Crear el Cliente de Auth
+## Paso 2: Crear el Cliente de Auth
 
 ```typescript
 // src/lib/auth-client.ts
 import { createAuthClient } from 'better-auth/react';
 
 export const authClient = createAuthClient({
-  // URL base del Auth API (backend #1)
-  baseURL: 'http://localhost:3001',
+  // URL base del backend (un solo endpoint)
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
 });
 
 // Exportar hooks y funciones para uso directo
 export const {
-  useSession,   // Hook reactivo para obtener la sesión
-  signIn,       // Funciones de inicio de sesión
-  signOut,      // Cerrar sesión
+  useSession,   // Hook reactivo para obtener la sesion
+  signIn,       // Funciones de inicio de sesion
+  signOut,      // Cerrar sesion
   signUp,       // Registro
 } = authClient;
 ```
 
 ---
 
-## 🧩 Paso 3: Usar en Componentes
+## Paso 3: Usar en Componentes
 
 ### 3.1 — Hook `useSession`
 
@@ -50,33 +51,54 @@ import { useSession } from '@/lib/auth-client';
 export function UserProfile() {
   const { data: session, isPending, error } = useSession();
 
-  // Estado de carga
   if (isPending) {
     return <div className="animate-pulse">Cargando...</div>;
   }
 
-  // Sin sesión
   if (!session) {
     return (
       <div>
-        <p>No has iniciado sesión</p>
-        <a href="/login">Iniciar sesión</a>
+        <p>No has iniciado sesion</p>
+        <a href="/login">Iniciar sesion</a>
       </div>
     );
   }
 
-  // Con sesión
   return (
     <div>
       <h2>Bienvenido, {session.user.name}</h2>
       <p>Email: {session.user.email}</p>
-      <p>Sesión expira: {new Date(session.session.expiresAt).toLocaleString()}</p>
+      {session.user.image && (
+        <img src={session.user.image} alt="Avatar" />
+      )}
     </div>
   );
 }
 ```
 
-### 3.2 — Formulario de Login
+### 3.2 — Boton de Login con Discord (requerimiento del brief)
+
+```tsx
+// src/components/SignInWithDiscord.tsx
+import { signIn } from '@/lib/auth-client';
+
+export function SignInWithDiscord() {
+  const handleDiscordLogin = async () => {
+    await signIn.social({
+      provider: 'discord',
+      callbackURL: '/dashboard', // A donde redirigir tras autenticacion exitosa
+    });
+  };
+
+  return (
+    <button onClick={handleDiscordLogin}>
+      Iniciar sesion con Discord
+    </button>
+  );
+}
+```
+
+### 3.3 — Formulario de Login con Email
 
 ```tsx
 // src/components/LoginForm.tsx
@@ -102,10 +124,9 @@ export function LoginForm() {
         password,
       });
 
-      // Redirigir al dashboard tras login exitoso
       navigate('/dashboard');
     } catch (err) {
-      setError('Email o contraseña incorrectos');
+      setError('Email o contrasena incorrectos');
     } finally {
       setLoading(false);
     }
@@ -113,7 +134,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h1>Iniciar Sesión</h1>
+      <h1>Iniciar Sesion</h1>
 
       {error && <div className="error">{error}</div>}
 
@@ -129,7 +150,7 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password">Contraseña</label>
+        <label htmlFor="password">Contrasena</label>
         <input
           id="password"
           type="password"
@@ -147,7 +168,7 @@ export function LoginForm() {
 }
 ```
 
-### 3.3 — Formulario de Registro
+### 3.4 — Formulario de Registro
 
 ```tsx
 // src/components/RegisterForm.tsx
@@ -214,7 +235,7 @@ export function RegisterForm() {
       </div>
 
       <div>
-        <label htmlFor="password">Contraseña</label>
+        <label htmlFor="password">Contrasena</label>
         <input
           id="password"
           type="password"
@@ -233,7 +254,7 @@ export function RegisterForm() {
 }
 ```
 
-### 3.4 — Botón de Logout
+### 3.5 — Boton de Logout
 
 ```tsx
 // src/components/LogoutButton.tsx
@@ -250,7 +271,7 @@ export function LogoutButton() {
 
   return (
     <button onClick={handleLogout}>
-      Cerrar Sesión
+      Cerrar Sesion
     </button>
   );
 }
@@ -258,7 +279,7 @@ export function LogoutButton() {
 
 ---
 
-## 🛡️ Paso 4: Proteger Rutas
+## Paso 4: Proteger Rutas
 
 ### Componente ProtectedRoute
 
@@ -308,7 +329,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas públicas */}
+        {/* Rutas publicas */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
 
@@ -329,29 +350,26 @@ export default function App() {
 
 ---
 
-## 🔗 Paso 5: Consumir APIs Protegidas
+## Paso 5: Consumir APIs del Backend
 
-Cuando hagas requests a los otros backends (Core API, Notifications API), necesitas enviar las cookies de sesión:
+Cuando hagas requests al backend, necesitas enviar las cookies de sesion:
 
 ```typescript
 // src/lib/api-client.ts
-const API_URLS = {
-  auth: 'http://localhost:3001/api/v1',
-  core: 'http://localhost:3002/api/v1',
-  notifications: 'http://localhost:3003/api/v1',
-};
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : 'http://localhost:3001/api/v1';
 
 /**
- * Fetch wrapper que envía cookies automáticamente
+ * Fetch wrapper que envia cookies automaticamente
  */
-async function apiFetch<T>(
-  baseUrl: keyof typeof API_URLS,
+export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_URLS[baseUrl]}${endpoint}`, {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    credentials: 'include', // ⚠️ Necesario para enviar cookies
+    credentials: 'include', // Necesario para enviar cookies de sesion
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
@@ -365,39 +383,56 @@ async function apiFetch<T>(
   return response.json();
 }
 
-// Ejemplo de uso:
-// const tasks = await apiFetch('core', '/tasks');
-// const profile = await apiFetch('auth', '/users/me');
+// Ejemplos de uso:
+// const profile = await apiFetch('/users/me');
+// const roadmaps = await apiFetch('/roadmaps');
+// const assessment = await apiFetch('/assessments', { method: 'POST', body: JSON.stringify(data) });
 ```
 
 ---
 
-## ✅ Checklist
+## Variables de Entorno del Frontend
+
+```bash
+# frontend/.env.development
+VITE_API_URL=http://localhost:3001
+
+# frontend/.env.production
+VITE_API_URL=https://tu-api.onrender.com
+```
+
+---
+
+## Checklist
 
 - [ ] Instalar `better-auth` en el frontend
-- [ ] Crear `src/lib/auth-client.ts`
+- [ ] Crear `src/lib/auth-client.ts` con `baseURL` apuntando al backend
+- [ ] Implementar `SignInWithDiscord` con `signIn.social({ provider: 'discord' })`
 - [ ] Implementar `LoginForm` con `signIn.email()`
 - [ ] Implementar `RegisterForm` con `signUp.email()`
 - [ ] Implementar `LogoutButton` con `signOut()`
 - [ ] Crear `ProtectedRoute` con `useSession()`
 - [ ] Configurar rutas protegidas en el router
-- [ ] Verificar que `credentials: 'include'` está en todas las requests
+- [ ] Crear `src/lib/api-client.ts` con `credentials: 'include'`
+- [ ] Verificar variables de entorno (`VITE_API_URL`)
 
 ---
 
-## ⚠️ Errores Comunes
+## Errores Comunes
 
-| Error | Causa | Solución |
+| Error | Causa | Solucion |
 |-------|-------|----------|
 | `useSession` siempre null | Cookie no enviada | Verificar `credentials: 'include'` y CORS del backend |
 | CORS error en signIn | Backend no tiene CORS correcto | Agregar frontend URL a `trustedOrigins` y `enableCors()` |
 | Redirect loop | ProtectedRoute sin loading state | Agregar check de `isPending` antes de redirigir |
-| `createAuthClient` falla | baseURL incorrecto | Verificar que apunte al Auth API (puerto 3001) |
+| `createAuthClient` falla | baseURL incorrecto | Verificar `VITE_API_URL` en `.env` y que apunte al backend |
+| Discord redirige a error | callbackURL no configurado | Verificar que `callbackURL` en `signIn.social()` sea una ruta valida del frontend |
 
 ---
 
-## 🔗 Recursos
+## Recursos
 
-- [← Setup Backend](./setup-backend.md)
-- [Mocks de Frontend →](../mocks/frontend/)
-- [Documentación Better Auth React](https://www.better-auth.com/docs/reference/react)
+- [Setup Backend](./setup-backend.md)
+- [Mocks de Frontend](../mocks/frontend/)
+- [Documentacion Better Auth React](https://www.better-auth.com/docs/reference/react)
+- [Better Auth — Discord Provider](https://www.better-auth.com/docs/authentication/discord)
