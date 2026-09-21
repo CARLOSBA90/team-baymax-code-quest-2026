@@ -1,6 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { ImportSource, ImportStatus } from '../../generated/prisma/enums.js';
+import type { Prisma } from '../../generated/prisma/client.js';
+import {
+  CourseStatus,
+  ImportSource,
+  ImportStatus,
+} from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { DEFAULT_LIMIT, DEFAULT_PAGE } from './catalog.constants.js';
+import type { CoursesPageResponseDto } from './dto/course-response.dto.js';
+import type { FindCoursesQueryDto } from './dto/find-courses-query.dto.js';
 import type { ImportResultResponseDto } from './dto/import-catalog.dto.js';
 import type {
   CatalogIngestionAdapter,
@@ -37,6 +45,48 @@ export class CatalogService {
     }
 
     return this.runImport(new CsvCatalogAdapter(content), ImportSource.CSV);
+  }
+
+  /**
+   * Lista paginada de cursos activos con sus skills, filtrable por nivel
+   * y por skill. Devuelve { data, meta } como espera el frontend.
+   */
+  async findAll(query: FindCoursesQueryDto): Promise<CoursesPageResponseDto> {
+    const page = query.page ?? DEFAULT_PAGE;
+    const limit = query.limit ?? DEFAULT_LIMIT;
+    const where: Prisma.CourseWhereInput = { status: CourseStatus.ACTIVE };
+    if (query.level !== undefined) where.level = query.level;
+    if (query.skill !== undefined) {
+      where.skills = { some: { skill: query.skill } };
+    }
+
+    const [total, courses] = await this.prisma.$transaction([
+      this.prisma.course.count({ where }),
+      this.prisma.course.findMany({
+        where,
+        orderBy: [{ level: 'asc' }, { title: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          url: true,
+          description: true,
+          level: true,
+          durationHours: true,
+          skills: {
+            select: { skill: true, weight: true },
+            orderBy: { weight: 'desc' },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: courses,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   /**
