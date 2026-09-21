@@ -1,8 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
-import { authKeys } from "@/api/queries/auth";
 import { signUpEmail } from "@/api/services";
 import type { AuthError } from "@/lib";
+import { authKeys } from "./keys";
 
 type RegisterInput = { name: string; email: string; password: string };
 type RegisterResult = { verificationUrl: string | null };

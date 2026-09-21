@@ -4,8 +4,8 @@ import { Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signUpEmail } from "@/api/services";
 import { AuthError } from "@/lib";
+import { RegisterPage } from "@/pages";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { RegisterPage } from "../RegisterPage";
 
 vi.mock("@/api/services", () => ({
   signInEmail: vi.fn(),
