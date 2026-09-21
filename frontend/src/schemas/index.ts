@@ -1,1 +1,1 @@
-export * from './authSchemas';
+export * from "./authSchemas";

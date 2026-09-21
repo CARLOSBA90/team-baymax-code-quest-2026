@@ -1,9 +1,18 @@
-import { AuthCard, AuthLink } from "@/components/auth/AuthCard";
-import { AuthDivider } from "@/components/auth/AuthDivider";
-import { AuthLoginForm } from "@/components/auth/AuthLoginForm";
-import { AuthSocialSignInButtons } from "@/components/auth/AuthSocialSignInButtons";
+import { useSearchParams } from "react-router-dom";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthLink,
+  AuthLoginForm,
+  AuthNotice,
+  AuthSocialSignInButtons,
+} from "@/components/auth";
+import { getOAuthQueryErrorMessage } from "@/lib";
 
 export const LoginPage = () => {
+  const [searchParams] = useSearchParams();
+  const oauthError = getOAuthQueryErrorMessage(searchParams.get("error"));
+
   return (
     <AuthCard
       title="Iniciar sesión"
@@ -14,6 +23,7 @@ export const LoginPage = () => {
         </>
       }
     >
+      {oauthError && <AuthNotice variant="error">{oauthError}</AuthNotice>}
       <AuthSocialSignInButtons />
       <AuthDivider />
       <AuthLoginForm />

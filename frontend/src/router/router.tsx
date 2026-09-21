@@ -1,25 +1,43 @@
 import { createBrowserRouter } from "react-router-dom";
 import { AuthLayout } from "@/components/layouts";
-import { LoginPage, RegisterPage } from "@/pages";
+import { LoginPage, RegisterPage, RoadmapsPage } from "@/pages";
 import { Root } from "@/Root";
+import { GuestRoute } from "@/router/GuestRoute";
+import { ProtectedRoute } from "@/router/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Root />,
     children: [
-      // Auth Routes
+      // Auth Routes (solo invitados)
       {
         path: "auth",
-        element: <AuthLayout />,
+        element: <GuestRoute />,
         children: [
           {
-            path: "login",
-            element: <LoginPage />,
+            element: <AuthLayout />,
+            children: [
+              {
+                path: "login",
+                element: <LoginPage />,
+              },
+              {
+                path: "register",
+                element: <RegisterPage />,
+              },
+            ],
           },
+        ],
+      },
+      // Dashboard Routes (protegidas)
+      {
+        path: "dashboard",
+        element: <ProtectedRoute />,
+        children: [
           {
-            path: "register",
-            element: <RegisterPage />,
+            path: "roadmaps",
+            element: <RoadmapsPage />,
           },
         ],
       },
