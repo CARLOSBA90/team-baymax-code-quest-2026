@@ -33,6 +33,10 @@ React 19 + TypeScript + Vite SPA.
 - `src/schemas/` — zod schemas. `src/types/` — shared types.
 - `@/*` aliases `./src/*` (in both `vite.config.ts` and `tsconfig.app.json`).
 
+## Conventions
+
+When creating or modifying any file in `src/`, always invoke the `frontend-conventions` skill (`.claude/skills/frontend-conventions/SKILL.md`): imports only via `@/` or `./`, imports through the folder's `index.ts` barrel, and `PropsWithChildren` for `children`. Biome (`noRestrictedImports`) enforces the first two rules.
+
 ## Styling
 
 Tailwind v4 via `@tailwindcss/vite`, CSS-first (no `tailwind.config.js`). Design tokens are declared in `src/index.css` under `@theme`; add or change theme values there.

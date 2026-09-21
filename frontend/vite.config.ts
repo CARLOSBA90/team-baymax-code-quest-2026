@@ -24,10 +24,8 @@ export default defineConfig({
       reporter: ["text", "html"],
       include: [
         "src/lib/auth-errors.ts",
-        "src/components/auth/**",
-        "src/pages/auth/**",
-        "src/router/GuestRoute.tsx",
-        "src/router/ProtectedRoute.tsx",
+        "src/{components,pages}/auth/**",
+        "src/router/{GuestRoute,ProtectedRoute}.tsx",
         "src/router/useGuardSession.ts",
       ],
       exclude: ["**/__tests__/**", "**/index.ts"],
