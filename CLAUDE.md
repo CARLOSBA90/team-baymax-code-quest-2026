@@ -40,7 +40,7 @@ pnpm typecheck                  # tsc -b only
 pnpm check                      # biome lint + format check, no writes
 pnpm check:fix                  # biome lint + format, writes fixes
 
-pnpm test                       # vitest run (specs in src/**/__tests__/*.spec.{ts,tsx})
+pnpm test                       # vitest run (specs in src/**/__tests__/**/*.spec.{ts,tsx})
 pnpm test:watch
 pnpm test:coverage              # v8 coverage with thresholds (80% lines/functions/statements, 70% branches)
 ```

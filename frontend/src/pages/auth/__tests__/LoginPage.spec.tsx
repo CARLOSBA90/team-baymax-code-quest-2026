@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { signInEmail, signInSocial } from "@/api/services";
 import { AuthError } from "@/lib";
+import { LoginPage } from "@/pages";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { LoginPage } from "../LoginPage";
 
 vi.mock("@/api/services", () => ({
   signInEmail: vi.fn(),

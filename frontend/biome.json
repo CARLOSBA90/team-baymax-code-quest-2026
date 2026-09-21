@@ -52,6 +52,26 @@
       "style": {
         "noInferrableTypes": "error",
         "noNegationElse": "warn",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["../*", "../**"],
+                "message": "Usa el alias @/ (otra carpeta) o ./ (fichero hermano); nunca ../"
+              },
+              {
+                "group": [
+                  "@/components/*/*",
+                  "@/api/queries/*/*",
+                  "@/api/services/*",
+                  "@/pages/*/*"
+                ],
+                "message": "Importa desde el barrel (index.ts) de la carpeta, no desde el fichero concreto"
+              }
+            ]
+          }
+        },
         "useConst": "error",
         "useImportType": "error"
       },

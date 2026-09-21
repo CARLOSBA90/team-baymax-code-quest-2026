@@ -1,8 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { authKeys } from "@/api/queries/auth";
 import { signOut } from "@/api/services";
 import type { AuthError } from "@/lib";
+import { authKeys } from "./keys";
 
 export function useLogout(): UseMutationResult<void, AuthError, void> {
   const queryClient = useQueryClient();

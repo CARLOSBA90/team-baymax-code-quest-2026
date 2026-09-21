@@ -1,7 +1,10 @@
-import { AuthCard, AuthLink } from "@/components/auth/AuthCard";
-import { AuthDivider } from "@/components/auth/AuthDivider";
-import { AuthRegisterForm } from "@/components/auth/AuthRegisterForm";
-import { AuthSocialSignInButtons } from "@/components/auth/AuthSocialSignInButtons";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthLink,
+  AuthRegisterForm,
+  AuthSocialSignInButtons,
+} from "@/components/auth";
 
 export const RegisterPage = () => {
   return (

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { PasswordField, type PasswordFieldProps } from "../PasswordField";
+import { PasswordField, type PasswordFieldProps } from "@/components/auth";
 
 function renderField(props: Partial<PasswordFieldProps> = {}) {
   return render(<PasswordField id="password" name="password" label="Contraseña" {...props} />);
