@@ -98,7 +98,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 6,
-    requireEmailVerification: true,
+    // Solo 'true' la activa; cualquier otro valor o su ausencia la desactiva.
+    requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
   },
 
   emailVerification: {

@@ -79,6 +79,7 @@ const ENV_KEYS = [
   'DISCORD_CLIENT_ID',
   'DISCORD_CLIENT_SECRET',
   'EXPOSE_VERIFICATION_URL',
+  'REQUIRE_EMAIL_VERIFICATION',
   'NODE_ENV',
 ];
 
@@ -142,13 +143,13 @@ describe('auth configuration', () => {
       expect(module.trustedOrigins).toEqual([]);
     });
 
-    it('configures email/password with min length 6 and required verification', async () => {
+    it('configures email/password with min length 6 and optional verification by default', async () => {
       const { config } = await load();
 
       expect(config.emailAndPassword).toEqual({
         enabled: true,
         minPasswordLength: 6,
-        requireEmailVerification: true,
+        requireEmailVerification: false,
       });
     });
 
