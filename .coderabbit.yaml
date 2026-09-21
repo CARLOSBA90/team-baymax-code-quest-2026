@@ -15,11 +15,13 @@ reviews:
   request_changes_workflow: false
 
   # Instrucciones globales para bajar el ruido aún más
-  instructions: |
-    Responde SIEMPRE en español.
-    Sé conciso: comenta únicamente bugs reales, problemas de seguridad y errores de lógica.
-    No comentes sobre estilo, formato, orden de imports ni longitud de línea (lo maneja el linter/formatter).
-    No repitas lo obvio ni elogies el código. Un solo comentario por problema.
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Responde SIEMPRE en español.
+        Sé conciso: comenta únicamente bugs reales, problemas de seguridad y errores de lógica.
+        No comentes sobre estilo, formato, orden de imports ni longitud de línea (lo maneja el linter/formatter).
+        No repitas lo obvio ni elogies el código. Un solo comentario por problema.
 
   auto_review:
     enabled: true
