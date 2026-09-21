@@ -68,6 +68,9 @@ type Config = {
     }) => Promise<void>;
   };
   trustedOrigins: string[];
+  advanced?: {
+    defaultCookieAttributes: { sameSite: string; secure: boolean };
+  };
 };
 
 const ENV_KEYS = [
@@ -160,6 +163,43 @@ describe('auth configuration', () => {
       expect(config.emailVerification.autoSignInAfterVerification).toBe(true);
       expect(config.emailVerification.sendOnSignIn).toBeUndefined();
     });
+  });
+
+  describe('email verification requirement', () => {
+    it.each([
+      ['true', true],
+      ['false', false],
+      ['TRUE', false],
+      ['1', false],
+      ['', false],
+      [undefined, false],
+    ])('REQUIRE_EMAIL_VERIFICATION=%s -> %s', async (value, expected) => {
+      if (value !== undefined) process.env.REQUIRE_EMAIL_VERIFICATION = value;
+      const { config } = await load();
+
+      expect(config.emailAndPassword.requireEmailVerification).toBe(expected);
+    });
+  });
+
+  describe('cookie attributes', () => {
+    it('uses SameSite=None and Secure cookies in production', async () => {
+      process.env.NODE_ENV = 'production';
+      const { config } = await load();
+
+      expect(config.advanced).toEqual({
+        defaultCookieAttributes: { sameSite: 'none', secure: true },
+      });
+    });
+
+    it.each(['development', 'test', undefined])(
+      'keeps the default cookies when NODE_ENV=%s',
+      async (nodeEnv) => {
+        if (nodeEnv !== undefined) process.env.NODE_ENV = nodeEnv;
+        const { config } = await load();
+
+        expect(config).not.toHaveProperty('advanced');
+      },
+    );
   });
 
   describe('social providers', () => {
