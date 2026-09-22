@@ -8,6 +8,7 @@ export interface RawCourse {
   level: string;
   tags: string;
   durationHours: string;
+  imageUrl: string;
 }
 
 /** Fuente de cursos del catálogo: CSV hoy, scraper u otra en el futuro. */

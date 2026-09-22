@@ -20,6 +20,7 @@ const rawCourse = (overrides: Partial<RawCourse> = {}): RawCourse => ({
   level: 'intermediate',
   tags: 'nestjs,typescript',
   durationHours: '20',
+  imageUrl: 'https://example.com/nest.png',
   ...overrides,
 });
 
@@ -30,6 +31,7 @@ const normalizedCourse = (
   title: 'Nest Pro',
   url: 'https://example.com/nest',
   description: 'Curso de Nest',
+  imageUrl: 'https://example.com/nest.png',
   level: 2,
   durationHours: 20,
   status: CourseStatus.ACTIVE,
@@ -84,6 +86,7 @@ describe('course normalizer', () => {
           level: ' BEGINNER ',
           tags: ' angular ',
           durationHours: ' 1 ',
+          imageUrl: '   ',
         }),
       );
 
@@ -94,6 +97,7 @@ describe('course normalizer', () => {
           title: 'Angular Básico',
           url: 'https://example.com/angular',
           description: null,
+          imageUrl: null,
           level: 1,
           durationHours: 1,
           status: CourseStatus.ACTIVE,
@@ -127,6 +131,16 @@ describe('course normalizer', () => {
         expect(normalizeCourse(rawCourse({ url }))).toEqual({
           ok: false,
           problems: ['url debe ser una URL http o https'],
+        });
+      },
+    );
+
+    it.each(['ftp://example.com/cover.png', 'cover.png', 'not a url'])(
+      'rejects non-HTTP imageUrl %j',
+      (imageUrl) => {
+        expect(normalizeCourse(rawCourse({ imageUrl }))).toEqual({
+          ok: false,
+          problems: ['imageUrl debe ser una URL http o https'],
         });
       },
     );
@@ -168,6 +182,7 @@ describe('course normalizer', () => {
       ['title', 'Nest Avanzado'],
       ['url', 'https://example.com/new'],
       ['description', null],
+      ['imageUrl', null],
       ['level', 3],
       ['durationHours', null],
       ['status', CourseStatus.INACTIVE],

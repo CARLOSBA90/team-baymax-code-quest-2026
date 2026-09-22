@@ -1,13 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { CsvCatalogAdapter } from './csv.adapter.js';
 
-const HEADER = 'slug,title,url,description,level,tags,durationHours';
+const HEADER = 'slug,title,url,description,level,tags,durationHours,imageUrl';
 
 describe('CsvCatalogAdapter', () => {
   it('parses a BOM, trims unquoted fields, and preserves quoted CSV content', async () => {
     const content = [
       `\uFEFF ${HEADER}`,
-      ' nest-pro ,"Nest, Pro", https://example.com/nest ,"Dice ""hola""", intermediate ,"nestjs,typescript", 20 ',
+      ' nest-pro ,"Nest, Pro", https://example.com/nest ,"Dice ""hola""", intermediate ,"nestjs,typescript", 20 , https://example.com/nest.png ',
     ].join('\n');
 
     await expect(
@@ -22,6 +22,7 @@ describe('CsvCatalogAdapter', () => {
         level: 'intermediate',
         tags: 'nestjs,typescript',
         durationHours: '20',
+        imageUrl: 'https://example.com/nest.png',
       },
     ]);
   });
@@ -44,6 +45,7 @@ describe('CsvCatalogAdapter', () => {
         level: 'beginner',
         tags: 'node',
         durationHours: '',
+        imageUrl: '',
       },
     ]);
   });

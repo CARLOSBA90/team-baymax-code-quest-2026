@@ -8,7 +8,7 @@ import {
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { CatalogService } from './catalog.service.js';
 
-const HEADER = 'slug,title,url,description,level,tags,durationHours';
+const HEADER = 'slug,title,url,description,level,tags,durationHours,imageUrl';
 const STARTED_AT = new Date('2026-09-21T10:00:00.000Z');
 
 const csv = (...rows: string[]) => [HEADER, ...rows].join('\n');
@@ -69,7 +69,7 @@ describe('CatalogService', () => {
     it('creates the course and records a successful CatalogImport', async () => {
       const result = await service.importFromCsv(
         csv(
-          'nest-pro,Nest Pro,https://example.com/nest,Curso de Nest,intermediate,"nestjs,backend,typescript",20',
+          'nest-pro,Nest Pro,https://example.com/nest,Curso de Nest,intermediate,"nestjs,backend,typescript",20,https://example.com/nest.png',
         ),
       );
 
@@ -82,6 +82,7 @@ describe('CatalogService', () => {
         title: 'Nest Pro',
         url: 'https://example.com/nest',
         description: 'Curso de Nest',
+        imageUrl: 'https://example.com/nest.png',
         level: 2,
         durationHours: 20,
         status: CourseStatus.ACTIVE,
@@ -359,6 +360,7 @@ describe('CatalogService', () => {
           title: 'A',
           url: 'https://example.com/a',
           description: null,
+          imageUrl: null,
           level: 1,
           durationHours: null,
           status: CourseStatus.ACTIVE,
@@ -447,6 +449,7 @@ describe('CatalogService', () => {
       title: true,
       url: true,
       description: true,
+      imageUrl: true,
       level: true,
       durationHours: true,
       skills: {

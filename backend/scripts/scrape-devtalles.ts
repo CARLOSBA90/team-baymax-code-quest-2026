@@ -132,7 +132,7 @@ async function obtenerHtml(ruta: string): Promise<string> {
 
 // ----------------------------------------------------------------------------
 // Salida CSV (formato de spec-kits/system-design/03-catalogo-cursos.md)
-//   slug,title,url,description,level,tags,durationHours
+//   slug,title,url,description,level,tags,durationHours,imageUrl
 // ----------------------------------------------------------------------------
 
 /** Tags que conserva el CSV; el importador los normaliza a skills internas. */
@@ -178,10 +178,11 @@ export function cursoACsv(curso: Curso): string {
     NIVEL_A_LEVEL[curso.nivel],
     tagsDeCurso(curso).join(","),
     curso.duracionHoras == null ? "" : Math.max(1, Math.round(curso.duracionHoras)),
+    curso.imagenUrl ?? "",
   ].map(csvCampo).join(",");
 }
 
-export const CSV_CABECERA = "slug,title,url,description,level,tags,durationHours";
+export const CSV_CABECERA = "slug,title,url,description,level,tags,durationHours,imageUrl";
 
 // ----------------------------------------------------------------------------
 // Parsers (funciones puras: reciben HTML, devuelven datos)

@@ -84,18 +84,23 @@ describe('scrape-devtalles pure transformations', () => {
     ).toEqual(['node', 'react-native', 'vitest']);
   });
 
-  it('escapes CSV fields and rounds duration to a whole hour', () => {
+  it('escapes CSV fields, rounds duration to a whole hour and emits the image', () => {
     expect(
       scraper.cursoACsv(
         course({
           titulo: 'Curso "Pro"',
           descripcion: 'Primera línea, segunda',
           duracionHoras: 12.6,
+          imagenUrl: 'https://example.com/course.png',
         }),
       ),
     ).toBe(
-      'curso-pro,"Curso ""Pro""",https://example.com/course,"Primera línea, segunda",advanced,"node,react",13',
+      'curso-pro,"Curso ""Pro""",https://example.com/course,"Primera línea, segunda",advanced,"node,react",13,https://example.com/course.png',
     );
+  });
+
+  it('leaves the image column empty when the course has no image', () => {
+    expect(scraper.cursoACsv(course())).toMatch(/,12,$/);
   });
 
   it('parses a course and removes embedded style and subtitle text from its title', () => {

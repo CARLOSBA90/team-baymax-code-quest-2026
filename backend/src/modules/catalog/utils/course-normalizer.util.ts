@@ -62,6 +62,7 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
   const title = raw.title.trim();
   const url = raw.url.trim();
   const level = LEVEL_BY_NAME.get(raw.level.trim().toLowerCase());
+  const imageUrl = raw.imageUrl.trim();
   const duration = raw.durationHours.trim();
   const durationHours = DURATION_PATTERN.test(duration)
     ? Number(duration)
@@ -74,6 +75,9 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
   if (!isHttpUrl(url)) problems.push('url debe ser una URL http o https');
   if (level === undefined) {
     problems.push('level debe ser beginner, intermediate o advanced');
+  }
+  if (imageUrl && !isHttpUrl(imageUrl)) {
+    problems.push('imageUrl debe ser una URL http o https');
   }
 
   if (problems.length > 0 || level === undefined) {
@@ -89,6 +93,7 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
       title,
       url,
       description: raw.description.trim() || null,
+      imageUrl: imageUrl || null,
       level,
       durationHours,
       status:
@@ -107,6 +112,7 @@ export function hasCourseChanges(
     'title',
     'url',
     'description',
+    'imageUrl',
     'level',
     'durationHours',
     'status',

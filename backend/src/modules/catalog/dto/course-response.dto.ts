@@ -12,6 +12,7 @@ export interface CourseResponseDto {
   title: string;
   url: string;
   description: string | null;
+  imageUrl: string | null;
   level: number;
   durationHours: number | null;
   skills: CourseSkillResponseDto[];

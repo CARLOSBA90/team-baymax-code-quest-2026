@@ -73,6 +73,7 @@ export class CatalogService {
           title: true,
           url: true,
           description: true,
+          imageUrl: true,
           level: true,
           durationHours: true,
           skills: {
@@ -217,6 +218,7 @@ export class CatalogService {
         title: true,
         url: true,
         description: true,
+        imageUrl: true,
         level: true,
         durationHours: true,
         status: true,

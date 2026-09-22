@@ -23,6 +23,7 @@ export class CsvCatalogAdapter implements CatalogIngestionAdapter {
       level: record.level ?? '',
       tags: record.tags ?? '',
       durationHours: record.durationHours ?? '',
+      imageUrl: record.imageUrl ?? '',
     }));
   }
 

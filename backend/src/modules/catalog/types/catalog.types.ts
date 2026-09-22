@@ -14,6 +14,7 @@ export interface NormalizedCourse {
   title: string;
   url: string;
   description: string | null;
+  imageUrl: string | null;
   level: number;
   durationHours: number | null;
   status: CourseStatus;
