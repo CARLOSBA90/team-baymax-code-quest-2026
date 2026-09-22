@@ -155,6 +155,14 @@ describe('CatalogService', () => {
         ['dart', SkillCategory.MOBILE],
         ['sql-server', SkillCategory.DATABASES],
         ['aws', SkillCategory.DEVOPS],
+        ['ai', SkillCategory.BACKEND],
+        ['tailwind', SkillCategory.FRONTEND],
+        ['git', SkillCategory.WEB_FUNDAMENTALS],
+        ['github', SkillCategory.WEB_FUNDAMENTALS],
+        ['postgres', SkillCategory.DATABASES],
+        ['nest', SkillCategory.BACKEND],
+        ['spring', SkillCategory.BACKEND],
+        ['rest', SkillCategory.BACKEND],
       ])('maps the tag %s to %s', async (tag, skill) => {
         await service.importFromCsv(
           csv(`one,One,https://example.com/one,,beginner,${tag},`),

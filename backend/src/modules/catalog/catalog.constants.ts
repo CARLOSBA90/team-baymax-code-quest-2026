@@ -9,8 +9,8 @@ export const LEVEL_BY_NAME = new Map<string, number>([
 
 /**
  * Tabla de normalización de tags a skills de 03-catalogo-cursos.md, ampliada
- * con las tecnologías del catálogo de DevTalles. También acepta el nombre de
- * cada skill como tag. Los tags que no están aquí se ignoran.
+ * con los tags del catálogo de DevTalles (IA va a BACKEND). También acepta el
+ * nombre de cada skill como tag. Los tags que no están aquí se ignoran.
  */
 export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['nestjs', SkillCategory.BACKEND],
@@ -30,6 +30,19 @@ export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['laravel', SkillCategory.BACKEND],
   ['dotnet', SkillCategory.BACKEND],
   ['csharp', SkillCategory.BACKEND],
+  ['nest', SkillCategory.BACKEND],
+  ['spring', SkillCategory.BACKEND],
+  ['rest', SkillCategory.BACKEND],
+  ['grpc', SkillCategory.BACKEND],
+  ['ai', SkillCategory.BACKEND],
+  ['ia', SkillCategory.BACKEND],
+  ['llm', SkillCategory.BACKEND],
+  ['rag', SkillCategory.BACKEND],
+  ['openai', SkillCategory.BACKEND],
+  ['langchain', SkillCategory.BACKEND],
+  ['mcp', SkillCategory.BACKEND],
+  ['agentes', SkillCategory.BACKEND],
+  ['codex', SkillCategory.BACKEND],
   ['backend', SkillCategory.BACKEND],
   ['react', SkillCategory.FRONTEND],
   ['vue', SkillCategory.FRONTEND],
@@ -44,11 +57,16 @@ export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['rxjs', SkillCategory.FRONTEND],
   ['pwa', SkillCategory.FRONTEND],
   ['tailwindcss', SkillCategory.FRONTEND],
+  ['tailwind', SkillCategory.FRONTEND],
+  ['css', SkillCategory.FRONTEND],
+  ['pinia', SkillCategory.FRONTEND],
   ['shadcn', SkillCategory.FRONTEND],
   ['frontend', SkillCategory.FRONTEND],
   ['typescript', SkillCategory.WEB_FUNDAMENTALS],
   ['javascript', SkillCategory.WEB_FUNDAMENTALS],
   ['web-fundamentals', SkillCategory.WEB_FUNDAMENTALS],
+  ['git', SkillCategory.WEB_FUNDAMENTALS],
+  ['github', SkillCategory.WEB_FUNDAMENTALS],
   ['docker', SkillCategory.DEVOPS],
   ['kubernetes', SkillCategory.DEVOPS],
   ['ci-cd', SkillCategory.DEVOPS],
@@ -58,11 +76,16 @@ export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['postgresql', SkillCategory.DATABASES],
   ['mongodb', SkillCategory.DATABASES],
   ['sql-server', SkillCategory.DATABASES],
+  ['postgres', SkillCategory.DATABASES],
+  ['mysql', SkillCategory.DATABASES],
+  ['typeorm', SkillCategory.DATABASES],
   ['databases', SkillCategory.DATABASES],
   ['flutter', SkillCategory.MOBILE],
   ['dart', SkillCategory.MOBILE],
   ['react-native', SkillCategory.MOBILE],
   ['expo', SkillCategory.MOBILE],
+  ['ios', SkillCategory.MOBILE],
+  ['android', SkillCategory.MOBILE],
   ['mobile', SkillCategory.MOBILE],
   ['testing', SkillCategory.TESTING],
   ['jest', SkillCategory.TESTING],
