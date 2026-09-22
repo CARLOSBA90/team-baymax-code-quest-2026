@@ -1,8 +1,8 @@
 # DevTalles Paths — Especificación de diseño
 
 **Dirección visual:** Nebula (opción A)
-**Alcance de este documento:** Home / pantalla de autenticación. Los tokens y componentes definidos aquí son la base del resto de la app (cuestionario, rutas, progreso).
-**Versión:** 1.0 · 2026-09-18
+**Alcance de este documento:** Login (§1–13), Dashboard · Mis Rutas (§14) y Cuestionario (§15). Los tokens de §2 son la base de toda la app.
+**Versión:** 1.1 · 2026-09-21
 
 ---
 
@@ -521,12 +521,12 @@ input:-webkit-autofill:focus {
 |---|---|
 | Registro | `NebulaBackground` + `AuthCard`, mismos OAuth, un campo más y checkbox de términos |
 | Recuperar contraseña | La misma card, un solo campo y un texto de confirmación |
-| Cuestionario | Fondo Nebula con el halo más tenue (0.18) y la card ensanchada a 640px; una pregunta por paso con barra de progreso en `--accent` |
-| Dashboard / rutas | Fondo `--bg-base` plano, sin puntos ni halo: son pantallas densas y los puntos ensucian. Los tokens de color, tipografía y radios se mantienen |
+| Dashboard / Mis Rutas | Ver §14. Puntos y halo solo en la sidebar; la tabla sobre `--bg-base` plano |
+| Mis Rutas vacío | Ver §14. Card con puntos y halo: es una pantalla de bienvenida |
+| Cuestionario | Ver §15. Misma card con puntos que el estado vacío; una pregunta por paso |
 | Tarjeta de curso | `--bg-surface-solid`, radio 16, borde `--border-field`, sin `backdrop-filter` |
-| Progreso | `--accent` para completado, `--border-field` para pendiente, `--success` reservado para "ruta terminada" |
 
-**Regla general:** los puntos y el halo son del *espacio de autenticación*. En cuanto el usuario entra, el fondo se calma y el acento pasa a señalar progreso, no decoración.
+**Regla general:** los puntos y el halo aparecen donde el usuario *empieza* algo (login, bienvenida, cuestionario) y en la sidebar como firma de marca. Las zonas de trabajo con datos (tablas, detalle de ruta) van sobre fondo plano.
 
 ---
 
@@ -540,3 +540,142 @@ Este documento cubre la pantalla de autenticación. Lo siguiente **no** está es
 - **Copy definitivo.** Los textos del mockup son de trabajo; conviene revisarlos con el tono de DevTalles.
 - **i18n.** Todo está en español y hardcodeado. Si va a haber más idiomas, extráelo a claves antes de escribir los componentes: el titular de 34px con tracking negativo no aguanta cadenas mucho más largas sin reajuste.
 - **Logos oficiales de los proveedores OAuth** (ver §5.4).
+
+---
+
+## 14. Dashboard · Mis Rutas
+
+### 14.1 Layout
+
+```
+Viewport 1440 × 900
+├─ Sidebar — 256px fija, padding 28 16 20
+│  ├─ BrandMark
+│  ├─ Nav (label "MENÚ" + Mis Rutas, Mi Perfil) — ítems 44px, radio 10
+│  └─ Tarjeta de usuario (avatar 36, nombre, email, cerrar sesión) — margin-top: auto
+└─ Main — padding 44 48 40, gap 28
+   ├─ Header: h1 "Mis Rutas" 30px + resumen · CTA "Crear nueva ruta de aprendizaje" a la derecha
+   ├─ Filtros por estado (segmented control)
+   └─ Tabla de rutas
+```
+
+La ruta por defecto al entrar es **Mis Rutas**. El ítem activo lleva fondo `rgba(139,92,246,0.13)`, icono en `--accent-soft` y `aria-current="page"`; el contador de rutas va en una píldora a la derecha.
+
+### 14.2 Fondos (decisión cerrada)
+
+| Zona | Fondo |
+|---|---|
+| Sidebar | `#0E0D15` + halo `rgba(124,58,237,0.20)` anclado en `30% 0%` + puntos `rgba(167,139,250,0.09)` 1px cada 22px |
+| Main con rutas | `--bg-base` plano. Sin puntos ni halo |
+| Main vacío | Card con puntos y halo (misma receta que el login, puntos cada 24px) |
+
+### 14.3 Estados de ruta (decisión cerrada)
+
+Cada barra de progreso toma el color de su estado. El badge siempre combina **color + punto + texto**: el color nunca es la única señal.
+
+| Estado | Fondo badge | Borde badge | Texto | Punto | Barra | Acción |
+|---|---|---|---|---|---|---|
+| Empezada | `rgba(139,92,246,0.14)` | `rgba(167,139,250,0.32)` | `#C4B5FD` | `#A78BFA` | `#8B5CF6` | Continuar |
+| En pausa | `rgba(251,191,36,0.10)` | `rgba(251,191,36,0.30)` | `#FCD34D` | `#FBBF24` | `#D4A537` | Reanudar |
+| Completada | `rgba(52,211,153,0.10)` | `rgba(52,211,153,0.30)` | `#6EE7B7` | `#34D399` | `#34D399` | Ver ruta |
+
+Tokens sugeridos: `--status-started-*`, `--status-paused-*`, `--status-done-*` (bg, border, text, dot, bar). El ámbar es un color nuevo en el sistema; úsalo **solo** para "En pausa".
+
+Contraste medido del texto del badge sobre su fondo: Empezada 8.7:1, En pausa 10.8:1, Completada 10.5:1.
+
+### 14.4 Tabla
+
+| Propiedad | Valor |
+|---|---|
+| Contenedor | fondo `#13111C`, borde `rgba(255,255,255,0.08)`, radio 16 |
+| Columnas | `minmax(0,1fr) 140px 210px 130px 168px`, gap 24, padding lateral 24 |
+| Cabecera | 44px, fondo `rgba(255,255,255,0.025)`, 11px/600, tracking +1.1px, `--text-muted` |
+| Fila | 78px, separador `rgba(255,255,255,0.05)`, hover `rgba(255,255,255,0.022)` |
+| Celda ruta | chip 40×40 radio 11 con iniciales + nombre 15/600 (con elipsis) + meta 12.5 `--text-muted` |
+| Progreso | barra 6px, pista `rgba(255,255,255,0.08)`, % a la derecha 13/600 |
+| Acciones | botón ghost 38px con la acción del estado + menú `⋮` 38px con `aria-label="Más opciones"` |
+
+En React, usa un `<table>` semántico real (`<thead>`, `<th scope="col">`, `<tbody>`). El mockup usa `div` con roles ARIA solo por limitaciones del editor. La barra de progreso es `role="progressbar"` con `aria-valuenow/min/max`.
+
+### 14.5 Filtros
+
+Segmented control: contenedor con padding 4, radio 12, borde `rgba(255,255,255,0.08)`. Botones 36px, radio 9, con contador en píldora. Activo: fondo `rgba(139,92,246,0.18)`, texto `--text-primary`, `aria-pressed="true"`. Opciones: Todas · Empezadas · En pausa · Completadas.
+
+### 14.6 Estado vacío
+
+Sustituye filtros y tabla por una card que ocupa el alto disponible: ilustración de ruta (línea punteada con tres nodos), h2 "Aún no tienes rutas", texto explicativo, **un solo** CTA "Crear mi primera ruta" y los tres pasos del cuestionario (01, 02, 03) en tarjetas pequeñas. El CTA del header no aparece en este estado para no duplicarlo.
+
+### 14.7 Móvil (< 768px)
+
+- La sidebar se convierte en una barra inferior de 72px con Mis Rutas y Mi Perfil (el activo con fondo violeta).
+- Arriba: marca + avatar (botón de cuenta, 44px).
+- CTA a ancho completo bajo el título.
+- Los filtros pasan a chips con scroll horizontal.
+- La tabla pasa a tarjetas: chip + nombre (hasta 2 líneas) + meta · fecha, y debajo badge + barra + %. La tarjeta completa lleva a la ruta.
+
+---
+
+## 15. Cuestionario · Nueva ruta
+
+### 15.1 Layout
+
+Misma estructura que Mis Rutas vacío: sidebar (con Mis Rutas activo) y en el main:
+
+```
+Main — padding 36 48 40, gap 22
+├─ Breadcrumb: Mis Rutas › Nueva ruta
+├─ Header: h1 "Descubre tu ruta" + descripción · botón "Salir" (ghost, 40px) a la derecha
+└─ Card con puntos y halo (flex-grow)
+   └─ Formulario centrado, 760px de ancho
+      ├─ Progreso: "PREGUNTA N DE 5" + tema (Intereses, Metas…) + barra segmentada
+      ├─ fieldset
+      │  ├─ legend = la pregunta (Space Grotesk 26/700)
+      │  ├─ "Elige una opción."
+      │  └─ Opciones en grid de 2 columnas, gap 12
+      └─ Navegación: Anterior (ghost) · Siguiente / CTA final (primario)
+```
+
+### 15.2 Preguntas
+
+Una pregunta por paso, respuesta única, 4 opciones cada una:
+
+| # | Tema | Pregunta |
+|---|---|---|
+| 1 | Intereses | ¿Qué área de la programación te interesa más? |
+| 2 | Metas | ¿Qué quieres lograr con esta ruta? |
+| 3 | Nivel | ¿Cómo describirías tu nivel actual? |
+| 4 | Tiempo | ¿Cuánto tiempo puedes dedicarle por semana? |
+| 5 | Estilo | ¿Cómo prefieres aprender? |
+
+Las preguntas son una propuesta de trabajo: modélalas como datos (`{ id, topic, question, options[] }`) para poder cambiarlas sin tocar los componentes. Así se cumple el requisito del reto de "adaptarse a las necesidades cambiantes".
+
+### 15.3 Opción (radio card)
+
+| Estado | Borde | Fondo | Indicador |
+|---|---|---|---|
+| Reposo | `rgba(255,255,255,0.10)` | `rgba(20,18,30,0.80)` | anillo 2px `rgba(255,255,255,0.28)` |
+| Hover | `rgba(255,255,255,0.24)` | igual | igual |
+| Seleccionada | `rgba(167,139,250,0.70)` | `rgba(139,92,246,0.14)` | anillo `#A78BFA` + punto 8px `#C4B5FD` |
+| Foco (teclado) | + anillo `0 0 0 3px rgba(139,92,246,0.40)` vía `:has(input:focus-visible)` | | |
+
+Tamaño: alto mínimo 88px, padding 16×18, radio 14. Contenido: título 15/600 + descripción 13 `--text-secondary`.
+
+**Es un `<input type="radio">` real** dentro de un `<label>`, visualmente oculto pero no con `display: none` (debe seguir siendo focalizable). Todos los radios de una pregunta comparten `name`: así funcionan las flechas del teclado sin JavaScript.
+
+### 15.4 Progreso
+
+Barra de 5 segmentos de 5px, gap 6: completados `#8B5CF6`, actual `#C4B5FD`, pendientes `rgba(255,255,255,0.10)`. `role="progressbar"` con `aria-valuenow` = número de pregunta.
+
+### 15.5 Navegación y reglas
+
+- **Anterior:** deshabilitado en la pregunta 1 (opacidad 0.4). Conserva las respuestas al volver.
+- **Siguiente:** deshabilitado hasta elegir una opción (opacidad 0.45, `cursor: not-allowed`).
+- **Última pregunta:** "Siguiente" se sustituye por el CTA **"Descubrir mi ruta de aprendizaje"** (50px, flecha a la derecha, `--shadow-primary`), también deshabilitado hasta responder.
+- **Salir:** vuelve a Mis Rutas. Si ya hay respuestas, pide confirmación (no está diseñado todavía).
+- Al cambiar de pregunta, mueve el foco a la `legend` de la nueva para que el lector de pantalla la anuncie.
+
+### 15.6 Pendiente
+
+- Pantalla de resultado: qué ve el usuario después de "Descubrir mi ruta de aprendizaje" (ruta generada, cursos en orden, botón para guardarla).
+- Versión móvil del cuestionario.
+- Diálogo de confirmación al salir con respuestas a medias.

@@ -25,7 +25,12 @@ export default defineConfig({
       include: [
         "src/lib/auth-errors.ts",
         "src/{components,pages}/auth/**",
-        "src/router/{GuestRoute,ProtectedRoute}.tsx",
+        "src/lib/user-initials.ts",
+        "src/components/dashboard/**",
+        "src/components/ui/NebulaSurface.tsx",
+        "src/components/layouts/DashboardLayout.tsx",
+        "src/pages/dashboard/**",
+        "src/router/{GuestRoute,ProtectedRoute,router}.tsx",
         "src/router/useGuardSession.ts",
       ],
       exclude: ["**/__tests__/**", "**/index.ts"],

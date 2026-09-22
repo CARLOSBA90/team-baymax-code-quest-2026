@@ -25,9 +25,9 @@ pnpm test:coverage    # vitest run --coverage (v8), enforces thresholds
 React 19 + TypeScript + Vite SPA.
 
 - `src/main.tsx` — entry point, mounts the app in strict mode. `src/Root.tsx` is the root route element.
-- `src/router/` — `react-router-dom` (`createBrowserRouter` in `router.tsx`). `GuestRoute` protects `/auth/*` (guests only), `ProtectedRoute` protects `/dashboard/*`; both use `useGuardSession`.
+- `src/router/` — `react-router-dom`. `router.tsx` exports `routes: RouteObject[]` and `router = createBrowserRouter(routes)`. `GuestRoute` protects `/auth/*` (guests only), `ProtectedRoute` protects `/dashboard/*`; both use `useGuardSession`. `/dashboard` index redirects to `/dashboard/roadmaps`; dashboard routes render under `DashboardLayout`.
 - `src/pages/` — route pages (`auth/LoginPage`, `auth/RegisterPage`, `dashboard/RoadmapsPage`).
-- `src/components/` — `auth/` (forms, fields, notices), `layouts/`, `ui/`.
+- `src/components/` — `auth/` (forms, fields, notices), `dashboard/` (`DashboardSidebar`, `SidebarNavItem`, `SidebarUserCard`, `SidebarIcons` — the dashboard sidebar shell), `layouts/` (`AuthLayout`, `DashboardLayout`), `ui/`.
 - `src/lib/auth-client.ts` — Better Auth client (`better-auth/react`). `src/lib/auth-errors.ts` — auth error mapping.
 - `src/api/` — axios `client.ts`, `queryClient.ts`, `services/` (auth/users), and `queries/` (TanStack React Query hooks + query keys).
 - `src/schemas/` — zod schemas. `src/types/` — shared types.
@@ -50,7 +50,7 @@ Vitest 5 + jsdom + Testing Library (config in the `test` block of `vite.config.t
 - Render components with `renderWithProviders(ui, { route })` from `src/test/renderWithProviders.tsx` (fresh `QueryClient` with no retries + `MemoryRouter`).
 - Mock the API layer with `vi.mock("@/api/services", ...)`; `GuestRoute`/`ProtectedRoute` specs mock `@/router/useGuardSession`; only `useGuardSession.spec.tsx` mocks `@/lib/auth-client` (`authClient.useSession`).
 - Fake timers: Testing Library only detects Jest fake timers, so with `vi.useFakeTimers()` also stub a global `jest` (`vi.stubGlobal("jest", { advanceTimersByTime: vi.advanceTimersByTime.bind(vi) })`). See `useFakeTimersForTestingLibrary` in `RegisterPage.spec.tsx`.
-- Coverage is scoped to auth code (`lib/auth-errors.ts`, `components/auth/**`, `pages/auth/**`, router guards; currently 7 spec files, 90 tests, including `components/auth/__tests__/PasswordField.spec.tsx`) with thresholds 80% lines/functions/statements and 70% branches. Widen `coverage.include` as more code gets tests.
+- Coverage is scoped to auth code (`lib/auth-errors.ts`, `components/auth/**`, `pages/auth/**`, router guards) and the dashboard shell (`lib/user-initials.ts`, `components/dashboard/**`, `components/ui/EmptyStateSurface.tsx`, `components/layouts/DashboardLayout.tsx`, `pages/dashboard/**`, `router/{GuestRoute,ProtectedRoute,router}.tsx`, `router/useGuardSession.ts`) — currently 16 spec files, 144 tests, including `components/auth/__tests__/{PasswordField,PrimaryButton}.spec.tsx` and `components/dashboard/__tests__/{SidebarNavItem,SidebarUserCard,DashboardSidebar,RoadmapsEmptyState}.spec.tsx` — with thresholds 80% lines/functions/statements and 70% branches. Widen `coverage.include` as more code gets tests.
 
 ## Linting & formatting
 
