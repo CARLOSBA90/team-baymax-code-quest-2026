@@ -27,7 +27,7 @@ export default defineConfig({
         "src/{components,pages}/auth/**",
         "src/lib/user-initials.ts",
         "src/components/dashboard/**",
-        "src/components/ui/EmptyStateSurface.tsx",
+        "src/components/ui/NebulaSurface.tsx",
         "src/components/layouts/DashboardLayout.tsx",
         "src/pages/dashboard/**",
         "src/router/{GuestRoute,ProtectedRoute,router}.tsx",
