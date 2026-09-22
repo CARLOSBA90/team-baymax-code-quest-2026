@@ -224,6 +224,45 @@ describe('CatalogService', () => {
         expect(result.data.errors[0].message).toContain('slug');
       });
 
+      it.each([
+        ['Ingeniería-de-prompts', 'ingenieria-de-prompts'],
+        ['Angular_socket_bun', 'angular-socket-bun'],
+        ['  PHP-Moderno ', 'php-moderno'],
+      ])(
+        'normalizes the slug %j to %j and keeps the url as is',
+        async (slug, expected) => {
+          await service.importFromCsv(
+            csv(`${slug},T,https://example.com/Ruta_Original,,beginner,node,`),
+          );
+
+          expect(upsertedCourse()).toMatchObject({
+            where: { slug: expected },
+            create: {
+              slug: expected,
+              url: 'https://example.com/Ruta_Original',
+            },
+          });
+        },
+      );
+
+      it('treats slugs that normalize to the same value as duplicates', async () => {
+        const result = await service.importFromCsv(
+          csv(
+            'angular_socket_bun,A,https://example.com/a,,beginner,angular,',
+            'Angular-Socket-Bun,B,https://example.com/b,,beginner,angular,',
+          ),
+        );
+
+        expect(prismaMock.course.upsert).toHaveBeenCalledOnce();
+        expect(result.data.errors).toEqual([
+          {
+            row: 3,
+            slug: 'angular-socket-bun',
+            message: 'slug duplicado, ya definido en la fila 2',
+          },
+        ]);
+      });
+
       it('rejects a CSV without required columns and records FAILED', async () => {
         await expect(
           service.importFromCsv('slug,title\nnest,Nest'),

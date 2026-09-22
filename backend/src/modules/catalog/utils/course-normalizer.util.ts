@@ -12,6 +12,17 @@ import type {
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DURATION_PATTERN = /^[1-9]\d*$/;
+const DIACRITICS = /[̀-ͯ]/g;
+
+/** Lleva un slug a minúsculas, sin tildes y con guiones en lugar de _. */
+export function normalizeSlug(value: string): string {
+  return value
+    .trim()
+    .normalize('NFD')
+    .replace(DIACRITICS, '')
+    .toLowerCase()
+    .replace(/_/g, '-');
+}
 
 /**
  * Convierte los tags en skills internas con peso de 0 a 1: la fracción de
@@ -47,7 +58,7 @@ export function normalizeTags(tags: string): CourseSkillInput[] {
  */
 export function normalizeCourse(raw: RawCourse): CourseNormalization {
   const problems: string[] = [];
-  const slug = raw.slug.trim().toLowerCase();
+  const slug = normalizeSlug(raw.slug);
   const title = raw.title.trim();
   const url = raw.url.trim();
   const level = LEVEL_BY_NAME.get(raw.level.trim().toLowerCase());
