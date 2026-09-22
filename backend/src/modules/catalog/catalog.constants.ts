@@ -8,17 +8,43 @@ export const LEVEL_BY_NAME = new Map<string, number>([
 ]);
 
 /**
- * Tabla de normalización de tags a skills de 03-catalogo-cursos.md.
- * También acepta el nombre de cada skill como tag, como el CSV de ejemplo.
+ * Tabla de normalización de tags a skills de 03-catalogo-cursos.md, ampliada
+ * con las tecnologías del catálogo de DevTalles. También acepta el nombre de
+ * cada skill como tag. Los tags que no están aquí se ignoran.
  */
 export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['nestjs', SkillCategory.BACKEND],
   ['express', SkillCategory.BACKEND],
   ['node', SkillCategory.BACKEND],
+  ['bun', SkillCategory.BACKEND],
+  ['graphql', SkillCategory.BACKEND],
+  ['microservicios', SkillCategory.BACKEND],
+  ['java', SkillCategory.BACKEND],
+  ['spring-boot', SkillCategory.BACKEND],
+  ['kafka', SkillCategory.BACKEND],
+  ['go', SkillCategory.BACKEND],
+  ['python', SkillCategory.BACKEND],
+  ['fastapi', SkillCategory.BACKEND],
+  ['django', SkillCategory.BACKEND],
+  ['php', SkillCategory.BACKEND],
+  ['laravel', SkillCategory.BACKEND],
+  ['dotnet', SkillCategory.BACKEND],
+  ['csharp', SkillCategory.BACKEND],
   ['backend', SkillCategory.BACKEND],
   ['react', SkillCategory.FRONTEND],
   ['vue', SkillCategory.FRONTEND],
   ['angular', SkillCategory.FRONTEND],
+  ['nextjs', SkillCategory.FRONTEND],
+  ['nuxt', SkillCategory.FRONTEND],
+  ['astro', SkillCategory.FRONTEND],
+  ['qwik', SkillCategory.FRONTEND],
+  ['blazor', SkillCategory.FRONTEND],
+  ['react-router', SkillCategory.FRONTEND],
+  ['tanstack-query', SkillCategory.FRONTEND],
+  ['rxjs', SkillCategory.FRONTEND],
+  ['pwa', SkillCategory.FRONTEND],
+  ['tailwindcss', SkillCategory.FRONTEND],
+  ['shadcn', SkillCategory.FRONTEND],
   ['frontend', SkillCategory.FRONTEND],
   ['typescript', SkillCategory.WEB_FUNDAMENTALS],
   ['javascript', SkillCategory.WEB_FUNDAMENTALS],
@@ -26,13 +52,17 @@ export const SKILL_BY_TAG = new Map<string, SkillCategory>([
   ['docker', SkillCategory.DEVOPS],
   ['kubernetes', SkillCategory.DEVOPS],
   ['ci-cd', SkillCategory.DEVOPS],
+  ['aws', SkillCategory.DEVOPS],
   ['devops', SkillCategory.DEVOPS],
   ['sql', SkillCategory.DATABASES],
   ['postgresql', SkillCategory.DATABASES],
   ['mongodb', SkillCategory.DATABASES],
+  ['sql-server', SkillCategory.DATABASES],
   ['databases', SkillCategory.DATABASES],
   ['flutter', SkillCategory.MOBILE],
+  ['dart', SkillCategory.MOBILE],
   ['react-native', SkillCategory.MOBILE],
+  ['expo', SkillCategory.MOBILE],
   ['mobile', SkillCategory.MOBILE],
   ['testing', SkillCategory.TESTING],
   ['jest', SkillCategory.TESTING],

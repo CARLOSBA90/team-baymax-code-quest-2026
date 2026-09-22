@@ -150,6 +150,11 @@ describe('CatalogService', () => {
         ['ci-cd', SkillCategory.DEVOPS],
         ['react-native', SkillCategory.MOBILE],
         ['mongodb', SkillCategory.DATABASES],
+        ['spring-boot', SkillCategory.BACKEND],
+        ['nextjs', SkillCategory.FRONTEND],
+        ['dart', SkillCategory.MOBILE],
+        ['sql-server', SkillCategory.DATABASES],
+        ['aws', SkillCategory.DEVOPS],
       ])('maps the tag %s to %s', async (tag, skill) => {
         await service.importFromCsv(
           csv(`one,One,https://example.com/one,,beginner,${tag},`),
