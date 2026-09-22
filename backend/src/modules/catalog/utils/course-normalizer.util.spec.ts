@@ -112,11 +112,11 @@ describe('course normalizer', () => {
     });
 
     it.each(['0', '-1', '1.5', '01', 'abc'])(
-      'rejects invalid durationHours %j',
+      'treats invalid durationHours %j as absent',
       (durationHours) => {
         expect(normalizeCourse(rawCourse({ durationHours }))).toEqual({
-          ok: false,
-          problems: ['durationHours debe ser un entero positivo'],
+          ok: true,
+          course: normalizedCourse({ durationHours: null }),
         });
       },
     );
@@ -149,7 +149,6 @@ describe('course normalizer', () => {
           'title es obligatorio',
           'url debe ser una URL http o https',
           'level debe ser beginner, intermediate o advanced',
-          'durationHours debe ser un entero positivo',
         ],
       });
     });
