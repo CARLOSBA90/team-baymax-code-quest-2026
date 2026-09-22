@@ -54,7 +54,7 @@ export function normalizeTags(tags: string): CourseSkillInput[] {
 
 /**
  * Valida una fila cruda y la lleva al formato de Course. Sin skills
- * reconocidas el curso queda en PENDING_REVIEW en lugar de ACTIVE.
+ * reconocidas queda en PENDING_REVIEW; una duración inválida queda en null.
  */
 export function normalizeCourse(raw: RawCourse): CourseNormalization {
   const problems: string[] = [];
@@ -63,6 +63,9 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
   const url = raw.url.trim();
   const level = LEVEL_BY_NAME.get(raw.level.trim().toLowerCase());
   const duration = raw.durationHours.trim();
+  const durationHours = DURATION_PATTERN.test(duration)
+    ? Number(duration)
+    : null;
 
   if (!SLUG_PATTERN.test(slug)) {
     problems.push('slug vacío o inválido (solo minúsculas, números y guiones)');
@@ -71,9 +74,6 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
   if (!isHttpUrl(url)) problems.push('url debe ser una URL http o https');
   if (level === undefined) {
     problems.push('level debe ser beginner, intermediate o advanced');
-  }
-  if (duration && !DURATION_PATTERN.test(duration)) {
-    problems.push('durationHours debe ser un entero positivo');
   }
 
   if (problems.length > 0 || level === undefined) {
@@ -90,7 +90,7 @@ export function normalizeCourse(raw: RawCourse): CourseNormalization {
       url,
       description: raw.description.trim() || null,
       level,
-      durationHours: duration ? Number(duration) : null,
+      durationHours,
       status:
         skills.length > 0 ? CourseStatus.ACTIVE : CourseStatus.PENDING_REVIEW,
       skills,

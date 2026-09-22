@@ -216,13 +216,30 @@ describe('CatalogService', () => {
           {
             row: 3,
             slug: 'bad',
-            message: expect.stringMatching(/title.*url.*level.*durationHours/),
+            message: expect.stringMatching(/title.*url.*level/),
           },
         ]);
+        expect(result.data.errors[0].message).not.toContain('durationHours');
         expect(JSON.parse(importUpdate().data.errors)).toEqual(
           result.data.errors,
         );
       });
+
+      it.each(['0', '2.5', 'diez', '-3'])(
+        'imports the course with durationHours null when the duration is %j',
+        async (duration) => {
+          const result = await service.importFromCsv(
+            csv(`dur,Dur,https://example.com/dur,,beginner,node,${duration}`),
+          );
+
+          expect(result.data).toMatchObject({
+            status: ImportStatus.SUCCESS,
+            created: 1,
+            errors: [],
+          });
+          expect(upsertedCourse().create.durationHours).toBeNull();
+        },
+      );
 
       it('marks the import FAILED when no row is valid', async () => {
         const result = await service.importFromCsv(

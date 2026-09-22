@@ -6,20 +6,26 @@ import {
 } from '@nestjs/common';
 
 interface RequestWithSession {
-  session?: { user?: { email?: string } } | null;
+  session?: { user?: { email?: string; emailVerified?: boolean } } | null;
 }
 
 /**
- * Permite el acceso solo si el email de la sesión está en ADMIN_EMAILS
- * (lista separada por comas). Sin la variable, deniega a todos con 403.
+ * Permite el acceso solo si el email de la sesión está en ADMIN_EMAILS y está
+ * verificado, para que nadie se registre con el correo de un admin sin serlo.
+ * Sin la variable deniega a todos. Siempre responde el mismo 403.
  */
 @Injectable()
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<RequestWithSession>();
-    const email = request.session?.user?.email?.trim().toLowerCase();
+    const user = request.session?.user;
+    const email = user?.email?.trim().toLowerCase();
 
-    if (!email || !this.adminEmails().has(email)) {
+    if (
+      !email ||
+      user?.emailVerified !== true ||
+      !this.adminEmails().has(email)
+    ) {
       throw new ForbiddenException(
         'Se requiere un usuario administrador para realizar esta acción',
       );

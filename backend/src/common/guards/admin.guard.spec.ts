@@ -10,7 +10,9 @@ describe('AdminGuard', () => {
       switchToHttp: () => ({ getRequest: () => ({ session }) }),
     }) as unknown as ExecutionContext;
 
-  const sessionOf = (email: string) => ({ user: { email } });
+  const sessionOf = (email: string) => ({
+    user: { email, emailVerified: true },
+  });
 
   afterEach(() => {
     if (originalAdminEmails === undefined) {
@@ -58,9 +60,27 @@ describe('AdminGuard', () => {
   });
 
   it.each([
+    ['false', { email: 'admin@example.com', emailVerified: false }],
+    ['missing', { email: 'admin@example.com' }],
+    [
+      'a string instead of a boolean',
+      { email: 'admin@example.com', emailVerified: 'true' },
+    ],
+  ])(
+    'denies with 403 an admin email whose emailVerified is %s',
+    (_label, user) => {
+      process.env.ADMIN_EMAILS = 'admin@example.com';
+
+      expect(() => guard.canActivate(contextFor({ user }))).toThrow(
+        'Se requiere un usuario administrador para realizar esta acción',
+      );
+    },
+  );
+
+  it.each([
     ['there is no session', undefined],
     ['the session has no user', {}],
-    ['the user has no email', { user: {} }],
+    ['the user has no email', { user: { emailVerified: true } }],
   ])('denies with 403 when %s', (_label, session) => {
     process.env.ADMIN_EMAILS = 'admin@example.com';
 

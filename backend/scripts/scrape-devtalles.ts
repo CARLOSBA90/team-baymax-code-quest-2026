@@ -1,7 +1,8 @@
 /**
  * scrape-devtalles.ts
  * Extrae UNA SOLA VEZ el catalogo de cursos y las rutas oficiales de DevTalles
- * y genera seed/cursos.json y seed/rutas.json para cargar en la base de datos.
+ * y genera seed/cursos.json y seed/rutas.json para cargar en la base de datos,
+ * más prisma/seed/courses.csv, el mismo archivo que importa pnpm db:seed.
  *
  * Uso:
  *   npm i -D cheerio tsx
@@ -16,8 +17,11 @@ import * as cheerio from "cheerio";
 import { mkdir, readFile, writeFile, access } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const BASE = "https://cursos.devtalles.com";
+// Misma ruta que lee prisma/seed.ts, sin depender del directorio de ejecución.
+const CSV_SEED_PATH = fileURLToPath(new URL("../prisma/seed/courses.csv", import.meta.url));
 const PAUSA_MS = 1000;
 
 // Paginas de listado a recorrer (pestañas de "Todos los cursos")
@@ -173,7 +177,7 @@ export function cursoACsv(curso: Curso): string {
     curso.descripcion,
     NIVEL_A_LEVEL[curso.nivel],
     tagsDeCurso(curso).join(","),
-    curso.duracionHoras == null ? "" : Math.round(curso.duracionHoras),
+    curso.duracionHoras == null ? "" : Math.max(1, Math.round(curso.duracionHoras)),
   ].map(csvCampo).join(",");
 }
 
@@ -386,7 +390,8 @@ async function main() {
   }
   cursos.sort((a, b) => a.titulo.localeCompare(b.titulo, "es"));
   await writeFile("seed/cursos.json", JSON.stringify(cursos, null, 2), "utf8");
-  await writeFile("seed/courses.csv", [CSV_CABECERA, ...cursos.map(cursoACsv)].join("\n") + "\n", "utf8");
+  await mkdir(path.dirname(CSV_SEED_PATH), { recursive: true });
+  await writeFile(CSV_SEED_PATH, [CSV_CABECERA, ...cursos.map(cursoACsv)].join("\n") + "\n", "utf8");
 
   // 3) Rutas oficiales
   const rutas: RutaOficial[] = [];
@@ -401,7 +406,7 @@ async function main() {
   }
   await writeFile("seed/rutas.json", JSON.stringify(rutas, null, 2), "utf8");
 
-  console.log("\nListo: seed/courses.csv, seed/cursos.json y seed/rutas.json");
+  console.log("\nListo: prisma/seed/courses.csv, seed/cursos.json y seed/rutas.json");
   console.log("Siguiente paso: revisar a mano el campo nivel y el tipo de cada curso en las rutas.");
 }
 
