@@ -135,12 +135,12 @@ describe('course normalizer', () => {
       },
     );
 
-    it.each(['ftp://example.com/cover.png', 'cover.png', 'not a url'])(
-      'rejects non-HTTP imageUrl %j',
+    it.each(['ftp://example.com/cover.png', 'cover.png', 'not a url', '  '])(
+      'treats non-HTTP imageUrl %j as absent',
       (imageUrl) => {
         expect(normalizeCourse(rawCourse({ imageUrl }))).toEqual({
-          ok: false,
-          problems: ['imageUrl debe ser una URL http o https'],
+          ok: true,
+          course: normalizedCourse({ imageUrl: null }),
         });
       },
     );
