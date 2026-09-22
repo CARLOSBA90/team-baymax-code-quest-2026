@@ -18,12 +18,12 @@
 ##  Backend
 
 ### 🔴 Módulo: Catálogo de Cursos (`catalog`) — BLOQUEANTE para Roadmaps
-- [ ] Crear modelos Prisma `Course`, `CourseSkill`, `CoursePrerequisite` y migración
-- [ ] Preparar `courses.csv` con cursos reales de DevTalles (manual: título, URL, nivel, tags)
-- [ ] Implementar `CatalogModule` + `CatalogService.importFromCsv()`
-- [ ] Endpoint `POST /api/v1/catalog/import` (solo admin/interno)
-- [ ] Seed del catálogo con el CSV preparado
-- [ ] Endpoint `GET /api/v1/catalog/courses` (lista paginada para el frontend — posible implementación de scrapper con cron scheduled)
+- [x] Crear modelos Prisma `Course`, `CourseSkill`, `CoursePrerequisite` y migración
+- [x] Preparar `courses.csv` con cursos reales de DevTalles (manual: título, URL, nivel, tags)
+- [x] Implementar `CatalogModule` + `CatalogService.importFromCsv()`
+- [x] Endpoint `POST /api/v1/catalog/import` (solo admin/interno)
+- [x] Seed del catálogo con el CSV preparado
+- [x] Endpoint `GET /api/v1/catalog/courses` (lista paginada para el frontend — posible implementación de scrapper con cron scheduled)
 
 ### 🔴 Módulo: Roadmaps (`roadmaps`) — BLOQUEANTE para Frontend de resultados
 > Depende de: Catálogo terminado + Assessment terminado ✅
