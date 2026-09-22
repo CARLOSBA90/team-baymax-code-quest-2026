@@ -7,3 +7,9 @@ node_modules
 .agents/
 .windsurf/
 *.tsbuildinfo
+
+.cache/
+seed/
+
+.cache/
+seed/
