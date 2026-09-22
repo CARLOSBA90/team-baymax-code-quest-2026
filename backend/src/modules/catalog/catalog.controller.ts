@@ -5,10 +5,12 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
+import { AdminGuard } from '../../common/guards/admin.guard.js';
 import { MAX_CSV_FILE_BYTES } from './catalog.constants.js';
 import { CatalogService } from './catalog.service.js';
 import type { CoursesPageResponseDto } from './dto/course-response.dto.js';
@@ -29,10 +31,11 @@ export class CatalogController {
 
   /**
    * POST /api/v1/catalog/import
-   * Requiere sesión. Recibe el CSV como texto en el campo csv (JSON) o
-   * como archivo en el campo file (multipart/form-data).
+   * Solo administradores (ADMIN_EMAILS). Recibe el CSV en el campo csv
+   * (JSON) o como archivo en el campo file (multipart/form-data).
    */
   @Post('import')
+  @UseGuards(AdminGuard)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_CSV_FILE_BYTES } }),
   )
