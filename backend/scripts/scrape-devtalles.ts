@@ -210,7 +210,17 @@ function inferirNivel(titulo: string, descripcion: string, requisitos: string[])
 export function parseCurso(html: string, url: string): Curso {
   const $ = cheerio.load(html);
 
-  const titulo = limpiar($("section.banner--course h2.section__heading").first().text());
+  // El h2 trae un <style> y el subtítulo (CURSO GRATUITO, Mini-curso);
+  // se quitan ambos antes de leer el texto.
+  const titulo = limpiar(
+    $("section.banner--course h2.section__heading")
+      .first()
+      .clone()
+      .find("style, .devtalles-course-subtitle")
+      .remove()
+      .end()
+      .text(),
+  );
   const descripcion = limpiar($("section.banner--course p.section__subheading").first().text());
   const imagenUrl = $('meta[property="og:image"]').attr("content") ?? null;
   const tecnologias = ($('meta[name="keywords"]').attr("content") ?? "")
