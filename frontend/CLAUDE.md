@@ -7,33 +7,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Package manager: pnpm.
 
 ```bash
-pnpm dev          # start Vite dev server
-pnpm build        # tsc -b (typecheck all project refs) then vite build
-pnpm preview      # preview production build
+pnpm dev              # start Vite dev server
+pnpm build            # tsc -b (typecheck all project refs) then vite build
+pnpm preview          # preview production build
+pnpm typecheck        # tsc -b only
 
-pnpm lint         # biome lint only
-pnpm format       # biome format only, writes changes
-pnpm check        # biome lint + format check, no writes
-pnpm check:fix    # biome lint + format, writes fixes
+pnpm check            # biome check (lint + format), no writes
+pnpm check:fix        # biome check --write
+
+pnpm test             # vitest run
+pnpm test:watch       # vitest in watch mode
+pnpm test:coverage    # vitest run --coverage (v8), enforces thresholds
 ```
-
-No test runner set up. No `pnpm test` script exists.
 
 ## Architecture
 
-Single-page React 19 + TypeScript + Vite app. No router, no state management library, no CSS framework.
+React 19 + TypeScript + Vite SPA.
 
-- `src/main.tsx` — entry point, mounts `<App />` into `#root` in strict mode.
-- `src/App.tsx` — the entire UI lives here as one component (hero section, docs links, social links).
-- `src/App.css` / `src/index.css` — plain CSS with nesting (no CSS-in-JS, no Tailwind).
-- `public/icons.svg` — a single sprite sheet of `<symbol>` icons, referenced from `App.tsx` via `<use href="/icons.svg#icon-id">`. Add new icons as `<symbol>` entries here rather than importing separate SVG files.
-- TypeScript project is split into `tsconfig.app.json` (app source, bundler resolution, `verbatimModuleSyntax`) and `tsconfig.node.json` (Vite config), tied together by `tsconfig.json` project references.
+- `src/main.tsx` — entry point, mounts the app in strict mode. `src/Root.tsx` is the root route element.
+- `src/router/` — `react-router-dom` (`createBrowserRouter` in `router.tsx`). `GuestRoute` protects `/auth/*` (guests only), `ProtectedRoute` protects `/dashboard/*`; both use `useGuardSession`.
+- `src/pages/` — route pages (`auth/LoginPage`, `auth/RegisterPage`, `dashboard/RoadmapsPage`).
+- `src/components/` — `auth/` (forms, fields, notices), `layouts/`, `ui/`.
+- `src/lib/auth-client.ts` — Better Auth client (`better-auth/react`). `src/lib/auth-errors.ts` — auth error mapping.
+- `src/api/` — axios `client.ts`, `queryClient.ts`, `services/` (auth/users), and `queries/` (TanStack React Query hooks + query keys).
+- `src/schemas/` — zod schemas. `src/types/` — shared types.
+- `@/*` aliases `./src/*` (in both `vite.config.ts` and `tsconfig.app.json`).
+
+## Conventions
+
+When creating or modifying any file in `src/`, always invoke the `frontend-conventions` skill (`.claude/skills/frontend-conventions/SKILL.md`): imports only via `@/` or `./`, imports through the folder's `index.ts` barrel, and `PropsWithChildren` for `children`. Biome (`noRestrictedImports`) enforces the first two rules.
+
+## Styling
+
+Tailwind v4 via `@tailwindcss/vite`, CSS-first (no `tailwind.config.js`). Design tokens are declared in `src/index.css` under `@theme`; add or change theme values there.
+
+## Testing
+
+Vitest 5 + jsdom + Testing Library (config in the `test` block of `vite.config.ts`).
+
+- Specs live in `__tests__/` folders beside the code: `src/**/__tests__/**/*.spec.{ts,tsx}`.
+- `globals: false` — import `describe`, `it`, `expect`, `vi`, etc. from `vitest` explicitly. `src/test/setup.ts` loads `@testing-library/jest-dom/vitest` and runs `cleanup` after each test. `restoreMocks` and `unstubGlobals` are on.
+- Render components with `renderWithProviders(ui, { route })` from `src/test/renderWithProviders.tsx` (fresh `QueryClient` with no retries + `MemoryRouter`).
+- Mock the API layer with `vi.mock("@/api/services", ...)`; `GuestRoute`/`ProtectedRoute` specs mock `@/router/useGuardSession`; only `useGuardSession.spec.tsx` mocks `@/lib/auth-client` (`authClient.useSession`).
+- Fake timers: Testing Library only detects Jest fake timers, so with `vi.useFakeTimers()` also stub a global `jest` (`vi.stubGlobal("jest", { advanceTimersByTime: vi.advanceTimersByTime.bind(vi) })`). See `useFakeTimersForTestingLibrary` in `RegisterPage.spec.tsx`.
+- Coverage is scoped to auth code (`lib/auth-errors.ts`, `components/auth/**`, `pages/auth/**`, router guards; currently 7 spec files, 90 tests, including `components/auth/__tests__/PasswordField.spec.tsx`) with thresholds 80% lines/functions/statements and 70% branches. Widen `coverage.include` as more code gets tests.
 
 ## Linting & formatting
 
 Biome (`@biomejs/biome`) replaces ESLint/Prettier entirely — there is no ESLint config in this repo. Config is in `biome.json`:
 
 - 2-space indent, double quotes, semicolons, trailing commas, 100-char line width.
-- `a11y` recommended rules are enabled and enforced (e.g. `noSvgWithoutTitle`, `noAmbiguousAnchorText`) — decorative `<svg>`/`<symbol>` elements need a `<title>`, and links need non-ambiguous accessible text.
+- `a11y` recommended rules are enabled and enforced — decorative `<svg>` elements need a `<title>`, and links need non-ambiguous accessible text.
+- `useAwait`, `noUnusedImports`, `noUnusedVariables`, `useImportType`, `useConst` are errors.
 - `organizeImports` runs as a formatter action.
 - Run `pnpm check:fix` before committing to apply both lint fixes and formatting.

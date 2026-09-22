@@ -39,9 +39,13 @@ pnpm build                      # tsc -b then vite build
 pnpm typecheck                  # tsc -b only
 pnpm check                      # biome lint + format check, no writes
 pnpm check:fix                  # biome lint + format, writes fixes
+
+pnpm test                       # vitest run (specs in src/**/__tests__/**/*.spec.{ts,tsx})
+pnpm test:watch
+pnpm test:coverage              # v8 coverage with thresholds (80% lines/functions/statements, 70% branches)
 ```
 
-No test runner is configured on the frontend.
+Frontend tests use Vitest + jsdom + Testing Library; see `frontend/CLAUDE.md` for conventions.
 
 ## Architecture: plan vs. current state
 
@@ -49,14 +53,10 @@ No test runner is configured on the frontend.
 
 What actually exists today:
 
-- `backend/` is **one** NestJS 12 app, not three: it covers the Auth API and Core API roles together. `main.ts` disables the body parser for Better Auth, enables CORS from `TRUSTED_ORIGINS` with `credentials: true`, sets the global prefix `api/v1` and listens on `PORT ?? 3001`. Better Auth routes live at `/api/auth/*`, outside the prefix.
-- `AppModule` wires `ConfigModule` (global), `PrismaModule`, `AuthModule.forRoot({ auth })` and the feature modules in `src/modules/`: `users` (`GET /api/v1/users/me`) and `assessments` (`GET questions`, `POST submit`, `GET my-result`). Only `GET /api/v1/health` is `@AllowAnonymous()`; every other endpoint requires a session.
-- `src/modules/auth/auth.ts` is the Better Auth instance, not a Nest module: email/password (min 6 chars) with email verification, Google/GitHub/Discord registered only when both of their env vars are set, a sign-up `before` hook that runs `AuthValidator`, and a dev-only `X-Verification-Url` header gated by `EXPOSE_VERIFICATION_URL=true` plus `NODE_ENV=development`.
-- Prisma 7 with the `prisma-client` generator (output `src/generated/prisma`, gitignored) and `@prisma/adapter-pg` on Neon. The app uses `DATABASE_URL` (pooler); `prisma.config.ts` points the CLI at `DIRECT_URL`. `prisma.service.ts` exports one shared `prisma` instance used by both Nest and Better Auth. Models: the Better Auth tables (`User`, `Session`, `Account`, `Verification`) plus `Question`, `QuestionOption`, `Assessment`, `AssessmentAnswer`. Questions are seeded with `pnpm db:seed`. Env vars are documented in `backend/.env.example`.
-- `class-validator`, `class-transformer`, and `@nestjs/swagger` are still **not** installed; bodies are checked by hand-written validators (`auth.validator.ts`, `assessments/validators/`). Endpoints return the `{ data }` envelope.
-- `test/auth-verification.e2e-spec.ts` boots the real `AppModule` on Better Auth's memory adapter, so `pnpm test:e2e` needs no PostgreSQL.
-- `frontend/` (`code-quest-frontend-app`) has React Router (`src/router/`, with `ProtectedRoute` and `GuestRoute`), TanStack Query over an axios client in `src/api/` (base `${VITE_API_URL}/api/v1`, `withCredentials`), the Better Auth client in `src/lib/auth-client.ts`, zod schemas, and pages for login, register and `dashboard/roadmaps`. `VITE_API_URL` (origin only) is required; see `frontend/.env.example`.
-- Pending work is tracked in `spec-kits/checklist.md`: catalog, roadmaps and progress modules on the backend; assessment UI and results dashboard on the frontend.
+- `backend/` is **one** freshly scaffolded NestJS app (untracked in git as of this writing), not three. It listens on `PORT ?? 3000`, `AppModule` is empty, and there is no `prisma/` directory, no `.env.example`, and no Better Auth wiring yet.
+- `better-auth`, `@thallesp/nestjs-better-auth`, `@nestjs/config`, `@prisma/client`, and `prisma` are already **installed** but not yet used anywhere in `src/`.
+- `class-validator`, `class-transformer`, and `@nestjs/swagger` are **not** installed, even though the spec-kits assume them.
+- `frontend/` is a React 19 + Vite + Tailwind v4 SPA (`package.json` name `code-quest-frontend-app`). It has `react-router-dom` routing (`GuestRoute` for `/auth/*`, `ProtectedRoute` for `/dashboard/*`), a Better Auth client (`src/lib/auth-client.ts`), an API layer (axios + TanStack React Query in `src/api/`), login/register pages and a dashboard roadmaps page, and Vitest tests for the auth flow.
 
 When implementing, decide explicitly whether to keep the single-service layout or split into the three services the docs describe — don't assume the docs match the tree.
 
