@@ -22,7 +22,7 @@ Aplica a todo fichero nuevo o modificado en `frontend/src/`. Biome no cubre esta
   - ❌ `import { AuthCard } from "@/components/auth/AuthCard";`
 - Agrupa en un solo import todo lo que salga del mismo barrel.
 - **Excepción: dentro de la propia carpeta del barrel** usa hermano `./X`, nunca el barrel propio (evita ciclos de importación). Ejemplo: `useLogin.ts` importa `authKeys` con `./keys`, no con `@/api/queries/auth`.
-- Barrels existentes: `api/queries/{auth,users}`, `api/services`, `components/{auth,layouts,ui}`, `lib`, `pages`, `schemas`, `types`.
+- Barrels existentes: `api/queries/{auth,users}`, `api/services`, `components/{auth,dashboard,layouts,ui}`, `lib`, `pages`, `schemas`, `types`.
 - Al crear un fichero en una carpeta con barrel, **añade su `export * from "./Nombre";`** (orden alfabético). Si el fichero nuevo es de uso interno y no debe ser público, dilo explícitamente en el resumen.
 - Si la carpeta no tiene barrel, no lo crees por defecto: import directo `@/ruta/fichero`. Crea uno solo si el usuario lo pide o ya hay 3+ ficheros consumidos desde fuera.
 

@@ -72,7 +72,6 @@ export function AuthLoginForm() {
           onChange={handleFieldChange("password")}
           error={errors.password}
           disabled={isSubmitting}
-          showForgotPassword
         />
       </div>
       <PrimaryButton type="submit" loading={isSubmitting} loadingLabel="Entrando…">

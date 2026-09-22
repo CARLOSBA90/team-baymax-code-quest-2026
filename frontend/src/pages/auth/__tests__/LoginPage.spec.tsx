@@ -46,10 +46,6 @@ describe("LoginPage", () => {
         "href",
         "/auth/register",
       );
-      expect(screen.getByRole("link", { name: /olvidaste/i })).toHaveAttribute(
-        "href",
-        "/auth/forgot-password",
-      );
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
   });

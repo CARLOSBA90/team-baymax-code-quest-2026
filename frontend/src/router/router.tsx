@@ -1,11 +1,11 @@
-import { createBrowserRouter } from "react-router-dom";
-import { AuthLayout } from "@/components/layouts";
+import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
+import { AuthLayout, DashboardLayout } from "@/components/layouts";
 import { LoginPage, RegisterPage, RoadmapsPage } from "@/pages";
 import { Root } from "@/Root";
 import { GuestRoute } from "@/router/GuestRoute";
 import { ProtectedRoute } from "@/router/ProtectedRoute";
 
-export const router = createBrowserRouter([
+export const routes: RouteObject[] = [
   {
     path: "/",
     element: <Root />,
@@ -36,11 +36,22 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           {
-            path: "roadmaps",
-            element: <RoadmapsPage />,
+            index: true,
+            element: <Navigate to="roadmaps" replace />,
+          },
+          {
+            element: <DashboardLayout />,
+            children: [
+              {
+                path: "roadmaps",
+                element: <RoadmapsPage />,
+              },
+            ],
           },
         ],
       },
     ],
   },
-]);
+];
+
+export const router = createBrowserRouter(routes);
