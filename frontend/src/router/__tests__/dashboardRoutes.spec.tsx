@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSyncExternalStore } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -103,5 +103,40 @@ describe("rutas del dashboard", () => {
     await screen.findByRole("heading", { name: "Mis Rutas" });
     await userEvent.setup().click(screen.getByRole("link", { name: "Mis Rutas" }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+  });
+  it("/dashboard/roadmaps/new renderiza el cuestionario dentro del layout con Mis Rutas activo", async () => {
+    renderRoutes(["/dashboard/roadmaps/new"]);
+
+    const title = await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    expect(screen.getByRole("main")).toContainElement(title);
+    const sidebar = screen.getByRole("complementary");
+    expect(within(sidebar).getByRole("link", { name: "Mis Rutas" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("/dashboard/roadmaps/new sin sesión redirige a /auth/login", async () => {
+    store.set(null);
+    const router = renderRoutes(["/dashboard/roadmaps/new"]);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"));
+    expect(screen.queryByRole("heading", { name: "Descubre tu ruta" })).not.toBeInTheDocument();
+  });
+
+  it("desde el CTA del estado vacío, atrás vuelve a /dashboard/roadmaps", async () => {
+    const router = renderRoutes(["/dashboard/roadmaps"]);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Crear mi primera ruta" }));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard/roadmaps/new");
+
+    await router.navigate(-1);
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+    expect(
+      await screen.findByRole("button", { name: "Crear mi primera ruta" }),
+    ).toBeInTheDocument();
   });
 });

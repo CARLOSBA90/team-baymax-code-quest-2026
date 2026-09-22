@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { PrimaryButton } from "@/components/auth";
 import { NebulaSurface } from "@/components/ui";
 
@@ -62,11 +63,9 @@ const STEPS: { number: string; title: string }[] = [
   { number: "03", title: "Recibe tu ruta y avanza" },
 ];
 
-// TODO(§15): conectar con el cuestionario cuando exista la ruta /dashboard/assessment.
-// Sin funcionalidad de forma intencional en este incremento (fuera de alcance).
-function handleCreateFirstRoadmap() {}
-
 export function RoadmapsEmptyState() {
+  const navigate = useNavigate();
+
   return (
     <NebulaSurface>
       <RouteIllustration />
@@ -81,7 +80,7 @@ export function RoadmapsEmptyState() {
         type="button"
         variant="cta"
         className="mt-8"
-        onClick={handleCreateFirstRoadmap}
+        onClick={() => navigate("/dashboard/roadmaps/new")}
       >
         <PlusIcon className="size-4" />
         Crear mi primera ruta
