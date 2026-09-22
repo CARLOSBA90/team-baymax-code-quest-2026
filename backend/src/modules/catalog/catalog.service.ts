@@ -90,6 +90,24 @@ export class CatalogService {
   }
 
   /**
+   * Marca INACTIVE los cursos cuyo slug no está en la lista y devuelve cuántos
+   * cambió. Con una lista vacía no hace nada para no apagar todo el catálogo.
+   */
+  async deactivateMissing(slugs: string[]): Promise<number> {
+    if (slugs.length === 0) return 0;
+
+    const { count } = await this.prisma.course.updateMany({
+      where: {
+        slug: { notIn: slugs },
+        status: { not: CourseStatus.INACTIVE },
+      },
+      data: { status: CourseStatus.INACTIVE },
+    });
+
+    return count;
+  }
+
+  /**
    * Ejecuta la importación con cualquier adaptador. Si algo falla, la fila
    * de CatalogImport queda en FAILED y el error se propaga.
    */

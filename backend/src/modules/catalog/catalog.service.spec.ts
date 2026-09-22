@@ -24,6 +24,7 @@ describe('CatalogService', () => {
       findMany: ReturnType<typeof vi.fn>;
       count: ReturnType<typeof vi.fn>;
       upsert: ReturnType<typeof vi.fn>;
+      updateMany: ReturnType<typeof vi.fn>;
     };
     $transaction: ReturnType<typeof vi.fn>;
   };
@@ -45,6 +46,7 @@ describe('CatalogService', () => {
         findMany: vi.fn().mockResolvedValue([]),
         count: vi.fn(),
         upsert: vi.fn().mockResolvedValue({}),
+        updateMany: vi.fn(),
       },
       $transaction: vi.fn((operations: Promise<unknown>[]) =>
         Promise.all(operations),
@@ -374,6 +376,50 @@ describe('CatalogService', () => {
         });
         expect(importUpdate().data).toMatchObject({ created: 1, updated: 1 });
       });
+
+      it('reactivates an INACTIVE course when it comes back in the CSV', async () => {
+        prismaMock.course.findMany.mockResolvedValue([
+          {
+            slug: 'back',
+            title: 'A',
+            url: 'https://example.com/a',
+            description: null,
+            level: 1,
+            durationHours: null,
+            status: CourseStatus.INACTIVE,
+            skills: [{ skill: SkillCategory.BACKEND, weight: 1 }],
+          },
+        ]);
+
+        const result = await service.importFromCsv(
+          csv('back,A,https://example.com/a,,beginner,node,'),
+        );
+
+        expect(upsertedCourse().update.status).toBe(CourseStatus.ACTIVE);
+        expect(result.data).toMatchObject({ updated: 1, unchanged: 0 });
+      });
+    });
+  });
+
+  describe('deactivateMissing', () => {
+    it('marks as INACTIVE the courses whose slug is not in the list', async () => {
+      prismaMock.course.updateMany.mockResolvedValue({ count: 16 });
+
+      const count = await service.deactivateMissing(['nest', 'react']);
+
+      expect(prismaMock.course.updateMany).toHaveBeenCalledExactlyOnceWith({
+        where: {
+          slug: { notIn: ['nest', 'react'] },
+          status: { not: CourseStatus.INACTIVE },
+        },
+        data: { status: CourseStatus.INACTIVE },
+      });
+      expect(count).toBe(16);
+    });
+
+    it('does nothing with an empty list', async () => {
+      await expect(service.deactivateMissing([])).resolves.toBe(0);
+      expect(prismaMock.course.updateMany).not.toHaveBeenCalled();
     });
   });
 

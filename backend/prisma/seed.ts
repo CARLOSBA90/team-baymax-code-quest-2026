@@ -2,8 +2,10 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../src/prisma/prisma.service.js';
-import { SkillCategory } from '../src/generated/prisma/enums.js';
+import { ImportStatus, SkillCategory } from '../src/generated/prisma/enums.js';
 import { CatalogService } from '../src/modules/catalog/catalog.service.js';
+import { CsvCatalogAdapter } from '../src/modules/catalog/ingestion/csv.adapter.js';
+import { normalizeSlug } from '../src/modules/catalog/utils/course-normalizer.util.js';
 
 const COURSES_CSV_PATH = fileURLToPath(
   new URL('./seed/courses.csv', import.meta.url),
@@ -238,12 +240,16 @@ async function seedQuestions() {
   }
 }
 
-/** Importa el CSV del catálogo; reimportarlo no duplica ni reescribe cursos. */
+/**
+ * Importa el CSV del catálogo y marca INACTIVE los cursos que ya no vienen en
+ * él: el CSV es la fuente de verdad. Reimportarlo no duplica ni reescribe.
+ */
 async function seedCourses() {
   console.log('Importando catálogo desde prisma/seed/courses.csv...');
 
   const csv = await readFile(COURSES_CSV_PATH, 'utf8');
-  const { message, data } = await new CatalogService(prisma).importFromCsv(csv);
+  const catalog = new CatalogService(prisma);
+  const { message, data } = await catalog.importFromCsv(csv);
 
   console.log(message);
   for (const error of data.errors) {
@@ -251,6 +257,17 @@ async function seedCourses() {
       `Fila ${error.row ?? '-'} (${error.slug ?? '-'}): ${error.message}`,
     );
   }
+
+  if (data.status === ImportStatus.FAILED) {
+    console.warn('La importación falló; no se desactiva ningún curso.');
+    return;
+  }
+
+  const rows = await new CsvCatalogAdapter(csv).fetchCourses();
+  const deactivated = await catalog.deactivateMissing(
+    rows.map((row) => normalizeSlug(row.slug)).filter(Boolean),
+  );
+  console.log(`${deactivated} cursos que no están en el CSV quedaron INACTIVE`);
 }
 
 async function main() {
