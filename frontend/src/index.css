@@ -42,6 +42,11 @@
   --color-sidebar-halo: rgba(124, 58, 237, 0.2);
   --color-sidebar-dots: rgba(167, 139, 250, 0.09);
 
+  --color-empty-bg: #0f0d17;
+  --color-empty-border: rgba(167, 139, 250, 0.14);
+  --color-empty-halo: rgba(124, 58, 237, 0.24);
+  --color-empty-dots: rgba(167, 139, 250, 0.15);
+
   --color-brand-discord: #5865f2;
   --color-success: #34d399;
   --color-danger: #f87171;
@@ -126,6 +131,50 @@ body {
   background-size:
     100% 100%,
     22px 22px;
+}
+
+/* Fondo del estado vacío (design.md §14.6, refinado sobre el artboard exportado por el
+   usuario, `empty-route.svg` / recipe "Mis Rutas · estado vacío@2x"). Independiente de
+   `.nebula` y de `.sidebar-surface` — NO se unifican, son fondos deliberadamente distintos:
+   - `.nebula` (login): bg #0B0A10, halo 0.30 en 50% 12% que se apaga en 58%, SÍ tiene halo
+     cian secundario, puntos 0.17 cada 26px, viñeta elipse 70%x55% hasta 0.85.
+   - `.sidebar-surface`: halo anclado en 30% 0%, puntos cada 22px, sin viñeta.
+   - `.empty-state-surface` (esta clase): bg #0F0D17, halo 0.24 en 50% 0% que se apaga en
+     60%, SIN halo cian, puntos 0.15 cada 24px, viñeta elipse 60%x60% hasta 0.85 vía `::before`
+     (sustituye a un div absoluto separado del artboard original — mismo resultado, un nodo
+     menos en el DOM).
+   El color de fondo (`--color-empty-bg`) se reutiliza también como `fill` de los dos nodos
+   "vacíos" de `RouteIllustration` (ver RoadmapsEmptyState.tsx): esos nodos tapan la línea
+   punteada que pasa por detrás dibujando un disco del mismo color que el fondo del
+   contenedor, así que ambos DEBEN leer del mismo token para no desincronizarse nunca. */
+.empty-state-surface {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--color-empty-border);
+  background-color: var(--color-empty-bg);
+  background-image:
+    radial-gradient(circle at 50% 0%, var(--color-empty-halo) 0%, transparent 60%),
+    radial-gradient(var(--color-empty-dots) 1.2px, transparent 1.2px);
+  background-size:
+    100% 100%,
+    24px 24px;
+}
+
+.empty-state-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    color-mix(in srgb, var(--color-empty-bg) 0%, transparent) 25%,
+    color-mix(in srgb, var(--color-empty-bg) 85%, transparent) 100%
+  );
+}
+
+.empty-state-surface > * {
+  position: relative;
 }
 
 /* AuthCard (design.md §5.3): sin soporte de backdrop-filter, la card usa fondo sólido en
