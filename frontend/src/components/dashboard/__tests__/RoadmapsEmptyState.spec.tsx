@@ -1,7 +1,26 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { RoadmapsEmptyState } from "@/components/dashboard";
 import { renderWithProviders } from "@/test/renderWithProviders";
+
+function LocationProbe() {
+  return <p data-testid="location">{useLocation().pathname}</p>;
+}
+
+function renderRoutes() {
+  return renderWithProviders(
+    <>
+      <Routes>
+        <Route path="/dashboard/roadmaps" element={<RoadmapsEmptyState />} />
+        <Route path="/dashboard/roadmaps/new" element={<p>Cuestionario</p>} />
+      </Routes>
+      <LocationProbe />
+    </>,
+    { route: "/dashboard/roadmaps" },
+  );
+}
 
 describe("RoadmapsEmptyState", () => {
   it("muestra el h2 y el párrafo explicativo", () => {
@@ -36,13 +55,25 @@ describe("RoadmapsEmptyState", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
-  it("el click del CTA no lanza errores ni ensucia la consola", () => {
+  it("el click del CTA navega a /dashboard/roadmaps/new sin errores", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    renderWithProviders(<RoadmapsEmptyState />);
+    renderRoutes();
 
-    const cta = screen.getByRole("button", { name: "Crear mi primera ruta" });
-    expect(() => fireEvent.click(cta)).not.toThrow();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Crear mi primera ruta" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard/roadmaps/new");
+    expect(screen.getByText("Cuestionario")).toBeInTheDocument();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it("el CTA es operable con Enter", async () => {
+    renderRoutes();
+    const user = userEvent.setup();
+
+    screen.getByRole("button", { name: "Crear mi primera ruta" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/dashboard/roadmaps/new");
   });
 
   it("muestra las 3 tarjetas de paso con su copy, en orden", () => {

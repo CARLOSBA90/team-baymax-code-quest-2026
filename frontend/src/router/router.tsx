@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import { AuthLayout, DashboardLayout } from "@/components/layouts";
-import { LoginPage, RegisterPage, RoadmapsPage } from "@/pages";
+import { AssessmentPage, LoginPage, RegisterPage, RoadmapsPage } from "@/pages";
 import { Root } from "@/Root";
 import { GuestRoute } from "@/router/GuestRoute";
 import { ProtectedRoute } from "@/router/ProtectedRoute";
@@ -45,6 +45,10 @@ export const routes: RouteObject[] = [
               {
                 path: "roadmaps",
                 element: <RoadmapsPage />,
+              },
+              {
+                path: "roadmaps/new",
+                element: <AssessmentPage />,
               },
             ],
           },
