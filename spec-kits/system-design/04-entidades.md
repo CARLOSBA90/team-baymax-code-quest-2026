@@ -1,7 +1,15 @@
 # 04 — Modelo de Datos y Entidades
 
-> Schema de Prisma completo para el Monolito Modular de CodeQuest.
-> Cubre todos los modulos: auth, catalog, assessments, roadmaps, progress.
+> **Implementación vigente:** el backend agrega únicamente `Roadmap`,
+> `RoadmapItem` y `Progress`. `RoadmapItem.type` discrimina `COURSE`, `MEDIA` y
+> `CHALLENGE`; solo un item `COURSE` referencia la tabla existente `Course`.
+> Media y retos se conservan como snapshot en el item, sin tablas de catálogo
+> adicionales. El schema Prisma y la migración son la fuente de verdad si los
+> ejemplos conceptuales posteriores difieren.
+
+> El bloque de schema incluido más abajo es un ejemplo histórico anterior a la
+> implementación. No representa el contrato vigente del backend y se conserva
+> únicamente como contexto de diseño.
 
 ---
 
@@ -29,7 +37,7 @@ CatalogImport (log de importaciones del catalogo)
 
 ---
 
-## Schema de Prisma
+## Schema de Prisma histórico (no vigente)
 
 ```prisma
 // prisma/schema.prisma
@@ -315,7 +323,7 @@ enum ProgressStatus {
 
 ---
 
-## Notas del Schema
+## Notas del schema histórico
 
 1. **Better Auth administra `User`, `Session`, `Account`, `Verification`.**
    No modificar la estructura de estas tablas. Solo agregar relaciones de negocio en `User`.

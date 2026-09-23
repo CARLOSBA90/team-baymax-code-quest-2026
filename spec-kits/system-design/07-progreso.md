@@ -1,5 +1,31 @@
 # 07 — Progreso del Usuario
 
+> **Implementación vigente:** cada `RoadmapItem` tiene un `Progress`
+> con `percentage` entero entre 0 y 100 y `version` para concurrencia optimista.
+> El porcentaje de la ruta es
+> `floor(sum(item.percentage) / totalItems)` y no se persiste por duplicado.
+> Los estados `NOT_STARTED`, `IN_PROGRESS`, `PAUSED` y `COMPLETED` se derivan de
+> los porcentajes y `Roadmap.pausedAt`. Los enfoques históricos descritos más
+> abajo quedan como alternativas de diseño, no como contrato implementado.
+
+Los endpoints vigentes son:
+
+```text
+PATCH /api/v1/progress/:roadmapItemId
+POST  /api/v1/progress/:roadmapItemId/track
+POST  /api/v1/progress/:roadmapItemId/files
+GET   /api/v1/progress/roadmap/:roadmapId
+PATCH /api/v1/roadmaps/:id/pause
+PATCH /api/v1/admin/challenge-submissions/:id/review
+```
+
+La actualización recibe `{ percentage, expectedVersion }`. Un cambio efectivo
+incrementa la versión del item y la actividad de la ruta; una versión antigua
+retorna conflicto. Una ruta pausada rechaza cambios efectivos de porcentaje.
+El endpoint `track` recibe un `event_id` UUID y payload `VIDEO`, `READING`, `MANUAL` o `CHALLENGE`. El backend calcula el porcentaje y devuelve el agregado de ruta. Video guarda posición actual y máxima; lectura/manual se completan por confirmación. Los retos conservan intentos en `ChallengeSubmission` y solo llegan a 100 cuando un administrador aprueba la entrega. Los archivos se cargan primero como borradores privados.
+
+`Progress.trackingState`, `startedAt` y `completedAt` permiten reanudar y distinguir actividad con 0 %. Los items históricos sin política explícita usan `MANUAL`; los retos usan revisión. El detalle expone `tracking` y `resume`.
+
 > Dos enfoques para registrar y procesar el progreso de una ruta de aprendizaje.
 
 ---
@@ -35,10 +61,10 @@ RoadmapItem { id, roadmapId, courseId, order, reason }
 ```typescript
 // Reglas de transicion de estado
 const VALID_TRANSITIONS: Record<ProgressStatus, ProgressStatus[]> = {
-  NOT_STARTED: ['IN_PROGRESS', 'COMPLETED', 'SKIPPED'],
-  IN_PROGRESS:  ['COMPLETED', 'SKIPPED', 'NOT_STARTED'],
-  COMPLETED:    ['IN_PROGRESS'],  // Puede retomar si quiere
-  SKIPPED:      ['NOT_STARTED', 'IN_PROGRESS'],
+  NOT_STARTED: ["IN_PROGRESS", "COMPLETED", "SKIPPED"],
+  IN_PROGRESS: ["COMPLETED", "SKIPPED", "NOT_STARTED"],
+  COMPLETED: ["IN_PROGRESS"], // Puede retomar si quiere
+  SKIPPED: ["NOT_STARTED", "IN_PROGRESS"],
 };
 ```
 
@@ -47,8 +73,12 @@ const VALID_TRANSITIONS: Record<ProgressStatus, ProgressStatus[]> = {
 ```typescript
 function calcRoadmapProgress(items: RoadmapItem[]): number {
   const total = items.length;
-  const completed = items.filter((i) => i.progress?.status === 'COMPLETED').length;
-  const inProgress = items.filter((i) => i.progress?.status === 'IN_PROGRESS').length;
+  const completed = items.filter(
+    (i) => i.progress?.status === "COMPLETED",
+  ).length;
+  const inProgress = items.filter(
+    (i) => i.progress?.status === "IN_PROGRESS",
+  ).length;
 
   // Contar IN_PROGRESS como 50% de un item
   return Math.round(((completed + inProgress * 0.5) / total) * 100);
@@ -146,14 +176,14 @@ POST /api/v1/roadmaps/:id/items/:itemId/checkpoints/:checkpointId/complete
 
 ## Comparativa
 
-| Criterio | Enfoque 1 (Estado Simple) | Enfoque 2 (Checkpoints) |
-|----------|--------------------------|------------------------|
-| Complejidad backend | Baja | Media |
-| Complejidad frontend (UI) | Baja | Media-Alta |
-| Velocidad de implementacion | Alta | Media |
-| Valor percibido por el usuario | Alto (simple y claro) | Muy alto (control detallado) |
-| Datos de progreso | Coarse-grained | Fine-grained |
-| Recomendacion hackathon | Primera iteracion | Segunda iteracion |
+| Criterio                       | Enfoque 1 (Estado Simple) | Enfoque 2 (Checkpoints)      |
+| ------------------------------ | ------------------------- | ---------------------------- |
+| Complejidad backend            | Baja                      | Media                        |
+| Complejidad frontend (UI)      | Baja                      | Media-Alta                   |
+| Velocidad de implementacion    | Alta                      | Media                        |
+| Valor percibido por el usuario | Alto (simple y claro)     | Muy alto (control detallado) |
+| Datos de progreso              | Coarse-grained            | Fine-grained                 |
+| Recomendacion hackathon        | Primera iteracion         | Segunda iteracion            |
 
 ---
 
@@ -162,12 +192,14 @@ POST /api/v1/roadmaps/:id/items/:itemId/checkpoints/:checkpointId/complete
 El progreso de un item puede condicionar el acceso al siguiente:
 
 **Condicionamiento Suave (recomendado para MVP):**
+
 - Todos los cursos de la ruta son accesibles desde el principio
 - El orden es sugerido, no impuesto
 - La UI muestra una advertencia si el usuario intenta marcar un curso como IN_PROGRESS
   antes de completar sus prerequisitos, pero no lo bloquea
 
 **Condicionamiento Fuerte (opcional, segunda iteracion):**
+
 - El sistema bloquea marcar como IN_PROGRESS un curso si sus prerequisitos no estan COMPLETED
 - Requiere validacion en el backend al hacer PATCH del progreso
 - Mas rigido pero respeta el orden pedagogico
