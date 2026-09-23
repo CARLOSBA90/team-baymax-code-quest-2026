@@ -3,7 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { get, post } from "@/api/client";
-import { useAssessmentQuestions, useSubmitAssessment } from "@/api/queries/assessments";
+import {
+  ASSESSMENT_QUESTIONS_STALE_TIME,
+  assessmentsKeys,
+  useAssessmentQuestions,
+  useSubmitAssessment,
+} from "@/api/queries/assessments";
 import { getAssessmentQuestions, submitAssessment } from "@/api/services";
 import { buildAxiosError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
@@ -17,11 +22,20 @@ const INPUT = {
   })),
 };
 
-function wrapper({ children }: PropsWithChildren) {
-  const queryClient = new QueryClient({
+function createQueryClient() {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+function wrapper({ children }: PropsWithChildren) {
+  return <QueryClientProvider client={createQueryClient()}>{children}</QueryClientProvider>;
+}
+
+function createSharedWrapper(queryClient: QueryClient) {
+  return function SharedWrapper({ children }: PropsWithChildren) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  };
 }
 
 describe("assessments.service", () => {
@@ -73,6 +87,36 @@ describe("useAssessmentQuestions", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toBe(error);
     expect(result.current.data).toBeUndefined();
+  });
+
+  it("reutiliza la caché sin volver a pedir las preguntas mientras siguen frescas", async () => {
+    vi.mocked(get).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    const sharedWrapper = createSharedWrapper(createQueryClient());
+
+    const first = renderHook(() => useAssessmentQuestions(), { wrapper: sharedWrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    first.unmount();
+
+    const { result } = renderHook(() => useAssessmentQuestions(), { wrapper: sharedWrapper });
+
+    expect(result.current.isSuccess).toBe(true);
+    expect(result.current.data).toEqual(ASSESSMENT_QUESTIONS_MOCK);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it("vuelve a pedir las preguntas cuando la caché supera el staleTime", async () => {
+    vi.mocked(get).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(assessmentsKeys.questions(), ASSESSMENT_QUESTIONS_MOCK, {
+      updatedAt: Date.now() - ASSESSMENT_QUESTIONS_STALE_TIME - 1,
+    });
+
+    const { result } = renderHook(() => useAssessmentQuestions(), {
+      wrapper: createSharedWrapper(queryClient),
+    });
+
+    expect(result.current.data).toEqual(ASSESSMENT_QUESTIONS_MOCK);
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
   });
 });
 
