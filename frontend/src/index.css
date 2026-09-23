@@ -53,6 +53,21 @@
   --color-success: #34d399;
   --color-danger: #f87171;
 
+  /* Mis Rutas: estado de la ruta (badge + barra de progreso). Tints con /opacidad. */
+  --color-status-started: #a78bfa; /* Empezada: texto/dot violeta */
+  --color-status-started-bar: #8b5cf6; /* relleno barra Empezada */
+  --color-status-paused: #fbbf24; /* En pausa: ámbar */
+  --color-status-completed: #34d399; /* Completada: verde (= success) */
+  --color-status-idle: #9b97ad; /* Sin empezar: neutro */
+  --color-progress-track: rgba(255, 255, 255, 0.08);
+
+  /* Mis Rutas: acento del monograma de cada ruta */
+  --color-mono-violet: #a78bfa;
+  --color-mono-cyan: #22d3ee;
+  --color-mono-amber: #fbbf24;
+  --color-mono-pink: #f472b6;
+  --color-mono-emerald: #34d399;
+
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Manrope", system-ui, sans-serif;
 
