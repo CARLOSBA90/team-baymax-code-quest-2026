@@ -37,8 +37,32 @@ class FakeResizeObserver {
 
 describe("useScrolledToEnd", () => {
   it("contenido sin overflow: true al montar", () => {
+    mockOverflow(300, 300);
     renderWithProviders(<Probe />);
 
+    expect(screen.getByText("final")).toBeInTheDocument();
+  });
+
+  it("sin layout al montar (clientHeight 0) no decide: sigue en false", () => {
+    mockOverflow(0, 0);
+    renderWithProviders(<Probe />);
+
+    expect(screen.getByText("pendiente")).toBeInTheDocument();
+  });
+
+  it("sin layout al montar, re-evalúa cuando el ResizeObserver avisa de que ya tiene tamaño", () => {
+    FakeResizeObserver.instances = [];
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+    const clientHeight = mockOverflow(1000, 0);
+    renderWithProviders(<Probe />);
+    const [observer] = FakeResizeObserver.instances;
+
+    clientHeight.mockReturnValue(300);
+    act(() => observer?.callback());
+    expect(screen.getByText("pendiente")).toBeInTheDocument();
+
+    clientHeight.mockReturnValue(1000);
+    act(() => observer?.callback());
     expect(screen.getByText("final")).toBeInTheDocument();
   });
 

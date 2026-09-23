@@ -156,6 +156,21 @@ describe("Modal", () => {
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it("tras un cierre nativo, al cambiar open a false quita el bloqueo y devuelve el foco", async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      renderWithProviders(<StatefulFixture onClose={onClose} closeOnRequest />);
+      await user.click(triggerButton());
+      expect(document.documentElement).toHaveClass("overflow-hidden");
+
+      act(() => dialogElement().close());
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass("overflow-hidden");
+      expect(triggerButton()).toHaveFocus();
+    });
   });
 
   describe("contenido libre como children", () => {

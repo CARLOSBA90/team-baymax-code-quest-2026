@@ -19,9 +19,14 @@ const termsRegion = () =>
 const acceptButton = () => screen.getByRole("button", { name: "Aceptar" });
 const closeButton = () => screen.getByRole("button", { name: "Cerrar" });
 
+// jsdom no tiene layout: se simulan las alturas del contenido y del contenedor.
+function mockLayout(scrollHeight: number, clientHeight: number) {
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(scrollHeight);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(clientHeight);
+}
+
 function mockOverflow() {
-  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
-  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(300);
+  mockLayout(1000, 300);
 }
 
 function scrollRegionTo(scrollTop: number) {
@@ -139,10 +144,19 @@ describe("TermsDialog", () => {
   });
 
   it("contenido sin overflow: Aceptar habilitado de inicio", () => {
+    mockLayout(300, 300);
     renderTerms();
 
     expect(acceptButton()).toBeEnabled();
     expect(screen.queryByText(SCROLL_HINT)).not.toBeInTheDocument();
+  });
+
+  it("sin layout al montar (dialog aún sin mostrar), Aceptar sigue deshabilitado", () => {
+    mockLayout(0, 0);
+    renderTerms();
+
+    expect(acceptButton()).toBeDisabled();
+    expect(screen.getByText(SCROLL_HINT)).toBeInTheDocument();
   });
 
   it("Cerrar llama a onClose y no a onAccept", async () => {

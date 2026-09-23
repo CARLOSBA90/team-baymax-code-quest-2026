@@ -422,7 +422,9 @@ describe("RegisterPage", () => {
       await user.click(submitButton());
       expect(screen.getByText(TERMS_ERROR)).toBeInTheDocument();
 
+      mockTermsOverflow();
       await user.click(termsTrigger());
+      scrollTermsToEnd();
       await user.click(screen.getByRole("button", { name: "Aceptar" }));
 
       expect(termsCheckbox()).toBeChecked();
@@ -438,7 +440,9 @@ describe("RegisterPage", () => {
       await fillValid(user);
       await user.click(termsCheckbox());
 
+      mockTermsOverflow();
       await user.click(termsTrigger());
+      scrollTermsToEnd();
       await user.click(screen.getByRole("button", { name: "Aceptar" }));
 
       expect(termsCheckbox()).toBeChecked();
@@ -450,7 +454,9 @@ describe("RegisterPage", () => {
       renderRegister();
       await user.click(termsCheckbox());
 
+      mockTermsOverflow();
       await user.click(termsTrigger());
+      scrollTermsToEnd();
       await user.click(screen.getByRole("button", { name: "Aceptar" }));
 
       expect(termsCheckbox()).toBeChecked();

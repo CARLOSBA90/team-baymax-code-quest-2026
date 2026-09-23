@@ -42,10 +42,13 @@ export function Modal({
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dialog.showModal();
       document.documentElement.classList.add(SCROLL_LOCK_CLASS);
-    } else if (!open && dialog.open) {
-      dialog.close();
+    } else if (!open) {
+      // El navegador puede haber cerrado ya el dialog (p. ej. CloseWatcher o botón atrás de
+      // Android): la limpieza del bloqueo y la devolución del foco se hacen igualmente.
+      if (dialog.open) dialog.close();
       document.documentElement.classList.remove(SCROLL_LOCK_CLASS);
       const returnFocus = returnFocusRef.current;
+      returnFocusRef.current = null;
       if (returnFocus?.isConnected) returnFocus.focus();
     }
   }, [open]);
