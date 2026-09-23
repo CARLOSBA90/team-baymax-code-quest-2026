@@ -1,6 +1,7 @@
 import { useLogout, useSession } from "@/api/queries/auth";
-import { getAuthErrorMessage, getInitials } from "@/lib";
+import { getAuthErrorMessage } from "@/lib";
 import { LogoutIcon } from "./SidebarIcons";
+import { UserAvatar } from "./UserAvatar";
 
 export function SidebarUserCard() {
   const { data: session } = useSession();
@@ -13,12 +14,7 @@ export function SidebarUserCard() {
   return (
     <div className="mt-auto flex flex-col gap-2">
       <div className="flex items-center gap-3 rounded-xl border border-border-field bg-bg-ghost p-3">
-        <span
-          aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-accent-hover to-accent font-display text-sm font-bold text-white"
-        >
-          {getInitials(name, email)}
-        </span>
+        <UserAvatar name={name} email={email} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-body text-sm font-medium text-text-primary">
             {displayName}
