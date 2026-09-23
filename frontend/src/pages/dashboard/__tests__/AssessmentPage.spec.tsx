@@ -2,7 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { assessmentsKeys } from "@/api/queries/assessments";
+import { ASSESSMENT_QUESTIONS_STALE_TIME, assessmentsKeys } from "@/api/queries/assessments";
 import { getAssessmentQuestions, submitAssessment } from "@/api/services";
 import { AssessmentPage, RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
@@ -448,7 +448,7 @@ describe("AssessmentPage", () => {
       ).toBeChecked();
     });
 
-    it("al reentrar con preguntas en caché muestra la P1 sin esqueleto ni respuestas", async () => {
+    it("al reentrar con preguntas frescas en caché muestra la P1 sin esqueleto, respuestas ni petición", () => {
       vi.mocked(getAssessmentQuestions).mockReturnValue(new Promise(() => {}));
       const queryClient = createTestQueryClient();
       queryClient.setQueryData(assessmentsKeys.questions(), ASSESSMENT_QUESTIONS_MOCK);
@@ -460,7 +460,20 @@ describe("AssessmentPage", () => {
       for (const radio of within(group).getAllByRole("radio")) {
         expect(radio).not.toBeChecked();
       }
-      await waitFor(() => expect(getAssessmentQuestions).toHaveBeenCalled());
+      expect(getAssessmentQuestions).not.toHaveBeenCalled();
+    });
+
+    it("al reentrar con preguntas caducadas en caché muestra la P1 y revalida en segundo plano", async () => {
+      vi.mocked(getAssessmentQuestions).mockReturnValue(new Promise(() => {}));
+      const queryClient = createTestQueryClient();
+      queryClient.setQueryData(assessmentsKeys.questions(), ASSESSMENT_QUESTIONS_MOCK, {
+        updatedAt: Date.now() - ASSESSMENT_QUESTIONS_STALE_TIME - 1,
+      });
+      renderPage({ route: "/dashboard/roadmaps/new", queryClient });
+
+      expect(screen.getByRole("group", { name: FIRST.text })).toBeInTheDocument();
+      expect(screen.queryByText("Cargando preguntas…")).not.toBeInTheDocument();
+      await waitFor(() => expect(getAssessmentQuestions).toHaveBeenCalledTimes(1));
     });
   });
 });
