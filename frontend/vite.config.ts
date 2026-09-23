@@ -27,6 +27,7 @@ export default defineConfig({
         "src/{components,pages}/auth/**",
         "src/lib/user-initials.ts",
         "src/lib/assessment-labels.ts",
+        "src/lib/roadmaps-location-state.ts",
         "src/components/assessment/**",
         "src/components/ui/GhostButton.tsx",
         "src/components/dashboard/**",

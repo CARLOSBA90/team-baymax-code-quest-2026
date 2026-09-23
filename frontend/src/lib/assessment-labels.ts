@@ -31,7 +31,14 @@ const COUNT_WORDS: Record<number, string> = {
 const SUBTITLE_SUFFIX =
   "Con tus respuestas elegimos los cursos de DevTalles y el orden en que te conviene tomarlos.";
 
-export function getAssessmentSubtitle(count: number): string {
+/**
+ * Subtítulo de la página del cuestionario. Sin recuento (carga, error o lista vacía)
+ * devuelve un texto neutro, sin número.
+ */
+export function getAssessmentSubtitle(count?: number): string {
+  if (count === undefined || count < 1) {
+    return `Unas preguntas rápidas. ${SUBTITLE_SUFFIX}`;
+  }
   if (count === 1) {
     return `Una pregunta rápida. ${SUBTITLE_SUFFIX}`;
   }

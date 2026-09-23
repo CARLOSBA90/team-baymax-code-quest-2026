@@ -1,15 +1,10 @@
-import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/api/mocks/assessments";
+import { get, post } from "@/api/client";
 import type { AssessmentQuestion, AssessmentResult, SubmitAssessmentInput } from "@/types";
 
-// TEMPORAL: devuelve el mock sin HTTP. Para migrar, cambiar cada cuerpo por su línea real
-// (importando `get`/`post` de "@/api/client") y borrar `@/api/mocks/assessments`:
-//   return get<AssessmentQuestion[]>("/assessments/questions");
-//   return post<AssessmentResult, SubmitAssessmentInput>("/assessments/submit", input);
-
 export function getAssessmentQuestions(): Promise<AssessmentQuestion[]> {
-  return Promise.resolve(ASSESSMENT_QUESTIONS_MOCK);
+  return get<AssessmentQuestion[]>("/assessments/questions");
 }
 
 export function submitAssessment(input: SubmitAssessmentInput): Promise<AssessmentResult> {
-  return Promise.resolve(buildAssessmentResultMock(input));
+  return post<AssessmentResult, SubmitAssessmentInput>("/assessments/submit", input);
 }

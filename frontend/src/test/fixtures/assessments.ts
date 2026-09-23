@@ -1,7 +1,7 @@
 import type { AssessmentQuestion, AssessmentResult, SubmitAssessmentInput } from "@/types";
 
-// Mock temporal: copia literal de `questionsToSeed` en backend/prisma/seed.ts (sin `value`).
-// Se borra al migrar el servicio a HTTP.
+// Fixture de tests: copia de `questionsToSeed` en backend/prisma/seed.ts (sin `value`).
+// Solo se importa desde specs (import directo, sin barrel); ningún fichero de producción la usa.
 
 function buildOptions(questionOrder: number, texts: string[]): AssessmentQuestion["options"] {
   return texts.map((text, index) => ({

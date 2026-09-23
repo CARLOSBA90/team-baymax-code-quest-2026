@@ -64,4 +64,17 @@ describe("getAssessmentSubtitle", () => {
   it("usa dígitos con más de 10 preguntas", () => {
     expect(getAssessmentSubtitle(12)).toMatch(/^12 preguntas rápidas\. /);
   });
+
+  it.each([
+    ["sin recuento", undefined],
+    ["con 0", 0],
+  ])("devuelve el texto neutro %s, sin número", (_label, count) => {
+    const subtitle = getAssessmentSubtitle(count);
+    expect(subtitle).toBe(
+      "Unas preguntas rápidas. Con tus respuestas elegimos los cursos de DevTalles y el orden en que te conviene tomarlos.",
+    );
+    expect(subtitle).not.toMatch(/\d/);
+    expect(subtitle).not.toMatch(/\bUna\b/);
+    expect(subtitle).not.toContain("Siete");
+  });
 });
