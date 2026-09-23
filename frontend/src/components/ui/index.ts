@@ -2,5 +2,6 @@ export * from "./Badge";
 export * from "./BrandMark";
 export * from "./FullScreenSpinner";
 export * from "./GhostButton";
+export * from "./Modal";
 export * from "./NebulaBackground";
 export * from "./NebulaSurface";

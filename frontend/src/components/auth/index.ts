@@ -8,4 +8,6 @@ export * from "./OAuthButton";
 export * from "./PasswordField";
 export * from "./PrimaryButton";
 export * from "./SessionError";
+export * from "./TermsDialog";
 export * from "./TextField";
+export * from "./terms-text";

@@ -30,6 +30,8 @@ export default defineConfig({
         "src/lib/roadmaps-location-state.ts",
         "src/components/assessment/**",
         "src/components/ui/GhostButton.tsx",
+        "src/components/ui/Modal.tsx",
+        "src/hooks/**",
         "src/components/dashboard/**",
         "src/components/ui/NebulaSurface.tsx",
         "src/components/layouts/DashboardLayout.tsx",
