@@ -31,6 +31,20 @@ describe('RoadmapGeneratorRegistry', () => {
     ).toEqual(['PRIMARY', 'EARLY', RoadmapGeneratorProvider.RULES]);
   });
 
+  it('uses only RULES when it is the primary provider, even with fallbacks', () => {
+    const registry = new RoadmapGeneratorRegistry();
+    registry.register(provider('NVIDIA', 100));
+    registry.register(
+      provider(RoadmapGeneratorProvider.RULES, Number.MAX_SAFE_INTEGER),
+    );
+
+    expect(
+      registry
+        .resolveChain([RoadmapGeneratorProvider.RULES, 'NVIDIA'])
+        .map(({ provider }) => provider),
+    ).toEqual([RoadmapGeneratorProvider.RULES]);
+  });
+
   it('rejects duplicate provider registrations', () => {
     const registry = new RoadmapGeneratorRegistry();
     registry.register(provider('CUSTOM', 1));

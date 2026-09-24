@@ -584,7 +584,7 @@
                   "const body = pm.response.json();",
                   "pm.test('The lesson counts towards the course', () => {",
                   "  pm.expect(body.data.lessons.completed).to.eql(1);",
-                  "  pm.expect(body.data.progress).to.eql(Math.floor(100 / body.data.lessons.total));",
+                  "  pm.expect(body.data.progress).to.eql(Math.floor((10000 / body.data.lessons.total) + 1e-9) / 100);",
                   "});",
                   "pm.test('The next lesson is the following one', () => {",
                   "  pm.expect(body.data.lessons.last_lesson_id).to.eql(pm.collectionVariables.get('lessonId'));",

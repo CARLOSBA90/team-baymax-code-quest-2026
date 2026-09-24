@@ -41,7 +41,7 @@ Manejados internamente por Better Auth bajo `/api/auth/*`:
 
 ```json
 {
-  "answers": [{ "questionId": "string", "value": "string | number" }]
+  "answers": [{ "questionId": "string", "optionId": "string" }]
 }
 ```
 

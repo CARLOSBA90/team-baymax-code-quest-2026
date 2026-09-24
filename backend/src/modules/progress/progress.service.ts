@@ -78,6 +78,24 @@ const EXPECTED_FIELDS: Record<
   [TrackingType.CHALLENGE]: [['submission']],
 };
 
+/**
+ * Only the fields that belong to the submission type. Validation skips fields
+ * of other types (@ValidateIf), so they must never reach the database: a TEXT
+ * submission cannot smuggle an unvalidated url, nor a LINK an unbounded content.
+ */
+function submissionFields(submission: ChallengeSubmissionDto) {
+  switch (submission.type) {
+    case SubmissionType.TEXT:
+      return { content: submission.content };
+    case SubmissionType.CODE:
+      return { content: submission.content, language: submission.language };
+    case SubmissionType.LINK:
+      return { url: submission.url };
+    default:
+      return {};
+  }
+}
+
 const conflict = (code: string, message: string) =>
   new ConflictException({ statusCode: 409, error: 'Conflict', code, message });
 const invalid = (code: string, message: string) =>
@@ -248,7 +266,10 @@ export class ProgressService {
           // A retried request carries the same content: recognise it by its
           // fingerprint instead of asking the client for an idempotency key.
           const fingerprint = contentFingerprint({
-            submission,
+            submission: {
+              type: submission.type,
+              ...submissionFields(submission),
+            },
             file_checksum: stored?.checksum ?? null,
           });
           const duplicate = await tx.challengeSubmission.findFirst({
@@ -457,9 +478,7 @@ export class ProgressService {
         roadmapItemId,
         payloadHash: fingerprint,
         submissionType: submission.type as ChallengeSubmissionType,
-        content: submission.content,
-        language: submission.language,
-        url: submission.url,
+        ...submissionFields(submission),
         ...(stored && {
           storageKey: stored.storageKey,
           originalFilename: stored.originalFilename,

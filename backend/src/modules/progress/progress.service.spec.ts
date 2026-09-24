@@ -236,6 +236,49 @@ describe('ProgressService.track', () => {
     expect(tx.progress.update.mock.calls[0][0].data.percentage).toBe(0);
   });
 
+  it('stores only the fields that belong to the submission type', async () => {
+    const { service, tx } = setup({ type: RoadmapItemType.CHALLENGE });
+
+    await service.track(
+      USER_ID,
+      report({
+        submission: {
+          type: 'TEXT',
+          content: 'respuesta',
+          url: 'javascript:alert(1)',
+          language: 'x',
+        },
+      } as Partial<TrackProgressDto>),
+    );
+
+    const data = tx.challengeSubmission.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      submissionType: 'TEXT',
+      content: 'respuesta',
+    });
+    expect(data).not.toHaveProperty('url');
+    expect(data).not.toHaveProperty('language');
+  });
+
+  it('does not store content on a LINK submission', async () => {
+    const { service, tx } = setup({ type: RoadmapItemType.CHALLENGE });
+
+    await service.track(
+      USER_ID,
+      report({
+        submission: {
+          type: 'LINK',
+          url: 'https://github.com/usuario/reto',
+          content: { not: 'a string' },
+        },
+      } as unknown as Partial<TrackProgressDto>),
+    );
+
+    const data = tx.challengeSubmission.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ url: 'https://github.com/usuario/reto' });
+    expect(data).not.toHaveProperty('content');
+  });
+
   it('recognises a retried submission by its content', async () => {
     const { service, tx } = setup({ type: RoadmapItemType.CHALLENGE });
     tx.challengeSubmission.findFirst.mockResolvedValue({ id: 'existing' });

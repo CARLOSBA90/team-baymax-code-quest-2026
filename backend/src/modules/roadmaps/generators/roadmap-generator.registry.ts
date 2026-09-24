@@ -19,10 +19,9 @@ export class RoadmapGeneratorRegistry {
       provider.toUpperCase(),
     );
     const rules = this.generators.get(RoadmapGeneratorProvider.RULES);
-    if (
-      requested.length === 1 &&
-      requested[0] === RoadmapGeneratorProvider.RULES
-    ) {
+    // RULES has no external dependency: when it is the primary provider it is
+    // the whole chain, so configured fallbacks never run before it.
+    if (requested[0] === RoadmapGeneratorProvider.RULES) {
       return rules?.isAvailable() ? [rules] : [];
     }
     const available = [...this.generators.values()]
