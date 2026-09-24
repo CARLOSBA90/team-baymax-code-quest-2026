@@ -1,4 +1,4 @@
-import { apiClient } from "@/api/client";
+import { apiClient, del } from "@/api/client";
 import type {
   RoadmapSummary,
   RoadmapSummaryDto,
@@ -49,4 +49,13 @@ export async function getRoadmaps(): Promise<RoadmapsListResult> {
     params: { limit: ROADMAPS_LIST_LIMIT },
   });
   return toRoadmapsListResult(response.data);
+}
+
+/**
+ * `DELETE /roadmaps/{id}`: borrado físico de la ruta (y su progreso y entregas). Resuelve con el
+ * `data` desenvuelto (`{ id }`). Los errores (404 `ROADMAP_NOT_FOUND`, red…) se propagan tal cual;
+ * el mapeo a copy es de la UI (`getDeleteRoadmapErrorMessage`).
+ */
+export function deleteRoadmap(id: string): Promise<{ id: string }> {
+  return del<{ id: string }>(`/roadmaps/${encodeURIComponent(id)}`);
 }

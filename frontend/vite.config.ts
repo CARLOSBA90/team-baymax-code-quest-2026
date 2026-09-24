@@ -29,6 +29,7 @@ export default defineConfig({
         "src/lib/assessment-labels.ts",
         "src/lib/roadmaps-location-state.ts",
         "src/lib/roadmap-{filters,labels,presentation}.ts",
+        "src/lib/roadmap-delete-errors.ts",
         "src/api/services/roadmaps.service.ts",
         "src/api/queries/roadmaps/**",
         "src/components/roadmaps/**",

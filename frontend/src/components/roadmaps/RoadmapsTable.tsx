@@ -8,6 +8,7 @@ import { RoadmapStatusBadge } from "./RoadmapStatusBadge";
 
 export interface RoadmapsTableProps {
   roadmaps: RoadmapSummary[];
+  onDelete: (roadmap: RoadmapSummary) => void;
 }
 
 const HEADER_CLASSES =
@@ -18,7 +19,7 @@ const CELL_CLASSES = "border-border-divider/60 border-t px-4 py-5 align-middle";
  * Tabla de rutas (≥ lg). Sin `overflow-hidden` en la tabla ni en sus celdas: los menús ⋮ son
  * absolutos y se recortarían. Las esquinas se redondean con `border-separate` + `rounded-card`.
  */
-export function RoadmapsTable({ roadmaps }: RoadmapsTableProps) {
+export function RoadmapsTable({ roadmaps, onDelete }: RoadmapsTableProps) {
   return (
     <table className="hidden w-full table-fixed border-separate border-spacing-0 rounded-card border border-border-field bg-bg-surface-solid lg:table">
       <caption className="sr-only">Tus rutas de aprendizaje</caption>
@@ -81,7 +82,7 @@ export function RoadmapsTable({ roadmaps }: RoadmapsTableProps) {
               <RoadmapActionLink roadmap={roadmap} />
             </td>
             <td className={`${CELL_CLASSES} pr-6 text-right`}>
-              <RoadmapRowMenu roadmapName={roadmap.name} />
+              <RoadmapRowMenu roadmapName={roadmap.name} onDelete={() => onDelete(roadmap)} />
             </td>
           </tr>
         ))}

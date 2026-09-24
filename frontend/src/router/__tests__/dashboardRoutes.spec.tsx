@@ -43,6 +43,7 @@ vi.mock("@/api/queries/auth", async (importOriginal) => ({
 }));
 vi.mock("@/api/services", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/services")>()),
+  deleteRoadmap: vi.fn(),
   getAssessmentQuestions: vi.fn(),
   getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),

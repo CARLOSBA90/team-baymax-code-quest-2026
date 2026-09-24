@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RoadmapCard, RoadmapCardList } from "@/components/roadmaps";
 import { buildRoadmapSummary, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -10,13 +10,13 @@ function LocationProbe() {
   return <p data-testid="location">{useLocation().pathname}</p>;
 }
 
-function renderList() {
+function renderList(onDelete = vi.fn()) {
   return renderWithProviders(
     <>
       <Routes>
         <Route
           path="/dashboard/roadmaps"
-          element={<RoadmapCardList roadmaps={ROADMAPS_LIST_RESULT.items} />}
+          element={<RoadmapCardList roadmaps={ROADMAPS_LIST_RESULT.items} onDelete={onDelete} />}
         />
         <Route path="/dashboard/roadmaps/:roadmapId" element={<p>Detalle</p>} />
       </Routes>
@@ -79,14 +79,36 @@ describe("RoadmapCardList", () => {
     await user.click(kebab);
 
     expect(kebab).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("menuitem", { name: "Eliminar Roadmap" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Eliminar ruta" })).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/dashboard\/roadmaps$/);
+  });
+
+  it("'Eliminar ruta' de la card llama a onDelete con esa ruta, sin navegar", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    renderList(onDelete);
+
+    await user.click(
+      within(getCard("Frontend moderno con React")).getByRole("button", {
+        name: "Más acciones para Frontend moderno con React",
+      }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
+
+    const fe = ROADMAPS_LIST_RESULT.items.find(
+      (roadmap) => roadmap.name === "Frontend moderno con React",
+    );
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(fe);
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/dashboard\/roadmaps$/);
   });
 });
 
 describe("RoadmapCard", () => {
   it("usa el patrón stretched link sin interactivos anidados", () => {
-    renderWithProviders(<RoadmapCard roadmap={buildRoadmapSummary({ name: "Ruta X" })} />);
+    renderWithProviders(
+      <RoadmapCard roadmap={buildRoadmapSummary({ name: "Ruta X" })} onDelete={vi.fn()} />,
+    );
 
     const link = screen.getByRole("link", { name: "Ruta X" });
     expect(link.closest("h3")).not.toBeNull();
@@ -103,7 +125,10 @@ describe("RoadmapCard", () => {
 
   it("omite el nivel si es null", () => {
     renderWithProviders(
-      <RoadmapCard roadmap={buildRoadmapSummary({ totalCourses: 3, level: null })} />,
+      <RoadmapCard
+        roadmap={buildRoadmapSummary({ totalCourses: 3, level: null })}
+        onDelete={vi.fn()}
+      />,
     );
 
     expect(screen.getByText("3 cursos")).toBeInTheDocument();
