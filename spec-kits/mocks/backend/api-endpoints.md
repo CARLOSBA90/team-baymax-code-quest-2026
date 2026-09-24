@@ -119,9 +119,14 @@ snake_case; `meta` y `counts` van en camelCase, como en el resto de endpoints.
 #### DELETE /roadmaps/:id
 
 Borra la ruta del usuario de la sesión. Es un borrado físico: arrastra sus
-items, su progreso y las entregas de retos (los archivos subidos también se
-eliminan), así que desaparece de inmediato del listado y de los `counts`. No
-se puede deshacer; el frontend debe pedir confirmación antes de llamarlo.
+items, su progreso y los registros de entregas de retos, así que desaparece de
+inmediato del listado y de los `counts`. No se puede deshacer; el frontend debe
+pedir confirmación antes de llamarlo.
+
+Los archivos subidos en las entregas viven fuera de la base: su eliminación se
+intenta después de confirmar el borrado y no está garantizada. Si alguno no se
+puede eliminar, la petición igualmente responde éxito, el fallo queda en el log
+(`orphan_files`) y el archivo permanece como residuo en el almacenamiento.
 
 ```json
 { "message": "Roadmap deleted.", "data": { "id": "cmufw767y00088ggg0rttpejw" } }
