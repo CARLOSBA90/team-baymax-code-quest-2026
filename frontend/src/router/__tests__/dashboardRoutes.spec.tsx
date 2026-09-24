@@ -5,9 +5,10 @@ import { useSyncExternalStore } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
-import { getAssessmentQuestions } from "@/api/services";
+import { getAssessmentQuestions, getRoadmaps } from "@/api/services";
 import { routes } from "@/router/router";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
+import { EMPTY_ROADMAPS_RESULT } from "@/test/fixtures/roadmaps";
 
 const store = vi.hoisted(() => {
   const listeners = new Set<() => void>();
@@ -43,6 +44,7 @@ vi.mock("@/api/queries/auth", async (importOriginal) => ({
 vi.mock("@/api/services", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/services")>()),
   getAssessmentQuestions: vi.fn(),
+  getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),
 }));
 
@@ -65,6 +67,7 @@ function renderRoutes(initialEntries: string[]) {
 describe("rutas del dashboard", () => {
   beforeEach(() => {
     vi.mocked(getAssessmentQuestions).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
     store.set(SESSION);
     vi.mocked(useSession).mockReturnValue({
       data: { user: USER },
@@ -147,5 +150,19 @@ describe("rutas del dashboard", () => {
     expect(
       await screen.findByRole("button", { name: "Crear mi primera ruta" }),
     ).toBeInTheDocument();
+  });
+
+  it("/dashboard/roadmaps/:roadmapId renderiza el detalle vacío dentro del layout con Mis Rutas activo", async () => {
+    renderRoutes(["/dashboard/roadmaps/rm-frontend-react"]);
+
+    const detail = await screen.findByRole("region", { name: "Detalle de la ruta" });
+    const main = screen.getByRole("main");
+    expect(main).toContainElement(detail);
+    expect(detail).toBeEmptyDOMElement();
+    expect(within(main).queryByRole("heading")).not.toBeInTheDocument();
+    expect(within(main).queryByRole("table")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary")).getByRole("link", { name: "Mis Rutas" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });

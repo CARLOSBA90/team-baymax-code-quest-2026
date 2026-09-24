@@ -3,14 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ASSESSMENT_QUESTIONS_STALE_TIME, assessmentsKeys } from "@/api/queries/assessments";
-import { getAssessmentQuestions, submitAssessment } from "@/api/services";
+import { getAssessmentQuestions, getRoadmaps, submitAssessment } from "@/api/services";
 import { AssessmentPage, RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
+import { EMPTY_ROADMAPS_RESULT } from "@/test/fixtures/roadmaps";
 import { createTestQueryClient, renderWithProviders } from "@/test/renderWithProviders";
 import type { AssessmentResult } from "@/types";
 
-vi.mock("@/api/services", () => ({ getAssessmentQuestions: vi.fn(), submitAssessment: vi.fn() }));
+vi.mock("@/api/services", () => ({
+  getAssessmentQuestions: vi.fn(),
+  getRoadmaps: vi.fn(),
+  submitAssessment: vi.fn(),
+}));
 
 const FIRST = ASSESSMENT_QUESTIONS_MOCK[0];
 const SECOND = ASSESSMENT_QUESTIONS_MOCK[1];
@@ -97,6 +102,8 @@ async function expectExitNavigates(user: User) {
 describe("AssessmentPage", () => {
   beforeEach(() => {
     vi.mocked(getAssessmentQuestions).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    // Al navegar a Mis Rutas se monta `RoadmapsPage`, que pide la lista.
+    vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
     vi.mocked(submitAssessment).mockImplementation((input) =>
       Promise.resolve(buildAssessmentResultMock(input)),
     );
@@ -322,7 +329,7 @@ describe("AssessmentPage", () => {
         await screen.findByRole("heading", { level: 1, name: "Mis Rutas" }),
       ).toBeInTheDocument();
       expect(location()).toBe("/dashboard/roadmaps");
-      expect(screen.getByRole("status")).toHaveTextContent(SUCCESS_NOTICE);
+      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
       for (const spy of consoleSpies) {
         expect(spy).not.toHaveBeenCalled();
       }
