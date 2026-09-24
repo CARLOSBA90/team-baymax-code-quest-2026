@@ -411,6 +411,19 @@ describe("RoadmapsPage", () => {
       ).toBeInTheDocument();
     });
 
+    it("con counts > 0 pero sin items (respuesta incoherente), Todas muestra un status vacío sin mensaje", async () => {
+      vi.mocked(getRoadmaps).mockResolvedValue(
+        buildRoadmapsListResult({ items: [], counts: ROADMAPS_LIST_RESULT.counts }),
+      );
+      renderListPage();
+
+      expect(await screen.findByRole("group", { name: "Filtrar rutas por estado" })).toBeVisible();
+      expect(filterButton(/^Todas/)).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.queryByText("Aún no tienes rutas")).not.toBeInTheDocument();
+    });
+
     it("la acción de la fila navega al detalle de la ruta", async () => {
       const { user } = renderListPage();
       await waitForList();

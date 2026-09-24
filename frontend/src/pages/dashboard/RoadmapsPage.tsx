@@ -151,8 +151,8 @@ export const RoadmapsPage = () => {
   };
 
   const handleDeleteConfirm = () => {
-    // Guard extra contra el doble click: el botón ya está deshabilitado mientras está pendiente.
-    if (!roadmapToDelete || deleteMutation.isPending) return;
+    // Sin guard de `isPending`: el botón de confirmar ya está deshabilitado mientras está pendiente.
+    if (!roadmapToDelete) return;
     const { id, name } = roadmapToDelete;
     deleteMutation.mutate(id, {
       onSuccess: () => finishDelete(getRoadmapDeletedMessage(name)),
