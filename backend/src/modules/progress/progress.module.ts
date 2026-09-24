@@ -12,5 +12,6 @@ import { ChallengeFileStorageService } from './storage/challenge-file-storage.se
     ChallengeReviewService,
     ChallengeFileStorageService,
   ],
+  exports: [ChallengeFileStorageService],
 })
 export class ProgressModule {}

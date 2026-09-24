@@ -1,6 +1,12 @@
+import { NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { RoadmapStatus } from './roadmap.constants.js';
+import type { ChallengeFileStorageService } from '../progress/storage/challenge-file-storage.service.js';
 import { RoadmapsService } from './roadmaps.service.js';
+
+const noFiles = {
+  remove: vi.fn(),
+} as unknown as ChallengeFileStorageService;
 
 const summary = (id: string, percentages: number[]) => ({
   id,
@@ -30,7 +36,7 @@ function setup(pageIds: string[]) {
     );
   const prisma = { $queryRaw: queryRaw, roadmap: { findMany } };
   return {
-    service: new RoadmapsService(prisma as unknown as PrismaService),
+    service: new RoadmapsService(prisma as unknown as PrismaService, noFiles),
     queryRaw,
     findMany,
   };
@@ -135,10 +141,13 @@ describe('RoadmapsService.findAll', () => {
   it('returns an empty list with zero counts for a user without roadmaps', async () => {
     const queryRaw = vi.fn().mockResolvedValue([]);
     const findMany = vi.fn();
-    const service = new RoadmapsService({
-      $queryRaw: queryRaw,
-      roadmap: { findMany },
-    } as unknown as PrismaService);
+    const service = new RoadmapsService(
+      {
+        $queryRaw: queryRaw,
+        roadmap: { findMany },
+      } as unknown as PrismaService,
+      noFiles,
+    );
 
     const result = await service.findAll('user-1', { page: 1, limit: 100 });
 
@@ -157,5 +166,83 @@ describe('RoadmapsService.findAll', () => {
 
     expect(findMany).not.toHaveBeenCalled();
     expect(result.data).toEqual([]);
+  });
+});
+
+describe('RoadmapsService.remove', () => {
+  function setupRemove(
+    roadmap: { id: string } | null,
+    storageKeys: string[] = [],
+  ) {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      roadmap: {
+        findFirst: vi.fn().mockResolvedValue(roadmap),
+        delete: vi.fn().mockResolvedValue(roadmap),
+      },
+      challengeSubmission: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue(storageKeys.map((storageKey) => ({ storageKey }))),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn((callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+    };
+    const files = { remove: vi.fn().mockResolvedValue(undefined) };
+    return {
+      service: new RoadmapsService(
+        prisma as unknown as PrismaService,
+        files as unknown as ChallengeFileStorageService,
+      ),
+      tx,
+      files,
+    };
+  }
+
+  it('deletes the owner roadmap and returns its id', async () => {
+    const { service, tx } = setupRemove({ id: 'r1' });
+
+    const result = await service.remove('user-1', 'r1');
+
+    expect(tx.roadmap.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'r1', userId: 'user-1' } }),
+    );
+    expect(tx.roadmap.delete).toHaveBeenCalledWith({ where: { id: 'r1' } });
+    expect(result).toEqual({ message: 'Roadmap deleted.', data: { id: 'r1' } });
+  });
+
+  it('answers 404 for a missing roadmap or one owned by another user', async () => {
+    const { service, tx } = setupRemove(null);
+
+    const error = await service
+      .remove('user-1', 'someone-else')
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect((error as NotFoundException).getResponse()).toMatchObject({
+      code: 'ROADMAP_NOT_FOUND',
+    });
+    expect(tx.roadmap.delete).not.toHaveBeenCalled();
+  });
+
+  it('removes uploaded submission files after deleting', async () => {
+    const { service, files } = setupRemove({ id: 'r1' }, ['a.pdf', 'b.zip']);
+
+    await service.remove('user-1', 'r1');
+
+    expect(files.remove).toHaveBeenCalledWith('a.pdf');
+    expect(files.remove).toHaveBeenCalledWith('b.zip');
+  });
+
+  it('still succeeds when a file cannot be removed', async () => {
+    const { service, files } = setupRemove({ id: 'r1' }, ['a.pdf']);
+    files.remove.mockRejectedValue(new Error('disk'));
+
+    await expect(service.remove('user-1', 'r1')).resolves.toMatchObject({
+      data: { id: 'r1' },
+    });
   });
 });

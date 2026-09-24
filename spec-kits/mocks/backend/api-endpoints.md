@@ -55,6 +55,7 @@ Manejados internamente por Better Auth bajo `/api/auth/*`:
 | `GET`   | `/api/v1/roadmaps/:id`                | Obtener ruta por ID                    | Si   | —                    |
 | `POST`  | `/api/v1/roadmaps/generate`           | Generar ruta basada en assessment      | Si   | `GenerateRoadmapDto` |
 | `PATCH` | `/api/v1/roadmaps/:id/pause`          | Pausar o reanudar una ruta             | Si   | `PauseRoadmapDto`    |
+| `DELETE` | `/api/v1/roadmaps/:id`              | Eliminar una ruta propia               | Si   | —                    |
 | `GET`   | `/api/v1/progress/roadmap/:roadmapId` | Obtener porcentaje e items de una ruta | Si   | —                    |
 | `POST` | `/api/v1/progress/track` | Único endpoint para reportar avance de cualquier contenido | Si | `TrackProgressDto` (JSON o multipart) |
 | `PATCH` | `/api/v1/admin/challenge-submissions/:id/review` | Revisar entrega | Admin | `ReviewChallengeDto` |
@@ -114,6 +115,20 @@ snake_case; `meta` y `counts` van en camelCase, como en el resto de endpoints.
   todos los `counts` en `0` (nunca 404).
 - `monogram` y `accent` son solo de presentación: el backend no los envía y el
   frontend los trata como opcionales.
+
+#### DELETE /roadmaps/:id
+
+Borra la ruta del usuario de la sesión. Es un borrado físico: arrastra sus
+items, su progreso y las entregas de retos (los archivos subidos también se
+eliminan), así que desaparece de inmediato del listado y de los `counts`. No
+se puede deshacer; el frontend debe pedir confirmación antes de llamarlo.
+
+```json
+{ "message": "Roadmap deleted.", "data": { "id": "cmufw767y00088ggg0rttpejw" } }
+```
+
+Si la ruta no existe o pertenece a otro usuario responde 404 `ROADMAP_NOT_FOUND`
+(no revela si existe para otro usuario).
 
 #### GenerateRoadmapDto
 
