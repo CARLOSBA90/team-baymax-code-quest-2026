@@ -11,7 +11,7 @@ export interface DashboardSidebarProps {
 
 export function DashboardSidebar({ roadmapsCount }: DashboardSidebarProps) {
   return (
-    <aside className="sidebar-surface hidden w-64 shrink-0 flex-col md:flex gap-7 border-r border-border-field px-4 pt-7 pb-5">
+    <aside className="sidebar-surface hidden w-[calc(16rem+env(safe-area-inset-left))] shrink-0 flex-col md:flex gap-7 border-r border-border-field pl-[max(1rem,env(safe-area-inset-left))] pr-4 pt-7 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
       <BrandMark as="link" href="/dashboard/roadmaps" />
       <nav aria-label="Navegación principal">
         <p className="mb-2 px-3 font-body text-xs font-semibold tracking-widest text-text-muted">

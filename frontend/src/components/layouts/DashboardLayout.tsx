@@ -11,7 +11,7 @@ export function DashboardLayout() {
       <DashboardSidebar roadmapsCount={data?.counts.all} />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar />
-        <main className="min-w-0 flex-1 overflow-auto px-5 pt-4 pb-8 md:px-12 md:pt-11 md:pb-10">
+        <main className="min-w-0 flex-1 overflow-auto px-5 pt-4 pb-8 md:pl-12 md:pr-[max(3rem,env(safe-area-inset-right))] md:pt-11 md:pb-[max(2.5rem,env(safe-area-inset-bottom))]">
           <Outlet />
         </main>
         <MobileTabBar />

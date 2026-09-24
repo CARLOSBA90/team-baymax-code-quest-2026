@@ -78,9 +78,22 @@ describe("DashboardLayout", () => {
 
   it("aplica las clases de layout y degradación", () => {
     renderLayout();
-    expect(screen.getByRole("complementary")).toHaveClass("hidden", "md:flex", "w-64", "shrink-0");
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "hidden",
+      "md:flex",
+      "w-[calc(16rem+env(safe-area-inset-left))]",
+      "shrink-0",
+    );
     const main = screen.getByRole("main");
-    expect(main).toHaveClass("min-w-0", "flex-1", "overflow-auto", "px-5", "md:px-12");
+    expect(main).toHaveClass(
+      "min-w-0",
+      "flex-1",
+      "overflow-auto",
+      "px-5",
+      "md:pl-12",
+      "md:pr-[max(3rem,env(safe-area-inset-right))]",
+      "md:pb-[max(2.5rem,env(safe-area-inset-bottom))]",
+    );
     const column = main.parentElement as HTMLElement;
     expect(column).toHaveClass("flex", "min-w-0", "flex-1", "flex-col");
     expect(column).not.toHaveClass("overflow-hidden");

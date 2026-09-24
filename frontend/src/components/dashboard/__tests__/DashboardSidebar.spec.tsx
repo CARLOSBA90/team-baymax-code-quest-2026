@@ -94,9 +94,23 @@ describe("DashboardSidebar", () => {
     expect(aside.querySelector(".nebula")).toBeNull();
   });
 
+  it("respeta el safe-area izquierdo e inferior con viewport-fit=cover", () => {
+    renderSidebar();
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "pl-[max(1rem,env(safe-area-inset-left))]",
+      "pr-4",
+      "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+    );
+  });
+
   it("se oculta en móvil y se muestra como flex desde md", () => {
     renderSidebar();
-    expect(screen.getByRole("complementary")).toHaveClass("hidden", "md:flex", "w-64", "shrink-0");
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "hidden",
+      "md:flex",
+      "w-[calc(16rem+env(safe-area-inset-left))]",
+      "shrink-0",
+    );
   });
 
   it("muestra la pill con roadmapsCount en Mis Rutas", () => {
