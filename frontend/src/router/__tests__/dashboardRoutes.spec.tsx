@@ -3,12 +3,13 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSyncExternalStore } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
 import { getAssessmentQuestions, getRoadmaps } from "@/api/services";
 import { routes } from "@/router/router";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
 import { EMPTY_ROADMAPS_RESULT, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
+import { preloadLazyRoutes } from "@/test/renderRoutes";
 
 const store = vi.hoisted(() => {
   const listeners = new Set<() => void>();
@@ -79,6 +80,8 @@ function renderRoutes(initialEntries: string[]) {
 }
 
 describe("rutas del dashboard", () => {
+  beforeAll(() => preloadLazyRoutes());
+
   beforeEach(() => {
     vi.mocked(getAssessmentQuestions).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
     vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
@@ -169,7 +172,7 @@ describe("rutas del dashboard", () => {
     vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
     renderRoutes(["/dashboard/roadmaps?status=paused"]);
 
-    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    const nav = await screen.findByRole("navigation", { name: "Navegación principal" });
     expect(
       await within(nav).findByRole("link", { name: "Mis Rutas, 5 rutas" }),
     ).toBeInTheDocument();

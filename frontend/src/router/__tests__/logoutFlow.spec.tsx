@@ -1,14 +1,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useSyncExternalStore } from "react";
-import { useLocation, useRoutes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { createMemoryRouter } from "react-router-dom";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { roadmapsKeys } from "@/api/queries/roadmaps";
 import { getRoadmaps, signOut } from "@/api/services";
 import { AuthError } from "@/lib";
-import { routes } from "@/router/router";
 import { ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
-import { renderWithProviders } from "@/test/renderWithProviders";
+import { preloadLazyRoutes, renderRoutes } from "@/test/renderRoutes";
 
 // Flujo de logout de punta a punta a nivel de rutas: `useLogout`, `useGuardSession`,
 // `ProtectedRoute`/`GuestRoute` y las páginas son reales. Solo se sustituyen la sesión de
@@ -57,15 +56,16 @@ const GENERIC_ERROR = "Ocurrió un error inesperado. Inténtalo de nuevo.";
 const NETWORK_ERROR =
   "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
 
-const location = { pathname: "" };
-
-function App() {
-  location.pathname = useLocation().pathname;
-  return useRoutes(routes);
-}
+let router: ReturnType<typeof createMemoryRouter>;
 
 function renderApp(route = "/dashboard/roadmaps") {
-  return renderWithProviders(<App />, { route });
+  const rendered = renderRoutes([route]);
+  router = rendered.router;
+  return rendered;
+}
+
+function currentPath() {
+  return router.state.location.pathname;
 }
 
 /** better-auth borra la sesión al completar `signOut`; el mock lo reproduce. */
@@ -78,7 +78,7 @@ function signOutSucceeds() {
 
 async function waitForDashboard() {
   await screen.findByRole("heading", { level: 1, name: "Mis Rutas" });
-  expect(location.pathname).toBe("/dashboard/roadmaps");
+  expect(currentPath()).toBe("/dashboard/roadmaps");
 }
 
 function sidebar() {
@@ -87,12 +87,14 @@ function sidebar() {
 
 async function expectLoginPage() {
   expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
-  expect(location.pathname).toBe("/auth/login");
+  expect(currentPath()).toBe("/auth/login");
   expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   expect(screen.queryByRole("main")).not.toBeInTheDocument();
 }
 
 describe("flujo de logout", () => {
+  beforeAll(() => preloadLazyRoutes());
+
   beforeEach(() => {
     session.set(SESSION);
     vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
@@ -145,7 +147,7 @@ describe("flujo de logout", () => {
     await user.click(button);
 
     expect(await within(sidebar()).findByRole("alert")).toHaveTextContent(GENERIC_ERROR);
-    expect(location.pathname).toBe("/dashboard/roadmaps");
+    expect(currentPath()).toBe("/dashboard/roadmaps");
     expect(session.get()).toBe(SESSION);
     expect(queryClient.getQueryData(roadmapsKeys.list())).toEqual(ROADMAPS_LIST_RESULT);
     expect(button).toBeEnabled();
@@ -171,7 +173,7 @@ describe("flujo de logout", () => {
     expect(await within(topBar as HTMLElement).findByRole("alert")).toHaveTextContent(
       NETWORK_ERROR,
     );
-    expect(location.pathname).toBe("/dashboard/roadmaps");
+    expect(currentPath()).toBe("/dashboard/roadmaps");
     expect(within(sidebar()).queryByRole("alert")).not.toBeInTheDocument();
   });
 });
