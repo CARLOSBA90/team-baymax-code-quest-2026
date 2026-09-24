@@ -30,7 +30,6 @@ export default defineConfig({
         "src/lib/roadmaps-location-state.ts",
         "src/lib/roadmap-{filters,labels,presentation}.ts",
         "src/api/services/roadmaps.service.ts",
-        "src/api/mocks/**",
         "src/api/queries/roadmaps/**",
         "src/components/roadmaps/**",
         "src/components/ui/DropdownMenu.tsx",
