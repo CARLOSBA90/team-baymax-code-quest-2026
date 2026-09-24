@@ -85,6 +85,28 @@
       }
     }
   },
+  "overrides": [
+    {
+      "includes": ["src/router/router.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["../*", "../**"],
+                    "message": "Usa el alias @/ (otra carpeta) o ./ (fichero hermano); nunca ../"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "double",

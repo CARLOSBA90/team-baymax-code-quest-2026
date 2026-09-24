@@ -11,6 +11,35 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Vendors estables en chunks propios: un deploy que solo cambia código de la app no
+        // invalida la caché de React/router, TanStack Query ni Better Auth. Las páginas ya se
+        // separan por ruta con `lazy` (src/router/router.tsx); zod queda en el chunk de las
+        // páginas de auth, que son las únicas que lo usan.
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom)[\\/]/,
+              priority: 30,
+            },
+            {
+              name: "query-vendor",
+              test: /[\\/]node_modules[\\/]@tanstack[\\/]/,
+              priority: 20,
+            },
+            {
+              name: "auth-vendor",
+              test: /[\\/]node_modules[\\/](better-auth|@better-auth|@better-fetch|better-call|nanostores|@nanostores|defu)[\\/]/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: "jsdom",
     globals: false,
@@ -24,6 +53,7 @@ export default defineConfig({
       reporter: ["text", "html"],
       include: [
         "src/lib/auth-errors.ts",
+        "src/lib/chunk-error-reload.ts",
         "src/{components,pages}/auth/**",
         "src/lib/user-initials.ts",
         "src/lib/assessment-labels.ts",
@@ -44,7 +74,7 @@ export default defineConfig({
         "src/components/ui/NebulaSurface.tsx",
         "src/components/layouts/DashboardLayout.tsx",
         "src/pages/dashboard/**",
-        "src/router/{GuestRoute,ProtectedRoute,router}.tsx",
+        "src/router/{GuestRoute,ProtectedRoute,RouteErrorBoundary,router}.tsx",
         "src/router/useGuardSession.ts",
       ],
       exclude: ["**/__tests__/**", "**/index.ts"],
