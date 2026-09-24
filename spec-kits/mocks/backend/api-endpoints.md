@@ -103,7 +103,10 @@ snake_case; `meta` y `counts` van en camelCase, como en el resto de endpoints.
 ```
 
 - `status`: `NOT_STARTED | IN_PROGRESS | PAUSED | COMPLETED`, derivado del
-  progreso de los items y de `paused_at`. `progress` es un entero 0–100.
+  progreso de los items, de su actividad y de `paused_at`: la ruta pasa a
+  `IN_PROGRESS` con el primer reporte aunque el porcentaje siga en 0. `progress`
+  es un número 0–100 con hasta 2 decimales, truncado (1 de 390 lecciones de un
+  curso = `0.25`), para que el avance inicial sea visible.
 - `level`: `beginner | intermediate | advanced | null` (el nivel más alto de sus
   items). `paused_at` es ISO 8601 cuando la ruta está pausada, si no `null`.
 - `counts` es global: no depende de la página ni del filtro `status`.
@@ -141,7 +144,7 @@ prerrequisitos antes de guardar la ruta.
 ```
 
 `POST /progress/track` es el único endpoint para reportar avance, sea cual sea el contenido del item. El cliente manda `roadmap_item_id` y el dato según `tracking.type`: `LESSONS` (cursos con temario) → `lesson_id` + `completed` (`true` marca, `false` desmarca; el curso avanza lecciones marcadas / total) o `lesson_id` + `position_seconds` (segundo del video de la lección, para reanudar); `COMPLETION` (cursos sin temario) y `READING` → `completed: true`; `VIDEO` → `position_seconds`; `CHALLENGE` → `submission` (`TEXT`, `CODE`, `LINK` o `FILE`). El backend deduce el tipo, rechaza con 422 `TRACKING_REPORT_MISMATCH` un campo que no corresponda, evita duplicados sin identificadores del cliente y calcula el porcentaje. Una entrega `FILE` usa `multipart/form-data` con `roadmap_item_id`, `submission` (texto JSON `{"type":"FILE"}`) y `file`. Los retos responden 202 hasta su revisión administrativa.
-El progreso global es `floor(sum(item.percentage) / totalItems)`. El estado se
+El progreso global es el promedio de `item.percentage` truncado a 2 decimales. El estado se
 deriva de los porcentajes y `pausedAt`, por lo que no se duplica en `Roadmap`.
 El detalle retorna `name`, `status`, `progress`, `last_activity`, `courses` y
 la lista discriminada `content`. Tambien retorna `generator` con `type` (`AI`,

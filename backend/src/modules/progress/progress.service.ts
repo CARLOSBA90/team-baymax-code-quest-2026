@@ -13,7 +13,10 @@ import {
 } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PROGRESS_MAX_PERCENTAGE } from '../roadmaps/roadmap.constants.js';
-import { aggregateRoadmapProgress } from '../roadmaps/utils/progress-aggregation.util.js';
+import {
+  aggregateRoadmapProgress,
+  truncatePercentage,
+} from '../roadmaps/utils/progress-aggregation.util.js';
 import type {
   ChallengeSubmissionDto,
   TrackProgressDto,
@@ -124,6 +127,7 @@ export class ProgressService {
     const summary = aggregateRoadmapProgress(
       roadmap.items.map((item) => item.progress?.percentage ?? 0),
       roadmap.pausedAt,
+      roadmap.items.some((item) => item.progress?.startedAt),
     );
     return {
       data: {
@@ -298,7 +302,7 @@ export class ProgressService {
           nextState.completedLessons = policy.lessonIds.filter((id) =>
             done.has(id),
           );
-          percentage = Math.floor(
+          percentage = truncatePercentage(
             (nextState.completedLessons.length * PROGRESS_MAX_PERCENTAGE) /
               policy.lessonIds.length,
           );

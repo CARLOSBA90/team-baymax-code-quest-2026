@@ -1,9 +1,9 @@
 import { calculateVideoProgress } from './video-progress.tracker.js';
 
 describe('calculateVideoProgress', () => {
-  it('calculates 135 of 600 seconds as 22 percent', () => {
+  it('calculates 135 of 600 seconds as 22.5 percent', () => {
     expect(calculateVideoProgress(135, 600, 0)).toEqual({
-      percentage: 22,
+      percentage: 22.5,
       lastPositionSeconds: 135,
       maxPositionSeconds: 135,
     });
@@ -11,7 +11,7 @@ describe('calculateVideoProgress', () => {
 
   it('allows resume position to move back without reducing progress', () => {
     expect(calculateVideoProgress(90, 600, 135)).toEqual({
-      percentage: 22,
+      percentage: 22.5,
       lastPositionSeconds: 90,
       maxPositionSeconds: 135,
     });

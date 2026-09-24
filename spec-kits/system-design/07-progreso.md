@@ -1,11 +1,11 @@
 # 07 — Progreso del Usuario
 
 > **Implementación vigente:** cada `RoadmapItem` tiene un `Progress`
-> con `percentage` entero entre 0 y 100 y `version` para concurrencia optimista.
+> con `percentage` entre 0 y 100 (hasta 2 decimales) y `version` para concurrencia optimista.
 > El porcentaje de la ruta es
-> `floor(sum(item.percentage) / totalItems)` y no se persiste por duplicado.
+> el promedio de sus items truncado a 2 decimales y no se persiste por duplicado.
 > Los estados `NOT_STARTED`, `IN_PROGRESS`, `PAUSED` y `COMPLETED` se derivan de
-> los porcentajes y `Roadmap.pausedAt`. Los enfoques históricos descritos más
+> los porcentajes, la actividad (`startedAt`) y `Roadmap.pausedAt`. Los enfoques históricos descritos más
 > abajo quedan como alternativas de diseño, no como contrato implementado.
 
 Los endpoints vigentes son:
@@ -54,8 +54,10 @@ catálogo no altera rutas existentes.
 
 Las lecciones se ven en DevTalles, así que el avance es declarado por lección,
 no medido por reproducción. Las páginas no publican la duración de cada lección:
-todas pesan lo mismo y el porcentaje entero se trunca (1 de 390 lecciones = 0 %),
-por lo que la UI debe mostrar también `lessons.completed / lessons.total`.
+todas pesan lo mismo. El porcentaje se guarda con 2 decimales truncados
+(1 de 390 lecciones = 0.25 %; nunca llega a 100 sin completar todo) y la UI puede
+mostrar también `lessons.completed / lessons.total`. La ruta pasa a
+`IN_PROGRESS` con la primera actividad (`startedAt`), aunque su porcentaje sea 0.
 
 El detalle de la ruta expone por curso `syllabus: { total_lessons,
 completed_lessons, last_lesson_id, next_lesson, sections: [{ title, lessons:

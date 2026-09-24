@@ -308,7 +308,7 @@ model RoadmapItem {
 model Progress {
   roadmapItemId String      @id
   roadmapItem   RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
-  percentage    Int         @default(0)
+  percentage    Float       @default(0)
   version       Int         @default(0)
   trackingState Json        @default("{}")
   startedAt     DateTime?   @db.Timestamptz(3)

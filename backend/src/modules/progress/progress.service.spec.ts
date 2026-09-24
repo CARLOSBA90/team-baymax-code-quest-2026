@@ -189,7 +189,7 @@ describe('ProgressService.track', () => {
     await service.track(USER_ID, report({ position_seconds: 135 }));
 
     const data = tx.progress.update.mock.calls[0][0].data;
-    expect(data.percentage).toBe(22);
+    expect(data.percentage).toBe(22.5);
     expect(data.trackingState).toMatchObject({
       lastPositionSeconds: 135,
       maxPositionSeconds: 135,
@@ -199,7 +199,7 @@ describe('ProgressService.track', () => {
   it('ignores a repeated video position', async () => {
     const { service, tx } = setup({
       ...video,
-      percentage: 22,
+      percentage: 22.5,
       trackingState: { lastPositionSeconds: 135, maxPositionSeconds: 135 },
     });
 

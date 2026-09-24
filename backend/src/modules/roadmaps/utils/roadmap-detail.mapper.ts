@@ -148,6 +148,7 @@ export function serializeRoadmapDetail(roadmap: RoadmapRecord) {
   const summary = aggregateRoadmapProgress(
     ordered.map((item) => item.progress?.percentage ?? PROGRESS_MIN_PERCENTAGE),
     roadmap.pausedAt,
+    ordered.some((item) => item.progress?.startedAt),
   );
   const content = ordered.map((item) => {
     const state = readTrackingState(item.progress?.trackingState);
@@ -247,7 +248,7 @@ export interface RoadmapSummaryRecord {
   items: Array<{
     type: RoadmapItemType;
     level: number | null;
-    progress: { percentage: number } | null;
+    progress: { percentage: number; startedAt: Date | null } | null;
   }>;
 }
 
@@ -257,6 +258,7 @@ export function serializeRoadmapSummary(roadmap: RoadmapSummaryRecord) {
       (item) => item.progress?.percentage ?? PROGRESS_MIN_PERCENTAGE,
     ),
     roadmap.pausedAt,
+    roadmap.items.some((item) => item.progress?.startedAt),
   );
   const levels = roadmap.items.map((item) => item.level);
   return {

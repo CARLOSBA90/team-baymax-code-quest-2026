@@ -1,4 +1,5 @@
 import { PROGRESS_MAX_PERCENTAGE } from '../../roadmaps/roadmap.constants.js';
+import { truncatePercentage } from '../../roadmaps/utils/progress-aggregation.util.js';
 
 export interface VideoProgressResult {
   percentage: number;
@@ -22,7 +23,7 @@ export function calculateVideoProgress(
   return {
     percentage: Math.min(
       PROGRESS_MAX_PERCENTAGE,
-      Math.floor((maxPositionSeconds / durationSeconds) * 100),
+      truncatePercentage((maxPositionSeconds / durationSeconds) * 100),
     ),
     lastPositionSeconds,
     maxPositionSeconds,

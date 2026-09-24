@@ -100,7 +100,7 @@ enum RoadmapItemType {
 model Progress {
   roadmapItemId String      @id
   roadmapItem   RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
-  percentage    Int         @default(0)
+  percentage    Float       @default(0)
   version       Int         @default(0)
   trackingState Json        @default("{}")
   startedAt     DateTime?   @db.Timestamptz(3)
@@ -179,7 +179,8 @@ enum LessonType {
 
 1. **El estado y el porcentaje de la ruta no se guardan.** Se derivan de
    `Progress.percentage` de sus items y de `Roadmap.pausedAt`
-   (`floor(promedio)`; `NOT_STARTED`, `IN_PROGRESS`, `PAUSED`, `COMPLETED`).
+   (promedio truncado a 2 decimales; `NOT_STARTED` solo si todo está en 0 y
+   ningún item tiene `startedAt`, además de `IN_PROGRESS`, `PAUSED`, `COMPLETED`).
    El listado los calcula en SQL para filtrar y paginar en la base.
 2. **`Progress` usa `roadmapItemId` como clave primaria** (uno por item) y no
    tiene `status`: guarda `percentage`, `version` para concurrencia,

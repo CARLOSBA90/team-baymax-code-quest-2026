@@ -31,7 +31,7 @@ const summarySelect = {
     select: {
       type: true,
       level: true,
-      progress: { select: { percentage: true } },
+      progress: { select: { percentage: true, startedAt: true } },
     },
   },
 } as const;
