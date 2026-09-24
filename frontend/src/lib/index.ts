@@ -1,6 +1,7 @@
 export * from "./assessment-labels";
 export * from "./auth-client";
 export * from "./auth-errors";
+export * from "./roadmap-delete-errors";
 export * from "./roadmap-filters";
 export * from "./roadmap-labels";
 export * from "./roadmap-presentation";

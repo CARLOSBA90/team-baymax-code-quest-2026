@@ -1,8 +1,8 @@
 import type { AxiosResponse } from "axios";
 import { describe, expect, it, vi } from "vitest";
-import { apiClient } from "@/api/client";
-import { getRoadmaps, ROADMAPS_LIST_LIMIT, toRoadmapSummary } from "@/api/services";
-import { buildNetworkError } from "@/test/fixtures/api-errors";
+import { apiClient, del } from "@/api/client";
+import { deleteRoadmap, getRoadmaps, ROADMAPS_LIST_LIMIT, toRoadmapSummary } from "@/api/services";
+import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
   buildRoadmapsListResponseDto,
   EMPTY_ROADMAPS_RESULT,
@@ -11,7 +11,7 @@ import {
 } from "@/test/fixtures/roadmaps";
 import type { RoadmapsListResponseDto } from "@/types";
 
-vi.mock("@/api/client", () => ({ apiClient: { get: vi.fn() } }));
+vi.mock("@/api/client", () => ({ apiClient: { get: vi.fn() }, del: vi.fn() }));
 
 function mockListResponse(body: RoadmapsListResponseDto) {
   vi.mocked(apiClient.get).mockResolvedValue({
@@ -101,5 +101,28 @@ describe("roadmaps.service", () => {
       monogram: "FE",
       accent: "violet",
     });
+  });
+
+  it("deleteRoadmap envía DELETE /roadmaps/{id} y resuelve con el id desenvuelto", async () => {
+    vi.mocked(del).mockResolvedValue({ id: "fe" });
+
+    await expect(deleteRoadmap("fe")).resolves.toEqual({ id: "fe" });
+    expect(del).toHaveBeenCalledTimes(1);
+    expect(del).toHaveBeenCalledWith("/roadmaps/fe");
+  });
+
+  it("deleteRoadmap codifica el id en la URL", async () => {
+    vi.mocked(del).mockResolvedValue({ id: "a/b" });
+
+    await deleteRoadmap("a/b");
+
+    expect(del).toHaveBeenCalledWith("/roadmaps/a%2Fb");
+  });
+
+  it("deleteRoadmap propaga el error sin transformarlo", async () => {
+    const error = buildAxiosError(404, "Roadmap not found.", { code: "ROADMAP_NOT_FOUND" });
+    vi.mocked(del).mockRejectedValue(error);
+
+    await expect(deleteRoadmap("fe")).rejects.toBe(error);
   });
 });
