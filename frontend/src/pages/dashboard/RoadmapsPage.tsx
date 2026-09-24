@@ -117,6 +117,9 @@ export const RoadmapsPage = () => {
   );
   const hasRoadmaps = data !== undefined && data.counts.all > 0;
 
+  // TODO(delete-roadmap fase 3): abrir DeleteRoadmapDialog. Por ahora el item solo cierra el menú.
+  const handleDeleteRequest = () => {};
+
   // Los datos mandan sobre el error: una revalidación fallida con la lista ya cargada no la
   // desmonta.
   let content: ReactElement;
@@ -136,8 +139,8 @@ export const RoadmapsPage = () => {
           </p>
         ) : (
           <>
-            <RoadmapsTable roadmaps={visibleItems} />
-            <RoadmapCardList roadmaps={visibleItems} />
+            <RoadmapsTable roadmaps={visibleItems} onDelete={handleDeleteRequest} />
+            <RoadmapCardList roadmaps={visibleItems} onDelete={handleDeleteRequest} />
           </>
         )}
       </div>

@@ -1,9 +1,12 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from "react";
 
 type PrimaryButtonVariant = "form" | "cta";
+type PrimaryButtonTone = "accent" | "danger";
 
 type PrimaryButtonProps = {
   variant?: PrimaryButtonVariant;
+  /** Color del botón: `accent` (violeta, por defecto) o `danger` (rojo, acciones destructivas). */
+  tone?: PrimaryButtonTone;
   loading?: boolean;
   loadingLabel?: string;
 } & ButtonHTMLAttributes<HTMLButtonElement>;
@@ -13,8 +16,16 @@ const VARIANT_WIDTH_CLASSES: Record<PrimaryButtonVariant, string> = {
   cta: "w-fit px-6",
 };
 
+const TONE_CLASSES: Record<PrimaryButtonTone, string> = {
+  accent:
+    "bg-accent shadow-primary focus-visible:border-accent-hover focus-visible:shadow-ring-focus",
+  danger:
+    "bg-danger-solid shadow-danger focus-visible:border-danger focus-visible:shadow-ring-danger",
+};
+
 export function PrimaryButton({
   variant = "form",
+  tone = "accent",
   loading = false,
   loadingLabel = "Cargando…",
   children,
@@ -28,7 +39,7 @@ export function PrimaryButton({
       {...rest}
       disabled={disabled || loading}
       aria-busy={loading}
-      className={`flex h-12 ${VARIANT_WIDTH_CLASSES[variant]} items-center justify-center gap-2 rounded-xl border border-transparent bg-accent font-body font-bold text-white  shadow-primary outline-none transition-[filter,box-shadow,border-color] duration-150 ease-out hover:not-disabled:brightness-110 focus-visible:border-accent-hover focus-visible:shadow-ring-focus disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${className ?? ""}`}
+      className={`flex h-12 ${VARIANT_WIDTH_CLASSES[variant]} items-center justify-center gap-2 rounded-xl border border-transparent ${TONE_CLASSES[tone]} font-body font-bold text-white outline-none transition-[filter,box-shadow,border-color] duration-150 ease-out hover:not-disabled:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer ${className ?? ""}`}
     >
       {loading ? (
         <>

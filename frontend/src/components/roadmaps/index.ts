@@ -1,3 +1,4 @@
+export * from "./DeleteRoadmapDialog";
 export * from "./RoadmapActionLink";
 export * from "./RoadmapCard";
 export * from "./RoadmapCardList";

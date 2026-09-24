@@ -407,14 +407,14 @@ describe("RoadmapsPage", () => {
       ).toBeInTheDocument();
     });
 
-    it("el kebab abre Eliminar Roadmap y activarlo solo cierra el menú", async () => {
+    it("el kebab abre Eliminar ruta y activarlo solo cierra el menú", async () => {
       const { user } = renderListPage();
       await waitForList();
 
       const kebab = within(table()).getByRole("button", { name: `Más acciones para ${FE}` });
       await user.click(kebab);
       expect(kebab).toHaveAttribute("aria-expanded", "true");
-      await user.click(screen.getByRole("menuitem", { name: "Eliminar Roadmap" }));
+      await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
 
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       expect(tableNames()).toContain(FE);

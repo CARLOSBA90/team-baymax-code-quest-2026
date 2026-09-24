@@ -1,12 +1,14 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RoadmapsTable } from "@/components/roadmaps";
 import { ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
-function renderTable() {
-  return renderWithProviders(<RoadmapsTable roadmaps={ROADMAPS_LIST_RESULT.items} />);
+function renderTable(onDelete = vi.fn()) {
+  return renderWithProviders(
+    <RoadmapsTable roadmaps={ROADMAPS_LIST_RESULT.items} onDelete={onDelete} />,
+  );
 }
 
 describe("RoadmapsTable", () => {
@@ -105,5 +107,23 @@ describe("RoadmapsTable", () => {
     expect(feKebab).toHaveAttribute("aria-expanded", "false");
     expect(beKebab).toHaveAttribute("aria-expanded", "true");
     expect(screen.getAllByRole("menu")).toHaveLength(1);
+  });
+
+  it("'Eliminar ruta' del kebab de una fila llama a onDelete con esa ruta", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    renderTable(onDelete);
+
+    const table = within(screen.getByRole("table"));
+    await user.click(
+      table.getByRole("button", { name: "Más acciones para Frontend moderno con React" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
+
+    const fe = ROADMAPS_LIST_RESULT.items.find(
+      (roadmap) => roadmap.name === "Frontend moderno con React",
+    );
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith(fe);
   });
 });

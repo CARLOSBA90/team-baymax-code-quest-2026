@@ -9,13 +9,14 @@ import { ChevronRightIcon } from "./RoadmapsIcons";
 
 export interface RoadmapCardProps {
   roadmap: RoadmapSummary;
+  onDelete: (roadmap: RoadmapSummary) => void;
 }
 
 /**
  * Card de ruta (< lg) con patrón "stretched link": el `::after` del enlace del título cubre
  * toda la card; el menú ⋮ es hermano del enlace (`relative z-10`), nunca un interactivo anidado.
  */
-export function RoadmapCard({ roadmap }: RoadmapCardProps) {
+export function RoadmapCard({ roadmap, onDelete }: RoadmapCardProps) {
   return (
     <article className="relative rounded-card border border-border-field bg-bg-surface-solid p-4 transition-colors hover:border-border-field-hover">
       <div className="flex items-start gap-3">
@@ -36,7 +37,7 @@ export function RoadmapCard({ roadmap }: RoadmapCardProps) {
         <div className="flex shrink-0 items-center">
           <ChevronRightIcon className="size-5 text-text-secondary" />
           <div className="relative z-10">
-            <RoadmapRowMenu roadmapName={roadmap.name} />
+            <RoadmapRowMenu roadmapName={roadmap.name} onDelete={() => onDelete(roadmap)} />
           </div>
         </div>
       </div>
