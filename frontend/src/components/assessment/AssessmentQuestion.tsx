@@ -34,7 +34,7 @@ export function AssessmentQuestion({
           ref={titleRef}
           tabIndex={-1}
           aria-describedby={describedById}
-          className="font-display text-3xl font-bold text-text-primary outline-none"
+          className="font-display text-2xl font-bold md:text-3xl text-text-primary outline-none"
         >
           {question.text}
         </h2>

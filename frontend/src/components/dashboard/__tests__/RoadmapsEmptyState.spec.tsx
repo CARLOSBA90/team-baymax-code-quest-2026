@@ -89,6 +89,14 @@ describe("RoadmapsEmptyState", () => {
     expect(items[2]).toHaveTextContent("Recibe tu ruta y avanza");
   });
 
+  it("apila los pasos en una columna en móvil y los pone en 3 columnas desde sm", () => {
+    renderWithProviders(<RoadmapsEmptyState />);
+
+    const list = screen.getByRole("list");
+    expect(list).toHaveClass("grid-cols-1", "sm:grid-cols-3");
+    expect(list).not.toHaveClass("grid-cols-3");
+  });
+
   it("no aplica la clase .nebula a ningún elemento", () => {
     const { container } = renderWithProviders(<RoadmapsEmptyState />);
     expect(container.querySelector(".nebula")).toBeNull();

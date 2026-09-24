@@ -33,6 +33,11 @@ function pluralize(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+/** "5 rutas", "1 ruta", "0 rutas": texto accesible de la pill de "Mis Rutas" en el sidebar. */
+export function getRoadmapsCountLabel(count: number): string {
+  return pluralize(count, "ruta", "rutas");
+}
+
 /** "7 cursos · Intermedio", "1 curso · Básico" o "3 cursos" si no hay nivel. */
 export function getRoadmapCoursesSubtitle(
   totalCourses: number,

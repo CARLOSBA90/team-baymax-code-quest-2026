@@ -101,14 +101,19 @@ describe("DashboardSidebar", () => {
 
   it("muestra la pill con roadmapsCount en Mis Rutas", () => {
     renderSidebar(5);
-    const link = screen.getByRole("link", { name: /^Mis Rutas/ });
-    expect(within(link).getByText("5")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Mis Rutas, 5 rutas" });
+    expect(within(link).getByText("5")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("muestra la pill aunque el total sea 0", () => {
     renderSidebar(0);
-    const link = screen.getByRole("link", { name: /^Mis Rutas/ });
+    const link = screen.getByRole("link", { name: "Mis Rutas, 0 rutas" });
     expect(within(link).getByText("0")).toBeInTheDocument();
+  });
+
+  it("con una sola ruta el nombre accesible va en singular", () => {
+    renderSidebar(1);
+    expect(screen.getByRole("link", { name: "Mis Rutas, 1 ruta" })).toBeInTheDocument();
   });
 
   it("sin roadmapsCount no muestra pill", () => {

@@ -60,7 +60,19 @@ describe("SidebarNavItem (enlace)", () => {
         Mis Rutas
       </SidebarNavItem>,
     );
-    expect(screen.getByText(String(count))).toBeInTheDocument();
+    expect(screen.getByText(String(count))).toHaveAttribute("aria-hidden", "true");
+    // Sin countLabel el texto accesible es el número, separado por coma (no "Mis Rutas3").
+    expect(screen.getByRole("link")).toHaveAccessibleName(`Mis Rutas, ${count}`);
+  });
+
+  it("usa countLabel como texto accesible de la pill", () => {
+    renderWithProviders(
+      <SidebarNavItem to="/dashboard/roadmaps" icon={icon} count={5} countLabel="5 rutas">
+        Mis Rutas
+      </SidebarNavItem>,
+    );
+    expect(screen.getByRole("link")).toHaveAccessibleName("Mis Rutas, 5 rutas");
+    expect(screen.getByText("5")).toHaveAttribute("aria-hidden", "true");
   });
 });
 

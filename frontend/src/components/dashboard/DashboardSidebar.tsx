@@ -1,4 +1,5 @@
 import { BrandMark } from "@/components/ui";
+import { getRoadmapsCountLabel } from "@/lib";
 import { ProfileIcon, RoutesIcon } from "./SidebarIcons";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { SidebarUserCard } from "./SidebarUserCard";
@@ -21,6 +22,9 @@ export function DashboardSidebar({ roadmapsCount }: DashboardSidebarProps) {
             <SidebarNavItem
               to="/dashboard/roadmaps"
               count={roadmapsCount}
+              countLabel={
+                roadmapsCount === undefined ? undefined : getRoadmapsCountLabel(roadmapsCount)
+              }
               icon={<RoutesIcon className="size-5" />}
             >
               Mis Rutas

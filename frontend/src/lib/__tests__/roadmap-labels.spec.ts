@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getRoadmapCoursesSubtitle,
+  getRoadmapsCountLabel,
   getRoadmapsSummary,
   ROADMAP_ACTION_LABELS,
   ROADMAP_FILTER_EMPTY_MESSAGES,
@@ -72,5 +73,15 @@ describe("getRoadmapsSummary", () => {
     expect(
       getRoadmapsSummary({ all: 1, notStarted: 0, inProgress: 0, paused: 0, completed: 1 }),
     ).toBe("1 ruta · 0 en curso · 1 completada");
+  });
+});
+
+describe("getRoadmapsCountLabel", () => {
+  it.each([
+    [0, "0 rutas"],
+    [1, "1 ruta"],
+    [5, "5 rutas"],
+  ])("%i → %s", (count, expected) => {
+    expect(getRoadmapsCountLabel(count)).toBe(expected);
   });
 });

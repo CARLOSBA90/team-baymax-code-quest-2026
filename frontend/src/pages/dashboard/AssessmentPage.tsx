@@ -98,8 +98,8 @@ export const AssessmentPage = () => {
   }
 
   return (
-    <section className="flex h-full flex-col gap-7">
-      <header className="flex items-end justify-between gap-6">
+    <section className="flex min-h-full flex-col gap-7">
+      <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex flex-col gap-4">
           <AssessmentBreadcrumb />
           <div className="flex flex-col gap-3">
@@ -107,7 +107,11 @@ export const AssessmentPage = () => {
             <p className="text-text-secondary">{getAssessmentSubtitle(questions?.length)}</p>
           </div>
         </div>
-        <GhostButton size="sm" onClick={() => navigate("/dashboard/roadmaps")}>
+        <GhostButton
+          size="sm"
+          className="self-start md:self-auto"
+          onClick={() => navigate("/dashboard/roadmaps")}
+        >
           <CloseIcon className="size-4" />
           Salir
         </GhostButton>

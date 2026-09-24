@@ -151,7 +151,7 @@ export const RoadmapsPage = () => {
   else if (data !== undefined) subtitle = "Aquí aparecerán las rutas de aprendizaje que crees.";
 
   return (
-    <section className="flex h-full min-w-0 flex-col gap-7">
+    <section className="flex min-h-full min-w-0 flex-col gap-7">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col gap-3">
           <h1 className="font-display text-4xl font-bold text-text-primary">Mis Rutas</h1>

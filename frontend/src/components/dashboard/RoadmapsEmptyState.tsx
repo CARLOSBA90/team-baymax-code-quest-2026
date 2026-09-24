@@ -85,7 +85,7 @@ export function RoadmapsEmptyState() {
         <PlusIcon className="size-4" />
         Crear mi primera ruta
       </PrimaryButton>
-      <ul className="mt-10 grid grid-cols-3 gap-4">
+      <ul className="mt-10 grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
         {STEPS.map((step) => (
           <li key={step.number} className="rounded-xl border border-border-field bg-bg-ghost p-4">
             <p className="text-accent-soft">{step.number}</p>

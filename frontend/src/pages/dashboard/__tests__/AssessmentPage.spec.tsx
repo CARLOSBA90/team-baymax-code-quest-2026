@@ -172,6 +172,21 @@ describe("AssessmentPage", () => {
       expect(submitAssessment).not.toHaveBeenCalled();
     });
 
+    it("en móvil apila el encabezado y Salir; en fila desde md (sin recortar el wizard)", async () => {
+      renderPage();
+
+      const exit = screen.getByRole("button", { name: "Salir" });
+      const header = exit.parentElement;
+      expect(header?.tagName).toBe("HEADER");
+      expect(header).toHaveClass("flex-col", "md:flex-row", "md:items-end", "md:justify-between");
+      expect(exit).toHaveClass("self-start", "md:self-auto");
+      // La sección crece con su contenido (min-h-full), en vez de quedar fija al alto de main.
+      const section = header?.parentElement;
+      expect(section).toHaveClass("min-h-full");
+      expect(section).not.toHaveClass("h-full");
+      await screen.findByRole("group", { name: FIRST.text });
+    });
+
     it("no aplica la clase .nebula a ningún elemento", async () => {
       const { container } = renderPage();
       await screen.findByRole("group", { name: FIRST.text });

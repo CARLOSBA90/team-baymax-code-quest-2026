@@ -49,8 +49,9 @@ vi.mock("@/api/services", async (importOriginal) => ({
 }));
 
 const USER = { name: "Ada Lovelace", email: "ada@example.com" };
-// El sidebar añade la pill del total al nombre accesible; la tab bar no lleva pill.
-const ROUTES_LINK_NAME = /^Mis Rutas/;
+// El sidebar añade el total al nombre accesible ("Mis Rutas, 5 rutas") cuando la lista ha
+// cargado; la tab bar no lleva pill.
+const ROUTES_LINK_NAME = /^Mis Rutas(, \d+ rutas?)?$/;
 
 function sidebarRoutesLink() {
   const nav = screen.getByRole("navigation", { name: "Navegación principal" });

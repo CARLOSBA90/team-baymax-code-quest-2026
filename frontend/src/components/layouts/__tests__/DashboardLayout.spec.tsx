@@ -24,7 +24,7 @@ function renderLayout() {
 
 function sidebarRoutesLink() {
   const sidebarNav = screen.getByRole("navigation", { name: "Navegación principal" });
-  return within(sidebarNav).getByRole("link", { name: /^Mis Rutas/ });
+  return within(sidebarNav).getByRole("link", { name: /^Mis Rutas(, \d+ rutas?)?$/ });
 }
 
 describe("DashboardLayout", () => {
@@ -97,6 +97,7 @@ describe("DashboardLayout", () => {
   it("muestra la pill con el total de rutas en el sidebar tras cargar", async () => {
     renderLayout();
     expect(await within(sidebarRoutesLink()).findByText("5")).toBeInTheDocument();
+    expect(sidebarRoutesLink()).toHaveAccessibleName("Mis Rutas, 5 rutas");
     expect(getRoadmaps).toHaveBeenCalledTimes(1);
   });
 
