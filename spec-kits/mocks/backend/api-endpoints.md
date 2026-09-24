@@ -67,6 +67,51 @@ Manejados internamente por Better Auth bajo `/api/auth/*`:
 | `limit`  | `number`                                            | `10`    | Items por pagina |
 | `status` | `NOT_STARTED \| IN_PROGRESS \| PAUSED \| COMPLETED` | —       | Estado derivado  |
 
+`limit` acepta hasta `100`. El frontend pide `limit=100` y filtra por estado en
+el cliente, así que no necesita `status`.
+
+#### Respuesta GET /roadmaps
+
+Solo devuelve las rutas del usuario de la sesión. Los campos de cada ruta van en
+snake_case; `meta` y `counts` van en camelCase, como en el resto de endpoints.
+
+```json
+{
+  "data": [
+    {
+      "id": "cmuf4d4m30008z0ggjgf2ervb",
+      "name": "Mi ruta de backend",
+      "status": "IN_PROGRESS",
+      "progress": 42,
+      "level": "intermediate",
+      "total_courses": 5,
+      "total_items": 5,
+      "last_activity": "2026-09-21T18:30:00.000Z",
+      "paused_at": null,
+      "activity_version": 12
+    }
+  ],
+  "meta": { "total": 5, "page": 1, "limit": 100, "totalPages": 1 },
+  "counts": {
+    "all": 5,
+    "notStarted": 0,
+    "inProgress": 2,
+    "paused": 1,
+    "completed": 2
+  }
+}
+```
+
+- `status`: `NOT_STARTED | IN_PROGRESS | PAUSED | COMPLETED`, derivado del
+  progreso de los items y de `paused_at`. `progress` es un entero 0–100.
+- `level`: `beginner | intermediate | advanced | null` (el nivel más alto de sus
+  items). `paused_at` es ISO 8601 cuando la ruta está pausada, si no `null`.
+- `counts` es global: no depende de la página ni del filtro `status`.
+- Un usuario sin rutas recibe `data: []`, `meta.total = 0`, `totalPages = 0` y
+  todos los `counts` en `0` (nunca 404).
+- `monogram` y `accent` son solo de presentación: el backend no los envía y el
+  frontend los trata como opcionales.
+
 #### GenerateRoadmapDto
 
 ```json

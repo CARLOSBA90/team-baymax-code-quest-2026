@@ -90,6 +90,66 @@ describe('RoadmapsService.findAll', () => {
     });
   });
 
+  it('keeps the list contract the frontend consumes', async () => {
+    const { service } = setup(['r1']);
+
+    const result = await service.findAll('user-1', { page: 1, limit: 100 });
+
+    // Roadmap fields in snake_case; meta and counts in camelCase.
+    expect(Object.keys(result.data[0]!).sort()).toEqual(
+      [
+        'activity_version',
+        'id',
+        'last_activity',
+        'level',
+        'name',
+        'paused_at',
+        'progress',
+        'status',
+        'total_courses',
+        'total_items',
+      ].sort(),
+    );
+    expect(result.data[0]).toMatchObject({
+      level: 'beginner',
+      total_courses: 1,
+      total_items: 1,
+      paused_at: null,
+      last_activity: '2026-09-24T00:00:00.000Z',
+    });
+    expect(Object.keys(result.meta)).toEqual([
+      'total',
+      'page',
+      'limit',
+      'totalPages',
+    ]);
+    expect(Object.keys(result.counts)).toEqual([
+      'all',
+      'notStarted',
+      'inProgress',
+      'paused',
+      'completed',
+    ]);
+  });
+
+  it('returns an empty list with zero counts for a user without roadmaps', async () => {
+    const queryRaw = vi.fn().mockResolvedValue([]);
+    const findMany = vi.fn();
+    const service = new RoadmapsService({
+      $queryRaw: queryRaw,
+      roadmap: { findMany },
+    } as unknown as PrismaService);
+
+    const result = await service.findAll('user-1', { page: 1, limit: 100 });
+
+    expect(result).toEqual({
+      data: [],
+      meta: { total: 0, page: 1, limit: 100, totalPages: 0 },
+      counts: { all: 0, notStarted: 0, inProgress: 0, paused: 0, completed: 0 },
+    });
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
   it('skips loading roadmaps when the page is empty', async () => {
     const { service, findMany } = setup([]);
 
