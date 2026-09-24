@@ -38,6 +38,8 @@ React 19 + TypeScript + Vite SPA.
 
 When creating or modifying any file in `src/`, always invoke the `frontend-conventions` skill (`.claude/skills/frontend-conventions/SKILL.md`): imports only via `@/` or `./`, imports through the folder's `index.ts` barrel, and `PropsWithChildren` for `children`. Biome (`noRestrictedImports`) enforces the first two rules.
 
+Hook location: every **new** UI/state hook used by components goes in `src/hooks/<folder>/` (create the folder if needed, e.g. `shared/`) and is exported from the `src/hooks/index.ts` barrel (`@/hooks`). React Query hooks (`useQuery`/`useMutation`, e.g. `useRoadmaps`, `useDeleteRoadmap`) stay in `src/api/queries/<domain>/`. Existing hooks elsewhere (e.g. `useAssessmentWizard`, `useGuardSession`) are not moved.
+
 ## Styling
 
 Tailwind v4 via `@tailwindcss/vite`, CSS-first (no `tailwind.config.js`). Design tokens are declared in `src/index.css` under `@theme`; add or change theme values there.
