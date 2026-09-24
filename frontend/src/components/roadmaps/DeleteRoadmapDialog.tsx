@@ -1,6 +1,5 @@
 import { useId } from "react";
-import { AuthNotice, PrimaryButton } from "@/components/auth";
-import { GhostButton, Modal } from "@/components/ui";
+import { GhostButton, Modal, Notice, PrimaryButton } from "@/components/ui";
 import type { RoadmapSummary } from "@/types";
 
 export interface DeleteRoadmapDialogProps {
@@ -44,7 +43,7 @@ export function DeleteRoadmapDialog({
         <p id={descriptionId} className="font-body text-sm text-text-secondary">
           Se perderán tu progreso y tus entregas de esta ruta. Esta acción no se puede deshacer.
         </p>
-        {errorMessage && <AuthNotice variant="error">{errorMessage}</AuthNotice>}
+        {errorMessage && <Notice variant="error">{errorMessage}</Notice>}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <GhostButton size="md" onClick={onCancel} disabled={pending}>
             Cancelar

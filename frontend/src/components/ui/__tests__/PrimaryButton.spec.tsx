@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { PrimaryButton } from "@/components/auth";
+import { PrimaryButton } from "@/components/ui";
 
 describe("PrimaryButton", () => {
   it("sin variant, mantiene w-full (compatibilidad con los usos existentes)", () => {

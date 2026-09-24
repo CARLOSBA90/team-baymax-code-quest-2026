@@ -1,11 +1,10 @@
 import type { ChangeEvent, SubmitEvent } from "react";
 import { useState } from "react";
 import { useLogin } from "@/api/queries/auth";
+import { Notice, PrimaryButton } from "@/components/ui";
 import { getAuthErrorMessage } from "@/lib";
 import { type LoginFormValues, loginSchema } from "@/schemas";
-import { AuthNotice } from "./AuthNotice";
 import { PasswordField } from "./PasswordField";
-import { PrimaryButton } from "./PrimaryButton";
 import { TextField } from "./TextField";
 
 type FormErrors = Partial<Record<keyof LoginFormValues, string>>;
@@ -49,7 +48,7 @@ export function AuthLoginForm() {
 
   return (
     <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-      {isError && <AuthNotice variant="error">{getAuthErrorMessage(error)}</AuthNotice>}
+      {isError && <Notice variant="error">{getAuthErrorMessage(error)}</Notice>}
       <div className="flex flex-col gap-4">
         <TextField
           id="email"

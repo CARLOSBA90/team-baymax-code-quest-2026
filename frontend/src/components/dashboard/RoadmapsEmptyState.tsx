@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { PrimaryButton } from "@/components/auth";
-import { NebulaSurface } from "@/components/ui";
+import { NebulaSurface, PrimaryButton } from "@/components/ui";
 
 function RouteIllustration() {
   return (

@@ -6,3 +6,5 @@ export * from "./GhostButton";
 export * from "./Modal";
 export * from "./NebulaBackground";
 export * from "./NebulaSurface";
+export * from "./Notice";
+export * from "./PrimaryButton";

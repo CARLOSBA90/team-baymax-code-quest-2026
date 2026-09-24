@@ -1,5 +1,4 @@
-import { PrimaryButton } from "@/components/auth";
-import { GhostButton } from "@/components/ui";
+import { GhostButton, PrimaryButton } from "@/components/ui";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "./AssessmentIcons";
 
 export interface AssessmentNavProps {
