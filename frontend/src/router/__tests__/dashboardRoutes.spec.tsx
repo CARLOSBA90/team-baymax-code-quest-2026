@@ -49,6 +49,18 @@ vi.mock("@/api/services", async (importOriginal) => ({
 }));
 
 const USER = { name: "Ada Lovelace", email: "ada@example.com" };
+// El sidebar añade la pill del total al nombre accesible; la tab bar no lleva pill.
+const ROUTES_LINK_NAME = /^Mis Rutas/;
+
+function sidebarRoutesLink() {
+  const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+  return within(nav).getByRole("link", { name: ROUTES_LINK_NAME });
+}
+
+function tabBarRoutesLink() {
+  const nav = screen.getByRole("navigation", { name: "Navegación inferior" });
+  return within(nav).getByRole("link", { name: "Mis Rutas" });
+}
 const SESSION = { user: USER, session: { id: "s1" } };
 
 function renderRoutes(initialEntries: string[]) {
@@ -112,8 +124,34 @@ describe("rutas del dashboard", () => {
   it("clic en Mis Rutas desde el índice (/dashboard) navega a /dashboard/roadmaps", async () => {
     const router = renderRoutes(["/dashboard"]);
     await screen.findByRole("heading", { name: "Mis Rutas" });
-    await userEvent.setup().click(screen.getByRole("link", { name: "Mis Rutas" }));
+    await userEvent.setup().click(sidebarRoutesLink());
     await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+  });
+
+  it("clic en Mis Rutas de la tab bar desde /new navega a /dashboard/roadmaps", async () => {
+    const router = renderRoutes(["/dashboard/roadmaps/new"]);
+    await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    await userEvent.setup().click(tabBarRoutesLink());
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+  });
+
+  it("el layout incluye top bar móvil y tab bar en todas las rutas del dashboard", async () => {
+    renderRoutes(["/dashboard/roadmaps"]);
+    await screen.findByRole("heading", { name: "Mis Rutas", level: 1 });
+    const avatarMenu = screen.getByRole("button", { name: "Menú de usuario de Ada Lovelace" });
+    expect(avatarMenu.closest("header")).toHaveClass("md:hidden");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("el logout desde el menú del avatar lleva a /auth/login", async () => {
+    const router = renderRoutes(["/dashboard/roadmaps"]);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Menú de usuario de Ada Lovelace" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Cerrar sesión" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"));
   });
 
   it("/dashboard/roadmaps/new renderiza el cuestionario dentro del layout con Mis Rutas activo", async () => {
@@ -121,11 +159,8 @@ describe("rutas del dashboard", () => {
 
     const title = await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
     expect(screen.getByRole("main")).toContainElement(title);
-    const sidebar = screen.getByRole("complementary");
-    expect(within(sidebar).getByRole("link", { name: "Mis Rutas" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
   });
 
   it("/dashboard/roadmaps/new sin sesión redirige a /auth/login", async () => {
@@ -161,8 +196,7 @@ describe("rutas del dashboard", () => {
     expect(detail).toBeEmptyDOMElement();
     expect(within(main).queryByRole("heading")).not.toBeInTheDocument();
     expect(within(main).queryByRole("table")).not.toBeInTheDocument();
-    expect(
-      within(screen.getByRole("complementary")).getByRole("link", { name: "Mis Rutas" }),
-    ).toHaveAttribute("aria-current", "page");
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
   });
 });

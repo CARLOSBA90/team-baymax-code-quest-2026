@@ -12,10 +12,10 @@ function LocationProbe() {
   return <span data-testid="location">{useLocation().pathname}</span>;
 }
 
-function renderSidebar() {
+function renderSidebar(roadmapsCount?: number) {
   return renderWithProviders(
     <>
-      <DashboardSidebar />
+      <DashboardSidebar roadmapsCount={roadmapsCount} />
       <Routes>
         <Route path="*" element={<LocationProbe />} />
       </Routes>
@@ -92,5 +92,27 @@ describe("DashboardSidebar", () => {
     expect(aside).toHaveClass("sidebar-surface");
     expect(aside).not.toHaveClass("nebula");
     expect(aside.querySelector(".nebula")).toBeNull();
+  });
+
+  it("se oculta en móvil y se muestra como flex desde md", () => {
+    renderSidebar();
+    expect(screen.getByRole("complementary")).toHaveClass("hidden", "md:flex", "w-64", "shrink-0");
+  });
+
+  it("muestra la pill con roadmapsCount en Mis Rutas", () => {
+    renderSidebar(5);
+    const link = screen.getByRole("link", { name: /^Mis Rutas/ });
+    expect(within(link).getByText("5")).toBeInTheDocument();
+  });
+
+  it("muestra la pill aunque el total sea 0", () => {
+    renderSidebar(0);
+    const link = screen.getByRole("link", { name: /^Mis Rutas/ });
+    expect(within(link).getByText("0")).toBeInTheDocument();
+  });
+
+  it("sin roadmapsCount no muestra pill", () => {
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Mis Rutas" })).toHaveTextContent(/^Mis Rutas$/);
   });
 });
