@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { roadmapsKeys, useRoadmaps } from "@/api/queries/roadmaps";
+import { ROADMAPS_STALE_TIME, roadmapsKeys, useRoadmaps } from "@/api/queries/roadmaps";
 import { getRoadmaps } from "@/api/services";
 import { buildNetworkError } from "@/test/fixtures/api-errors";
 import { ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
@@ -72,5 +72,51 @@ describe("useRoadmaps", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(ROADMAPS_LIST_RESULT);
+  });
+
+  it("usa un staleTime de 30 s", () => {
+    expect(ROADMAPS_STALE_TIME).toBe(30_000);
+  });
+
+  it("no vuelve a pedir el listado al remontar mientras sigue fresco", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    const wrapper = createWrapper(createQueryClient());
+
+    const first = renderHook(() => useRoadmaps(), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    first.unmount();
+
+    const { result } = renderHook(() => useRoadmaps(), { wrapper });
+
+    expect(result.current.isSuccess).toBe(true);
+    expect(result.current.data).toEqual(ROADMAPS_LIST_RESULT);
+    expect(getRoadmaps).toHaveBeenCalledTimes(1);
+  });
+
+  it("vuelve a pedir el listado cuando la caché supera el staleTime", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(roadmapsKeys.list(), ROADMAPS_LIST_RESULT, {
+      updatedAt: Date.now() - ROADMAPS_STALE_TIME - 1,
+    });
+
+    const { result } = renderHook(() => useRoadmaps(), { wrapper: createWrapper(queryClient) });
+
+    expect(result.current.data).toEqual(ROADMAPS_LIST_RESULT);
+    await waitFor(() => expect(getRoadmaps).toHaveBeenCalledTimes(1));
+  });
+
+  it("vuelve a pedir el listado al invalidar roadmapsKeys.all aunque siga fresco", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    const queryClient = createQueryClient();
+
+    const { result } = renderHook(() => useRoadmaps(), { wrapper: createWrapper(queryClient) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: roadmapsKeys.all });
+    });
+
+    expect(getRoadmaps).toHaveBeenCalledTimes(2);
   });
 });

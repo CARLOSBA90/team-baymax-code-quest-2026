@@ -9,6 +9,7 @@ import {
   useAssessmentQuestions,
   useSubmitAssessment,
 } from "@/api/queries/assessments";
+import { roadmapsKeys } from "@/api/queries/roadmaps";
 import { getAssessmentQuestions, submitAssessment } from "@/api/services";
 import { buildAxiosError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
@@ -147,5 +148,39 @@ describe("useSubmitAssessment", () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toBe(error);
     expect(result.current.data).toBeUndefined();
+  });
+
+  it("invalida roadmapsKeys.all al completarse con éxito", async () => {
+    vi.mocked(post).mockResolvedValue(buildAssessmentResultMock(INPUT));
+    const queryClient = createQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useSubmitAssessment(), {
+      wrapper: createSharedWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync(INPUT);
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: roadmapsKeys.all });
+  });
+
+  it("no invalida el listado de rutas cuando post rechaza", async () => {
+    vi.mocked(post).mockRejectedValue(buildAxiosError(400, "Respuestas inválidas"));
+    const queryClient = createQueryClient();
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    const { result } = renderHook(() => useSubmitAssessment(), {
+      wrapper: createSharedWrapper(queryClient),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync(INPUT).catch(() => undefined);
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(invalidateSpy).not.toHaveBeenCalled();
   });
 });

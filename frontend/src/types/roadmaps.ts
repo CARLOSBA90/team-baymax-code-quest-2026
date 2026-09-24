@@ -40,7 +40,7 @@ export interface RoadmapsListResult {
 
 /**
  * Forma en el cable (snake_case), espejo de `serializeRoadmapSummary` del backend.
- * Solo la usan el mock y el service; la UI consume `RoadmapSummary`.
+ * Solo la usa el service (y las fixtures de test); la UI consume `RoadmapSummary`.
  */
 export interface RoadmapSummaryDto {
   id: string;
