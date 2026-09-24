@@ -11,6 +11,7 @@ import {
   RoadmapItemType,
   type SkillCategory,
 } from '../../generated/prisma/enums.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { GenerateRoadmapDto } from './dto/generate-roadmap.dto.js';
 import {
@@ -28,11 +29,13 @@ import {
   ROADMAP_SNAPSHOT_VERSION,
 } from './roadmap.constants.js';
 import { RoadmapGeneratorOrchestrator } from './generators/roadmap-generator.orchestrator.js';
+import { TrackingType } from '../progress/progress.constants.js';
+import { buildSyllabusSnapshot } from '../progress/tracking/lesson-syllabus.js';
 import { createCatalogHash } from './utils/catalog-fingerprint.util.js';
 import { resolveGoalCategory } from './utils/roadmap-goal.util.js';
 import { serializeRoadmapDetail } from './utils/roadmap-detail.mapper.js';
 import {
-  orderWithRequiredPrerequisites,
+  orderForLearning,
   PrerequisiteResolutionError,
   PrerequisiteResolutionFailure,
 } from './utils/roadmap-prerequisites.util.js';
@@ -201,7 +204,7 @@ export class RoadmapGenerationService {
 
     let ordered: typeof selectedCourses;
     try {
-      ordered = orderWithRequiredPrerequisites(
+      ordered = orderForLearning(
         selectedCourses,
         captured.courses,
         (course) =>
@@ -221,6 +224,20 @@ export class RoadmapGenerationService {
       };
       throw domainError('NO_MATCHING_COURSES', messageByFailure[error.failure]);
     }
+
+    // Each course copies its syllabus so progress can be tracked per lesson.
+    const lessons = await this.prisma.courseLesson.findMany({
+      where: { courseId: { in: ordered.map((course) => course.id) } },
+      orderBy: [{ courseId: 'asc' }, { order: 'asc' }],
+    });
+    const syllabusByCourse = new Map(
+      ordered.map((course) => [
+        course.id,
+        buildSyllabusSnapshot(
+          lessons.filter((lesson) => lesson.courseId === course.id),
+        ),
+      ]),
+    );
 
     const catalogHash = createCatalogHash(canonicalCatalog);
     const now = new Date();
@@ -290,6 +307,12 @@ export class RoadmapGenerationService {
                 category: skill.skill,
                 weight: skill.weight,
               })),
+              ...(syllabusByCourse.get(course.id)?.sections.length && {
+                tracking: { type: TrackingType.LESSONS },
+                syllabus: syllabusByCourse.get(
+                  course.id,
+                ) as unknown as Prisma.InputJsonObject,
+              }),
             },
             progress: {
               create: {

@@ -1,15 +1,12 @@
 # 04 — Modelo de Datos y Entidades
 
-> **Implementación vigente:** el backend agrega únicamente `Roadmap`,
-> `RoadmapItem` y `Progress`. `RoadmapItem.type` discrimina `COURSE`, `MEDIA` y
-> `CHALLENGE`; solo un item `COURSE` referencia la tabla existente `Course`.
-> Media y retos se conservan como snapshot en el item, sin tablas de catálogo
-> adicionales. El schema Prisma y la migración son la fuente de verdad si los
-> ejemplos conceptuales posteriores difieren.
-
-> El bloque de schema incluido más abajo es un ejemplo histórico anterior a la
-> implementación. No representa el contrato vigente del backend y se conserva
-> únicamente como contexto de diseño.
+> **Fuente de verdad:** `backend/prisma/schema.prisma` y sus migraciones. La
+> sección [Schema vigente](#schema-vigente-rutas-progreso-y-temario) reproduce
+> los modelos de rutas, progreso y temario tal como están implementados. El
+> bloque [histórico](#schema-de-prisma-histórico-no-vigente) se conserva solo
+> como contexto de diseño: sus campos `Roadmap.status`,
+> `Roadmap.algorithmVersion`, `Progress.id` y `Progress.status` **no existen**
+> y no deben usarse en consultas, migraciones ni integraciones.
 
 ---
 
@@ -20,14 +17,16 @@ User (Better Auth)
   |---< Assessment (1 usuario, N assessments)
   |       |---< AssessmentAnswer (1 assessment, N respuestas)
   |
-  |---< Roadmap (1 usuario, N rutas)
-          |---< RoadmapItem (1 ruta, N items = cursos ordenados)
-                    |---> Course
-                    |---< Progress (1 item, 1 registro de progreso)
+  |---< Roadmap (1 usuario, N rutas; basada en un Assessment)
+          |---< RoadmapItem (1 ruta, N items ordenados: COURSE, MEDIA o CHALLENGE)
+                    |---> Course (solo items COURSE)
+                    |---1 Progress (1 item, 1 registro de progreso)
+                    |---< ChallengeSubmission (entregas de un reto)
 
 Course
   |---< CourseSkill (tags/skills del curso)
   |---< CoursePrerequisite (prerequisitos del curso)
+  |---< CourseLesson (temario: secciones y lecciones)
 
 Question (banco de preguntas del cuestionario)
   |---< QuestionOption (opciones de respuesta)
@@ -37,7 +36,172 @@ CatalogImport (log de importaciones del catalogo)
 
 ---
 
+## Schema vigente (rutas, progreso y temario)
+
+```prisma
+model Roadmap {
+  id                        String        @id @default(cuid())
+  userId                    String
+  user                      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessmentId              String
+  assessment                Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  title                     String
+  summary                   String
+  goal                      Json?
+  weeklyHours               Decimal?      @db.Decimal(10, 2)
+  generatorVersion          String
+  catalogHash               String
+  generationContextSnapshot Json
+  pausedAt                  DateTime?     @db.Timestamptz(3)
+  lastActivityAt            DateTime      @default(now()) @db.Timestamptz(3)
+  activityVersion           Int           @default(0)
+  createdAt                 DateTime      @default(now()) @db.Timestamptz(3)
+  items                     RoadmapItem[]
+
+  @@index([userId, createdAt, id])
+  @@index([assessmentId])
+  @@map("roadmap")
+}
+
+model RoadmapItem {
+  id               String                @id @default(cuid())
+  roadmapId        String
+  roadmap          Roadmap               @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  type             RoadmapItemType
+  courseId         String?
+  course           Course?               @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  sourceKey        String
+  order            Int
+  name             String
+  description      String?
+  image            String?
+  url              String?
+  level            Int?
+  estimatedMinutes Decimal?              @db.Decimal(10, 2)
+  reason           String
+  targetSkills     SkillCategory[]
+  contentData      Json
+  progress         Progress?
+  submissions      ChallengeSubmission[]
+
+  @@unique([roadmapId, order])
+  @@unique([roadmapId, sourceKey])
+  @@unique([roadmapId, courseId])
+  @@index([courseId])
+  @@map("roadmap_item")
+}
+
+enum RoadmapItemType {
+  COURSE
+  MEDIA
+  CHALLENGE
+}
+
+model Progress {
+  roadmapItemId String      @id
+  roadmapItem   RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  percentage    Int         @default(0)
+  version       Int         @default(0)
+  trackingState Json        @default("{}")
+  startedAt     DateTime?   @db.Timestamptz(3)
+  completedAt   DateTime?   @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@map("progress")
+}
+
+model ChallengeSubmission {
+  id               String                    @id @default(cuid())
+  roadmapItemId    String
+  roadmapItem      RoadmapItem               @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  eventId          String?
+  payloadHash      String?
+  submissionType   ChallengeSubmissionType
+  status           ChallengeSubmissionStatus @default(PENDING_REVIEW)
+  content          String?
+  language         String?
+  url              String?
+  storageKey       String?
+  originalFilename String?
+  mimeType         String?
+  sizeBytes        Int?
+  checksum         String?
+  feedback         Json?
+  evaluatorVersion String?
+  reviewedByUserId String?
+  reviewedByUser   User?                     @relation("ChallengeReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  createdAt        DateTime                  @default(now()) @db.Timestamptz(3)
+  evaluatedAt      DateTime?                 @db.Timestamptz(3)
+
+  @@unique([roadmapItemId, eventId])
+  @@index([roadmapItemId, status, createdAt])
+  @@index([reviewedByUserId])
+  @@map("challenge_submission")
+}
+
+enum ChallengeSubmissionType {
+  TEXT
+  CODE
+  LINK
+  FILE
+}
+
+enum ChallengeSubmissionStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model CourseLesson {
+  id           String     @id @default(cuid())
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sectionOrder Int
+  sectionTitle String
+  order        Int
+  title        String
+  type         LessonType
+  freePreview  Boolean    @default(false)
+
+  @@unique([courseId, order])
+  @@map("course_lesson")
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  OTHER
+}
+```
+
+### Notas del schema vigente
+
+1. **El estado y el porcentaje de la ruta no se guardan.** Se derivan de
+   `Progress.percentage` de sus items y de `Roadmap.pausedAt`
+   (`floor(promedio)`; `NOT_STARTED`, `IN_PROGRESS`, `PAUSED`, `COMPLETED`).
+   El listado los calcula en SQL para filtrar y paginar en la base.
+2. **`Progress` usa `roadmapItemId` como clave primaria** (uno por item) y no
+   tiene `status`: guarda `percentage`, `version` para concurrencia,
+   `trackingState` (posición de video, lecciones marcadas, última lección) y
+   `startedAt`/`completedAt`.
+3. **`RoadmapItem.contentData` es una instantánea inmutable**: skills,
+   duración, política de tracking y, en cursos con temario, una copia de sus
+   lecciones. Reimportar el catálogo no altera rutas existentes.
+4. **`Roadmap.generatorVersion`** reemplaza al antiguo `algorithmVersion`
+   (por ejemplo `rules-…` o `nvidia:<modelo>`), y
+   `generationContextSnapshot` conserva el contexto con el que se generó.
+5. **`ChallengeSubmission`** conserva cada intento de un reto; solo la
+   aprobación de un administrador lleva el item a 100 %. `eventId` quedó de una
+   versión anterior del contrato y ya no se usa (la deduplicación usa
+   `payloadHash`).
+
+---
+
 ## Schema de Prisma histórico (no vigente)
+
+> Diseño previo a la implementación. No refleja la base actual; ver
+> [Schema vigente](#schema-vigente-rutas-progreso-y-temario).
 
 ```prisma
 // prisma/schema.prisma
@@ -323,7 +487,7 @@ enum ProgressStatus {
 
 ---
 
-## Notas del schema histórico
+## Notas del schema histórico (contexto de diseño)
 
 1. **Better Auth administra `User`, `Session`, `Account`, `Verification`.**
    No modificar la estructura de estas tablas. Solo agregar relaciones de negocio en `User`.

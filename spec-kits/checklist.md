@@ -46,10 +46,10 @@
 > Depende de: Roadmaps terminado
 
 - [x] Crear modelo Prisma `Progress` y migración
-- [x] Endpoint `PATCH /api/v1/progress/:roadmapItemId` (actualiza porcentaje 0–100 con control de versión)
 - [x] Endpoint `GET /api/v1/progress/roadmap/:roadmapId` (resumen porcentual de una ruta)
-- [x] Endpoint `POST /api/v1/progress/:roadmapItemId/track` (video, lectura, manual y retos con payload discriminado)
-- [x] Reanudación de video e idempotencia acotada mediante `event_id`
+- [x] Endpoint único `POST /api/v1/progress/track` con `roadmap_item_id` en el body (video, lectura, manual y retos, incluidos archivos en multipart; el backend calcula el porcentaje)
+- [x] Reanudación de video y deduplicación en el backend (sin identificadores del cliente)
+- [x] Temario por curso (`course_lesson`, scraper `--solo-temario`) y progreso por lección (`LESSONS`)
 - [x] Entregas de retos de texto, código, enlace o archivo con revisión administrativa
 - [x] Modelo `ChallengeSubmission` y ampliación aditiva de `Progress`
 

@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  Patch,
   Post,
   Res,
   UploadedFile,
@@ -12,62 +11,34 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Session } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
-import { MAX_CHALLENGE_FILE_BYTES } from './progress.constants.js';
-
-interface ChallengeUpload {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-}
 import type { Session as UserSession } from '../auth/auth.js';
-import { UpdateProgressDto } from './dto/update-progress.dto.js';
 import { TrackProgressDto } from './dto/track-progress.dto.js';
+import { MAX_CHALLENGE_FILE_BYTES } from './progress.constants.js';
 import { ProgressService } from './progress.service.js';
+import type { ChallengeUpload } from './storage/challenge-file.validator.js';
 
 @Controller('progress')
 export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
 
-  @Post(':roadmapItemId/files')
+  /** Accepts JSON, or multipart when a FILE challenge submission is attached. */
+  @Post('track')
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_CHALLENGE_FILE_BYTES } }),
   )
-  uploadFile(
-    @Session() session: UserSession,
-    @Param('roadmapItemId') roadmapItemId: string,
-    @UploadedFile() file: ChallengeUpload | undefined,
-  ) {
-    return this.progressService.uploadFile(
-      session?.user?.id,
-      roadmapItemId,
-      file,
-    );
-  }
-
-  @Post(':roadmapItemId/track')
   async track(
     @Session() session: UserSession,
-    @Param('roadmapItemId') roadmapItemId: string,
     @Body() dto: TrackProgressDto,
+    @UploadedFile() file: ChallengeUpload | undefined,
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.progressService.track(
       session?.user?.id,
-      roadmapItemId,
       dto,
+      file,
     );
     response.status(result.statusCode);
     return result.body;
-  }
-
-  @Patch(':roadmapItemId')
-  update(
-    @Session() session: UserSession,
-    @Param('roadmapItemId') roadmapItemId: string,
-    @Body() dto: UpdateProgressDto,
-  ) {
-    return this.progressService.update(session?.user?.id, roadmapItemId, dto);
   }
 
   @Get('roadmap/:roadmapId')

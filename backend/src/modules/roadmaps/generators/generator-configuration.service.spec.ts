@@ -41,6 +41,8 @@ describe('GeneratorConfigurationService', () => {
       timeout_ms: 10_000,
       total_timeout_ms: 30_000,
       max_attempts: 2,
+      first_token_timeout_ms: 10_000,
+      queue_retries: 2,
     });
     expect(JSON.stringify(service.publicConfiguration())).not.toContain(
       'private-key',

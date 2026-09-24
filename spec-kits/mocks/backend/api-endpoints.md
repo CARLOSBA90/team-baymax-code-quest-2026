@@ -55,10 +55,8 @@ Manejados internamente por Better Auth bajo `/api/auth/*`:
 | `GET`   | `/api/v1/roadmaps/:id`                | Obtener ruta por ID                    | Si   | —                    |
 | `POST`  | `/api/v1/roadmaps/generate`           | Generar ruta basada en assessment      | Si   | `GenerateRoadmapDto` |
 | `PATCH` | `/api/v1/roadmaps/:id/pause`          | Pausar o reanudar una ruta             | Si   | `PauseRoadmapDto`    |
-| `PATCH` | `/api/v1/progress/:roadmapItemId`     | Actualizar porcentaje de un item       | Si   | `UpdateProgressDto`  |
 | `GET`   | `/api/v1/progress/roadmap/:roadmapId` | Obtener porcentaje e items de una ruta | Si   | —                    |
-| `POST` | `/api/v1/progress/:roadmapItemId/track` | Reportar avance según contenido | Si | `TrackProgressDto` |
-| `POST` | `/api/v1/progress/:roadmapItemId/files` | Cargar borrador privado | Si | multipart `file` |
+| `POST` | `/api/v1/progress/track` | Único endpoint para reportar avance de cualquier contenido | Si | `TrackProgressDto` (JSON o multipart) |
 | `PATCH` | `/api/v1/admin/challenge-submissions/:id/review` | Revisar entrega | Admin | `ReviewChallengeDto` |
 
 #### Query Params (GET /roadmaps)
@@ -88,16 +86,16 @@ deterministica; `NVIDIA` usa NVIDIA NIM y vuelve a RULES si el proveedor falla
 o devuelve una respuesta invalida. El backend siempre valida IDs y expande los
 prerrequisitos antes de guardar la ruta.
 
-#### UpdateProgressDto
+#### TrackProgressDto
 
 ```json
-{
-  "percentage": 42,
-  "expectedVersion": 1
-}
+{ "roadmap_item_id": "cmuf0g6cz00095cggn7dxuwch", "lesson_id": "cmuf4x…", "completed": true }
+{ "roadmap_item_id": "cmuf0g6cz00095cggn7dxuwch", "completed": true }
+{ "roadmap_item_id": "…", "position_seconds": 135 }
+{ "roadmap_item_id": "…", "submission": { "type": "CODE", "language": "typescript", "content": "…" } }
 ```
 
-`PATCH /progress/:roadmapItemId` solo acepta items con política `MANUAL`. El frontend usa `POST /progress/:roadmapItemId/track` para video, lectura, manual y retos. El body contiene un `event_id` UUID y un payload discriminado. Video envía `position_seconds`; lectura/manual envían `completed: true`; challenge envía una entrega `TEXT`, `CODE`, `LINK` o `FILE`. Los retos responden 202 hasta su revisión administrativa.
+`POST /progress/track` es el único endpoint para reportar avance, sea cual sea el contenido del item. El cliente manda `roadmap_item_id` y el dato según `tracking.type`: `LESSONS` (cursos con temario) → `lesson_id` + `completed` (`true` marca, `false` desmarca; el curso avanza lecciones marcadas / total) o `lesson_id` + `position_seconds` (segundo del video de la lección, para reanudar); `COMPLETION` (cursos sin temario) y `READING` → `completed: true`; `VIDEO` → `position_seconds`; `CHALLENGE` → `submission` (`TEXT`, `CODE`, `LINK` o `FILE`). El backend deduce el tipo, rechaza con 422 `TRACKING_REPORT_MISMATCH` un campo que no corresponda, evita duplicados sin identificadores del cliente y calcula el porcentaje. Una entrega `FILE` usa `multipart/form-data` con `roadmap_item_id`, `submission` (texto JSON `{"type":"FILE"}`) y `file`. Los retos responden 202 hasta su revisión administrativa.
 El progreso global es `floor(sum(item.percentage) / totalItems)`. El estado se
 deriva de los porcentajes y `pausedAt`, por lo que no se duplica en `Roadmap`.
 El detalle retorna `name`, `status`, `progress`, `last_activity`, `courses` y
@@ -110,11 +108,11 @@ La configuracion efectiva se consulta con permisos administrativos mediante
 entorno: `ROADMAP_GENERATOR_PROVIDER`, `ROADMAP_GENERATOR_FALLBACKS`,
 `NVIDIA_MODELS`, `NVIDIA_MODEL` y `NVIDIA_TIMEOUT_MS`.
 
-La generación NVIDIA usa un presupuesto compartido `NVIDIA_TOTAL_TIMEOUT_MS`
-(30 000 ms por defecto, máximo 120 000) y como máximo `NVIDIA_MAX_ATTEMPTS`
-(2 por defecto, máximo 4). Cada intento recibe el menor tiempo entre su timeout
-y la parte del presupuesto restante reservada para él; el siguiente puede usar
-el tiempo no consumido. Al agotarse los intentos se conserva el fallback RULES.
+La generación NVIDIA lanza en paralelo los primeros `NVIDIA_MAX_ATTEMPTS`
+modelos de `NVIDIA_MODELS` (2 por defecto, máximo 4). Cada uno dispone de
+`min(NVIDIA_TIMEOUT_MS, NVIDIA_TOTAL_TIMEOUT_MS)` (30 000 ms por defecto, máximo
+120 000); gana el primer plan válido y el resto de peticiones se cancela. Si
+todos fallan se conserva el fallback RULES.
 El presupuesto cubre las llamadas NVIDIA, no consultas ni persistencia PostgreSQL.
 Estos límites se exponen como `total_timeout_ms` y `max_attempts` en la consulta
 administrativa de configuración.
@@ -129,10 +127,20 @@ Esta preselección es una heurística y no garantiza una menor latencia del prov
 
 Diagnóstico administrativo: `POST /api/v1/admin/roadmap-generator/probe`, con
 `{}` para el primer modelo o `{ "model": "ID configurado" }` para otro.
-Hace una llamada real mínima a NVIDIA, sin assessment ni catálogo, con timeout
-de 10 segundos. Devuelve HTTP 200 con `data.status`: `OK`, `TIMEOUT`,
+Hace una llamada real mínima a NVIDIA en streaming, sin assessment ni catálogo,
+con timeout de 30 segundos. Devuelve HTTP 200 con `data.status`: `OK`, `QUEUED`
+(sin primer token dentro de `NVIDIA_FIRST_TOKEN_TIMEOUT_MS`: la petición quedó
+en la cola del proveedor), `TIMEOUT`, `TOKEN_LIMIT` (agotó tokens razonando),
 `HTTP_ERROR`, `EMPTY_RESPONSE`, `INVALID_RESPONSE` o `CONNECTION_ERROR`, además
-de `elapsed_ms`, `http_status`, `checked_at` y `generation_guaranteed: false`.
+de `elapsed_ms`, `queue_ms` (espera hasta el primer chunk), `first_answer_ms`,
+`reasoning_chars`, `completion_tokens`, `http_status`, `checked_at` y
+`generation_guaranteed: false`.
+
+La generación usa streaming: si un modelo no empieza a responder dentro de
+`NVIDIA_FIRST_TOKEN_TIMEOUT_MS` (10 000 ms por defecto) o devuelve 429/5xx, la
+petición se reenvía hasta `NVIDIA_QUEUE_RETRIES` veces (2 por defecto) dentro de
+su presupuesto. El razonamiento del modelo se descarta y solo se valida la
+respuesta final.
 Un modelo sin configurar retorna 400; requiere sesión administrativa.
 La prueba consume una petición del proveedor. No se ejecuta automáticamente
 antes de generar y no cambia la prioridad ni los fallbacks. `OK` solo confirma

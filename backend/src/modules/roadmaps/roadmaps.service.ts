@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { FindRoadmapsQueryDto } from './dto/find-roadmaps-query.dto.js';
 import type { PauseRoadmapDto } from './dto/pause-roadmap.dto.js';
@@ -18,6 +19,22 @@ import {
   serializeRoadmapDetail,
   serializeRoadmapSummary,
 } from './utils/roadmap-detail.mapper.js';
+import { roadmapStatusRows } from './utils/roadmap-status.query.js';
+
+const summarySelect = {
+  id: true,
+  title: true,
+  pausedAt: true,
+  lastActivityAt: true,
+  activityVersion: true,
+  items: {
+    select: {
+      type: true,
+      level: true,
+      progress: { select: { percentage: true } },
+    },
+  },
+} as const;
 
 const includeItems = {
   items: { include: { progress: true }, orderBy: { order: 'asc' as const } },
@@ -41,42 +58,57 @@ export class RoadmapsService {
     return userId;
   }
 
+  /**
+   * Status is derived from item progress, so it is computed in SQL: counts and
+   * the requested page are resolved by the database, and only that page is
+   * loaded, without item content or syllabus.
+   */
   async findAll(userId: string | undefined, query: FindRoadmapsQueryDto) {
     const ownerId = this.requireUser(userId);
-    const roadmaps = await this.prisma.roadmap.findMany({
-      where: { userId: ownerId },
-      include: includeItems,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
-    const summaries = roadmaps.map(serializeRoadmapSummary);
+    const rows = roadmapStatusRows(ownerId);
+    const grouped = await this.prisma.$queryRaw<
+      Array<{ status: RoadmapStatus; total: number }>
+    >`SELECT s."status", COUNT(*)::int AS "total" FROM (${rows}) s GROUP BY s."status"`;
+    const countOf = (status: RoadmapStatus) =>
+      grouped.find((row) => row.status === status)?.total ??
+      EMPTY_COLLECTION_SIZE;
     const counts = {
-      all: summaries.length,
-      notStarted: summaries.filter(
-        (item) => item.status === RoadmapStatus.NOT_STARTED,
-      ).length,
-      inProgress: summaries.filter(
-        (item) => item.status === RoadmapStatus.IN_PROGRESS,
-      ).length,
-      paused: summaries.filter((item) => item.status === RoadmapStatus.PAUSED)
-        .length,
-      completed: summaries.filter(
-        (item) => item.status === RoadmapStatus.COMPLETED,
-      ).length,
+      all: grouped.reduce((sum, row) => sum + row.total, EMPTY_COLLECTION_SIZE),
+      notStarted: countOf(RoadmapStatus.NOT_STARTED),
+      inProgress: countOf(RoadmapStatus.IN_PROGRESS),
+      paused: countOf(RoadmapStatus.PAUSED),
+      completed: countOf(RoadmapStatus.COMPLETED),
     };
-    const filtered = query.status
-      ? summaries.filter((item) => item.status === query.status)
-      : summaries;
-    const start = (query.page - DEFAULT_PAGE) * query.limit;
+    const total = query.status ? countOf(query.status) : counts.all;
+
+    const page = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT s."id" FROM (${rows}) s
+      ${query.status ? Prisma.sql`WHERE s."status" = ${query.status}` : Prisma.empty}
+      ORDER BY s."createdAt" DESC, s."id" DESC
+      LIMIT ${query.limit} OFFSET ${(query.page - DEFAULT_PAGE) * query.limit}`;
+    const ids = page.map((row) => row.id);
+    const roadmaps =
+      ids.length === EMPTY_COLLECTION_SIZE
+        ? []
+        : await this.prisma.roadmap.findMany({
+            where: { id: { in: ids } },
+            select: summarySelect,
+          });
+    const byId = new Map(roadmaps.map((roadmap) => [roadmap.id, roadmap]));
+
     return {
-      data: filtered.slice(start, start + query.limit),
+      data: ids
+        .map((id) => byId.get(id))
+        .filter((roadmap) => roadmap !== undefined)
+        .map(serializeRoadmapSummary),
       meta: {
-        total: filtered.length,
+        total,
         page: query.page,
         limit: query.limit,
         totalPages:
-          filtered.length === EMPTY_COLLECTION_SIZE
+          total === EMPTY_COLLECTION_SIZE
             ? EMPTY_COLLECTION_SIZE
-            : Math.ceil(filtered.length / query.limit),
+            : Math.ceil(total / query.limit),
       },
       counts,
     };

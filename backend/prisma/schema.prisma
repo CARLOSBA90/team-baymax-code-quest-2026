@@ -183,8 +183,32 @@ model Course {
   prerequisites CoursePrerequisite[] @relation("CoursePrerequisites")
   requiredBy    CoursePrerequisite[] @relation("PrerequisiteOf")
   roadmapItems  RoadmapItem[]
+  lessons       CourseLesson[]
 
   @@map("course")
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  OTHER
+}
+
+/// Syllabus of a catalog course, scraped from its public page. Roadmaps copy
+/// it into their items, so later catalog changes do not alter existing ones.
+model CourseLesson {
+  id           String     @id @default(cuid())
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sectionOrder Int
+  sectionTitle String
+  order        Int
+  title        String
+  type         LessonType
+  freePreview  Boolean    @default(false)
+
+  @@unique([courseId, order])
+  @@map("course_lesson")
 }
 
 model CourseSkill {

@@ -1,8 +1,18 @@
 import { aggregateRoadmapProgress } from './progress-aggregation.util.js';
 import { RoadmapItemType } from '../../../generated/prisma/enums.js';
 import {
+  resolveTrackingPolicy,
+  serializeTrackingPolicy,
+} from '../../progress/tracking/tracking-policy.resolver.js';
+import {
+  readSyllabus,
+  serializeSyllabus,
+} from '../../progress/tracking/lesson-syllabus.js';
+import { readTrackingState } from '../../progress/tracking/tracking-state.js';
+import {
   INITIAL_VERSION,
   EMPTY_COLLECTION_SIZE,
+  PROGRESS_MAX_PERCENTAGE,
   PROGRESS_MIN_PERCENTAGE,
   PublicCourseLevel,
   RoadmapGenerationType,
@@ -120,6 +130,19 @@ function decimalNumber(value: unknown): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
+/** The syllabus is exposed as `syllabus`; keep it out of the raw details. */
+function withoutSyllabus(contentData: unknown): unknown {
+  if (
+    !contentData ||
+    typeof contentData !== 'object' ||
+    Array.isArray(contentData)
+  )
+    return contentData;
+  return Object.fromEntries(
+    Object.entries(contentData).filter(([key]) => key !== 'syllabus'),
+  );
+}
+
 export function serializeRoadmapDetail(roadmap: RoadmapRecord) {
   const ordered = [...roadmap.items].sort((a, b) => a.order - b.order);
   const summary = aggregateRoadmapProgress(
@@ -127,30 +150,8 @@ export function serializeRoadmapDetail(roadmap: RoadmapRecord) {
     roadmap.pausedAt,
   );
   const content = ordered.map((item) => {
-    const state =
-      item.progress?.trackingState &&
-      typeof item.progress.trackingState === 'object' &&
-      !Array.isArray(item.progress.trackingState)
-        ? (item.progress.trackingState as Record<string, unknown>)
-        : {};
-    const data =
-      item.contentData &&
-      typeof item.contentData === 'object' &&
-      !Array.isArray(item.contentData)
-        ? (item.contentData as Record<string, unknown>)
-        : {};
-    const configuredTracking =
-      data.tracking &&
-      typeof data.tracking === 'object' &&
-      !Array.isArray(data.tracking)
-        ? (data.tracking as Record<string, unknown>)
-        : {};
-    const trackingType =
-      typeof configuredTracking.type === 'string'
-        ? configuredTracking.type
-        : item.type === RoadmapItemType.CHALLENGE
-          ? 'CHALLENGE'
-          : 'MANUAL';
+    const state = readTrackingState(item.progress?.trackingState);
+    const syllabus = readSyllabus(item.contentData);
     return {
       roadmap_item_id: item.id,
       type: item.type,
@@ -163,17 +164,24 @@ export function serializeRoadmapDetail(roadmap: RoadmapRecord) {
       level: levelName(item.level),
       estimated_minutes: decimalNumber(item.estimatedMinutes),
       reason: item.reason,
-      details: item.contentData,
+      details: withoutSyllabus(item.contentData),
       progress: item.progress?.percentage ?? PROGRESS_MIN_PERCENTAGE,
       progress_version: item.progress?.version ?? INITIAL_VERSION,
-      tracking: {
-        type: trackingType,
-        report_interval_seconds: trackingType === 'VIDEO' ? 15 : null,
-      },
+      tracking: serializeTrackingPolicy(
+        resolveTrackingPolicy(item.type, item.contentData),
+      ),
       resume:
         typeof state.lastPositionSeconds === 'number'
           ? { position_seconds: state.lastPositionSeconds }
           : null,
+      syllabus: syllabus
+        ? serializeSyllabus(
+            syllabus,
+            new Set(state.completedLessons ?? []),
+            state.lastLessonId,
+            state.lessonPositions,
+          )
+        : null,
       started_at: item.progress?.startedAt?.toISOString() ?? null,
       completed_at: item.progress?.completedAt?.toISOString() ?? null,
     };
@@ -199,20 +207,66 @@ export function serializeRoadmapDetail(roadmap: RoadmapRecord) {
         image: item.image,
       })),
     content,
+    next_step: nextStep(content),
   };
 }
 
-export function serializeRoadmapSummary(roadmap: RoadmapRecord) {
-  const detail = serializeRoadmapDetail(roadmap);
+/**
+ * "Continue here": the first unfinished item in roadmap order and, for a
+ * course with a syllabus, the lesson to resume. Null when everything is done.
+ */
+function nextStep(
+  content: ReadonlyArray<{
+    roadmap_item_id: string;
+    name: string;
+    url: string | null;
+    progress: number;
+    syllabus: { next_lesson: unknown } | null;
+  }>,
+) {
+  const item = content.find(
+    (entry) => entry.progress < PROGRESS_MAX_PERCENTAGE,
+  );
+  return item
+    ? {
+        roadmap_item_id: item.roadmap_item_id,
+        name: item.name,
+        url: item.url,
+        lesson: item.syllabus?.next_lesson ?? null,
+      }
+    : null;
+}
+
+/** Fields the roadmap list needs: no item content or syllabus. */
+export interface RoadmapSummaryRecord {
+  id: string;
+  title: string;
+  pausedAt: Date | null;
+  lastActivityAt: Date;
+  activityVersion: number;
+  items: Array<{
+    type: RoadmapItemType;
+    level: number | null;
+    progress: { percentage: number } | null;
+  }>;
+}
+
+export function serializeRoadmapSummary(roadmap: RoadmapSummaryRecord) {
+  const summary = aggregateRoadmapProgress(
+    roadmap.items.map(
+      (item) => item.progress?.percentage ?? PROGRESS_MIN_PERCENTAGE,
+    ),
+    roadmap.pausedAt,
+  );
   const levels = roadmap.items.map((item) => item.level);
   return {
-    id: detail.id,
-    name: detail.name,
-    status: detail.status,
-    progress: detail.progress,
-    last_activity: detail.last_activity,
-    paused_at: detail.paused_at,
-    activity_version: detail.activity_version,
+    id: roadmap.id,
+    name: roadmap.title,
+    status: summary.status,
+    progress: summary.progress,
+    last_activity: roadmap.lastActivityAt.toISOString(),
+    paused_at: roadmap.pausedAt?.toISOString() ?? null,
+    activity_version: roadmap.activityVersion,
     total_items: roadmap.items.length,
     total_courses: roadmap.items.filter(
       (item) => item.type === RoadmapItemType.COURSE,

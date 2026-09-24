@@ -11,20 +11,73 @@
 Los endpoints vigentes son:
 
 ```text
-PATCH /api/v1/progress/:roadmapItemId
-POST  /api/v1/progress/:roadmapItemId/track
-POST  /api/v1/progress/:roadmapItemId/files
-GET   /api/v1/progress/roadmap/:roadmapId
+POST  /api/v1/progress/track                         # único punto para reportar avance
+GET   /api/v1/progress/roadmap/:roadmapId            # lectura del estado
 PATCH /api/v1/roadmaps/:id/pause
-PATCH /api/v1/admin/challenge-submissions/:id/review
+PATCH /api/v1/admin/challenge-submissions/:id/review # evaluación del administrador
 ```
 
-La actualización recibe `{ percentage, expectedVersion }`. Un cambio efectivo
-incrementa la versión del item y la actividad de la ruta; una versión antigua
-retorna conflicto. Una ruta pausada rechaza cambios efectivos de porcentaje.
-El endpoint `track` recibe un `event_id` UUID y payload `VIDEO`, `READING`, `MANUAL` o `CHALLENGE`. El backend calcula el porcentaje y devuelve el agregado de ruta. Video guarda posición actual y máxima; lectura/manual se completan por confirmación. Los retos conservan intentos en `ChallengeSubmission` y solo llegan a 100 cuando un administrador aprueba la entrega. Los archivos se cargan primero como borradores privados.
+No existe un endpoint para fijar porcentajes a mano: todo avance pasa por
+`track` y el backend lo calcula según la política del item. Un cambio efectivo
+incrementa la versión del item y la actividad de la ruta; un reporte sin cambios
+(marcar de nuevo algo completado, la misma posición de video) no escribe nada.
+Una ruta pausada rechaza reportes.
 
-`Progress.trackingState`, `startedAt` y `completedAt` permiten reanudar y distinguir actividad con 0 %. Los items históricos sin política explícita usan `MANUAL`; los retos usan revisión. El detalle expone `tracking` y `resume`.
+El cliente solo manda `roadmap_item_id` y el dato que corresponde al
+`tracking.type` del item; el backend deduce el tipo y rechaza con 422
+`TRACKING_REPORT_MISMATCH` un campo que no corresponda:
+
+| `tracking.type` | Qué significa | Campo |
+| --- | --- | --- |
+| `LESSONS` | Curso con temario: el estudiante marca cada lección; el curso avanza `lecciones marcadas / total` | `lesson_id` + `completed` (`true` marca, `false` desmarca), o `lesson_id` + `position_seconds` para guardar el segundo del video de la lección |
+| `COMPLETION` | Curso sin temario: se completa cuando el estudiante lo marca | `completed: true` |
+| `READING` | Lectura: se completa al marcarla como leída | `completed: true` |
+| `VIDEO` | Video integrado: avance por posición máxima, guarda posición para reanudar | `position_seconds` |
+| `CHALLENGE` | Reto: entrega pendiente de revisión; llega a 100 solo al aprobarse | `submission` |
+
+No hay `event_id`: el backend evita duplicados por su cuenta. Completar o
+reportar la misma posición es idempotente por estado, y una entrega de reto con
+el mismo contenido dentro de 10 minutos se reconoce por su huella y no se guarda
+dos veces. Una entrega `FILE` se envía como multipart (`roadmap_item_id`,
+`submission` como texto JSON `{"type":"FILE"}` y `file`); el archivo se guarda
+en almacenamiento privado y se elimina si la entrega no llega a persistirse.
+
+### Temario por curso
+
+El catálogo guarda el temario de cada curso en `course_lesson` (sección, orden,
+título, tipo `VIDEO`/`TEXT`/`OTHER` y si es prueba gratis). Se obtiene de la
+página pública de DevTalles con `scripts/scrape-devtalles.ts --solo-temario`
+(escribe `prisma/seed/syllabus.json` sin tocar `courses.csv`) y se carga con
+`pnpm seed -- --solo-temario`. Al generar una ruta, cada curso copia su temario
+en el item (`contentData.syllabus`) con `tracking.type = LESSONS`; reimportar el
+catálogo no altera rutas existentes.
+
+Las lecciones se ven en DevTalles, así que el avance es declarado por lección,
+no medido por reproducción. Las páginas no publican la duración de cada lección:
+todas pesan lo mismo y el porcentaje entero se trunca (1 de 390 lecciones = 0 %),
+por lo que la UI debe mostrar también `lessons.completed / lessons.total`.
+
+El detalle de la ruta expone por curso `syllabus: { total_lessons,
+completed_lessons, last_lesson_id, next_lesson, sections: [{ title, lessons:
+[{ lesson_id, title, type, free_preview, completed }] }] }`; `track` y
+`GET /progress/roadmap/:id` devuelven `lessons: { completed, total,
+last_lesson_id, next_lesson }`. Una lección que no pertenece al curso responde
+422 `LESSON_NOT_IN_ITEM`.
+
+**Dónde se quedó el estudiante.** El backend guarda la última lección marcada.
+`next_lesson` (`{ lesson_id, title, section_title, position }`) es la primera
+lección pendiente desde esa última marcada (si la desmarcó, vuelve a ella), o la
+primera pendiente del curso; `null` si terminó. El detalle añade `next_step`:
+el primer item sin terminar en orden de la ruta, con su `url` y la lección donde
+continuar. Mientras se reproduce una lección, el frontend reporta cada
+`tracking.report_interval_seconds` (15 s) y al pausar `{ roadmap_item_id,
+lesson_id, position_seconds }`; el backend guarda el segundo por lección y lo
+devuelve en `next_lesson.position_seconds`, en cada lección del temario y en
+`next_step.lesson`, para reanudar donde se quedó. Esa posición no cambia el
+porcentaje (las páginas no publican la duración de cada lección): la lección se
+completa con `completed: true`.
+
+`Progress.trackingState`, `startedAt` y `completedAt` permiten reanudar y distinguir actividad con 0 %. Los items sin política explícita usan `COMPLETION` (el antiguo `MANUAL` se interpreta igual); los retos usan revisión. El detalle expone `tracking` y `resume`.
 
 > Dos enfoques para registrar y procesar el progreso de una ruta de aprendizaje.
 

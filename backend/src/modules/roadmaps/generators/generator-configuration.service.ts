@@ -3,6 +3,10 @@ const DEFAULT_TOTAL_TIMEOUT_MS = 30_000;
 const MAX_TOTAL_TIMEOUT_MS = 120_000;
 const DEFAULT_MODEL_ATTEMPTS = 2;
 const MAX_MODEL_ATTEMPTS = 4;
+const DEFAULT_FIRST_TOKEN_TIMEOUT_MS = 10_000;
+const MAX_FIRST_TOKEN_TIMEOUT_MS = 60_000;
+const DEFAULT_QUEUE_RETRIES = 2;
+const MAX_QUEUE_RETRIES = 5;
 import {
   EMPTY_COLLECTION_SIZE,
   NVIDIA_DEFAULT_BASE_URL,
@@ -56,6 +60,16 @@ export class GeneratorConfigurationService {
         configuredTimeout > EMPTY_COLLECTION_SIZE
           ? configuredTimeout
           : NVIDIA_DEFAULT_TIMEOUT_MS,
+      firstTokenTimeoutMs: this.positiveInteger(
+        process.env.NVIDIA_FIRST_TOKEN_TIMEOUT_MS,
+        DEFAULT_FIRST_TOKEN_TIMEOUT_MS,
+        MAX_FIRST_TOKEN_TIMEOUT_MS,
+      ),
+      queueRetries: this.nonNegativeInteger(
+        process.env.NVIDIA_QUEUE_RETRIES,
+        DEFAULT_QUEUE_RETRIES,
+        MAX_QUEUE_RETRIES,
+      ),
     };
   }
 
@@ -71,6 +85,8 @@ export class GeneratorConfigurationService {
         timeout_ms: nvidia.timeoutMs,
         total_timeout_ms: nvidia.totalTimeoutMs,
         max_attempts: nvidia.maxAttempts,
+        first_token_timeout_ms: nvidia.firstTokenTimeoutMs,
+        queue_retries: nvidia.queueRetries,
       },
     };
   }
@@ -89,6 +105,18 @@ export class GeneratorConfigurationService {
   ): number {
     const parsed = Number(value);
     return Number.isSafeInteger(parsed) && parsed > 0
+      ? Math.min(parsed, maximum)
+      : fallback;
+  }
+
+  private nonNegativeInteger(
+    value: string | undefined,
+    fallback: number,
+    maximum: number,
+  ): number {
+    if (value === undefined || value.trim() === '') return fallback;
+    const parsed = Number(value);
+    return Number.isSafeInteger(parsed) && parsed >= 0
       ? Math.min(parsed, maximum)
       : fallback;
   }

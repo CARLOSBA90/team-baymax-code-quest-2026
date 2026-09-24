@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  orderForLearning,
   orderWithRequiredPrerequisites,
   PrerequisiteResolutionError,
   PrerequisiteResolutionFailure,
@@ -65,5 +66,39 @@ describe('orderWithRequiredPrerequisites', () => {
         failure: PrerequisiteResolutionFailure.CYCLE,
       }),
     );
+  });
+});
+
+describe('orderForLearning', () => {
+  const course = (id: string, level: number, prerequisites: string[] = []) => ({
+    id,
+    level,
+    prerequisites,
+  });
+  const order = (selected: ReturnType<typeof course>[], all = selected) =>
+    orderForLearning(
+      selected,
+      all,
+      (candidate) => candidate.prerequisites,
+      50,
+    ).map(({ id }) => id);
+
+  it('moves lower levels first and keeps the generator order within a level', () => {
+    expect(
+      order([
+        course('node', 1),
+        course('fastapi', 2),
+        course('openai', 2),
+        course('graphql', 1),
+        course('nest', 1),
+      ]),
+    ).toEqual(['node', 'graphql', 'nest', 'fastapi', 'openai']);
+  });
+
+  it('still places a required prerequisite before its dependent course', () => {
+    const nest = course('nest', 2);
+    const graphql = course('graphql', 1, ['nest']);
+
+    expect(order([graphql, nest])).toEqual(['nest', 'graphql']);
   });
 });

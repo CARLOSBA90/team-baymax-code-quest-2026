@@ -1,22 +1,24 @@
-import { Type } from 'class-transformer';
+import { plainToInstance, Transform } from 'class-transformer';
 import {
-  Equals,
   IsBoolean,
   IsEnum,
-  IsNumber,
   IsNotEmpty,
+  IsNumber,
+  IsObject,
+  IsOptional,
   IsString,
   IsUrl,
-  IsUUID,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import {
+  MAX_POSITION_SECONDS,
+  MAX_SUBMISSION_LANGUAGE_LENGTH,
   MAX_SUBMISSION_TEXT_LENGTH,
   SubmissionType,
-  TrackingType,
 } from '../progress.constants.js';
 
 export class ChallengeSubmissionDto {
@@ -36,7 +38,7 @@ export class ChallengeSubmissionDto {
   )
   @IsString()
   @IsNotEmpty()
-  @MaxLength(40)
+  @MaxLength(MAX_SUBMISSION_LANGUAGE_LENGTH)
   language?: string;
 
   @ValidateIf(
@@ -44,41 +46,56 @@ export class ChallengeSubmissionDto {
   )
   @IsUrl({ protocols: ['https'], require_protocol: true })
   url?: string;
-
-  @ValidateIf(
-    (value: ChallengeSubmissionDto) => value.type === SubmissionType.FILE,
-  )
-  @IsString()
-  file_id?: string;
 }
 
-export class TrackPayloadDto {
-  @IsEnum(TrackingType)
-  type!: TrackingType;
+/** Multipart requests carry the submission as a JSON string next to the file. */
+function toSubmission({ obj }: { obj: Record<string, unknown> }): unknown {
+  let raw = obj.submission;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return obj.submission;
+    }
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? plainToInstance(ChallengeSubmissionDto, raw)
+    : raw;
+}
 
-  @ValidateIf((value: TrackPayloadDto) => value.type === TrackingType.VIDEO)
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  @Min(0)
-  position_seconds?: number;
+/**
+ * The client only says which item and what happened. The backend knows the
+ * item's tracking type and checks that the right fields were sent:
+ * COMPLETION/READING → completed: true, LESSONS → lesson_id + completed
+ * (true marks, false unmarks), VIDEO → position_seconds,
+ * CHALLENGE → submission (plus a multipart file for FILE).
+ */
+export class TrackProgressDto {
+  @IsString()
+  @IsNotEmpty()
+  roadmap_item_id!: string;
 
-  @ValidateIf((value: TrackPayloadDto) =>
-    [TrackingType.READING, TrackingType.MANUAL].includes(value.type),
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  lesson_id?: string;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
   )
   @IsBoolean()
-  @Equals(true)
   completed?: boolean;
 
-  @ValidateIf((value: TrackPayloadDto) => value.type === TrackingType.CHALLENGE)
+  @IsOptional()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  @Min(0)
+  @Max(MAX_POSITION_SECONDS)
+  position_seconds?: number;
+
+  @IsOptional()
+  @IsObject()
   @ValidateNested()
-  @Type(() => ChallengeSubmissionDto)
+  @Transform(toSubmission)
   submission?: ChallengeSubmissionDto;
-}
-
-export class TrackProgressDto {
-  @IsUUID()
-  event_id!: string;
-
-  @ValidateNested()
-  @Type(() => TrackPayloadDto)
-  payload!: TrackPayloadDto;
 }

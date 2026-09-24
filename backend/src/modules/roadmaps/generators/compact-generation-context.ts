@@ -4,6 +4,36 @@ export const AI_CANDIDATE_LIMIT = 20;
 export const AI_DESCRIPTION_LIMIT = 240;
 const AI_TITLE_LIMIT = 160;
 const MIN_SEARCH_TERM_LENGTH = 3;
+/** Common goal words that match most descriptions and would add noise. */
+const STOP_WORDS = new Set([
+  'con',
+  'para',
+  'por',
+  'que',
+  'una',
+  'uno',
+  'los',
+  'las',
+  'del',
+  'como',
+  'quiero',
+  'aprender',
+  'aprende',
+  'saber',
+  'ser',
+  'hacer',
+  'crear',
+  'mas',
+  'desde',
+  'cero',
+  'curso',
+  'cursos',
+  'the',
+  'and',
+  'with',
+  'for',
+  'learn',
+]);
 
 /** Keeps the original catalog intact; only the provider context is reduced. */
 export function compactGenerationContext(
@@ -14,7 +44,9 @@ export function compactGenerationContext(
       (context.goalDescription ?? '').toLowerCase().match(/[\p{L}\p{N}]+/gu) ??
         [],
     ),
-  ].filter((term) => term.length >= MIN_SEARCH_TERM_LENGTH);
+  ].filter(
+    (term) => term.length >= MIN_SEARCH_TERM_LENGTH && !STOP_WORDS.has(term),
+  );
   const score = (candidate: RoadmapGeneratorContext['candidates'][number]) => {
     const text =
       `${candidate.title} ${candidate.description ?? ''}`.toLowerCase();

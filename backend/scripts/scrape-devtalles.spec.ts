@@ -132,7 +132,7 @@ describe('scrape-devtalles pure transformations', () => {
       <li class="course-curriculum__chapter">
         <h3 class="course-curriculum__chapter-title">Introducción</h3>
         <ol class="course-curriculum__chapter-content">
-          <li><i class="toga-icon content-video"></i><span class="course-curriculum__lesson-title">Bienvenida</span></li>
+          <li><a class="course-curriculum__chapter-lesson"><i class="toga-icon toga-icon-content-video"></i><div class="course-curriculum__lesson-title"><p>Bienvenida</p><span class="course-curriculum__chapter-lesson--free course-curriculum__chapter-lesson--free___150a4"> PRUEBA GRATIS </span></div></a></li>
           <li><i class="toga-icon content-text"></i><span class="course-curriculum__lesson-title">Notas</span></li>
         </ol>
       </li>
@@ -163,8 +163,8 @@ describe('scrape-devtalles pure transformations', () => {
         {
           titulo: 'Introducción',
           lecciones: [
-            { titulo: 'Bienvenida', tipo: 'VIDEO' },
-            { titulo: 'Notas', tipo: 'TEXTO' },
+            { titulo: 'Bienvenida', tipo: 'VIDEO', pruebaGratis: true },
+            { titulo: 'Notas', tipo: 'TEXTO', pruebaGratis: false },
           ],
         },
       ],

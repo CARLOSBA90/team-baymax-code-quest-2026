@@ -60,3 +60,21 @@ export function orderWithRequiredPrerequisites<T extends Identifiable>(
   selected.forEach((candidate) => visit(candidate.id));
   return ordered;
 }
+
+/**
+ * Learning order: lower levels first, keeping the generator's order within a
+ * level (Array#sort is stable); required prerequisites still come first.
+ */
+export function orderForLearning<T extends Identifiable & { level: number }>(
+  selected: readonly T[],
+  candidates: readonly T[],
+  getRequiredIds: (candidate: T) => readonly string[],
+  maximumItems: number,
+): T[] {
+  return orderWithRequiredPrerequisites(
+    [...selected].sort((left, right) => left.level - right.level),
+    candidates,
+    getRequiredIds,
+    maximumItems,
+  );
+}
