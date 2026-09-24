@@ -469,6 +469,52 @@
             },
             "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}/pause"
           }
+        },
+        {
+          "name": "Delete roadmap",
+          "description": "Borrado físico de la ruta {{roadmapId}} con sus items, progreso y entregas. Ejecútalo al final: las demás peticiones usan esa ruta.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns the deleted id', () => {",
+                  "  pm.expect(body.message).to.eql('Roadmap deleted.');",
+                  "  pm.expect(body.data.id).to.eql(pm.collectionVariables.get('roadmapId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}"
+          }
+        },
+        {
+          "name": "Delete roadmap again (404)",
+          "description": "La ruta ya no existe (o es de otro usuario): 404.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('Code is ROADMAP_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('ROADMAP_NOT_FOUND'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}"
+          }
         }
       ]
     },

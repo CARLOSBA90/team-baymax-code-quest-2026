@@ -2,11 +2,13 @@ import {
   ConflictException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ChallengeFileStorageService } from '../progress/storage/challenge-file-storage.service.js';
 import type { FindRoadmapsQueryDto } from './dto/find-roadmaps-query.dto.js';
 import type { PauseRoadmapDto } from './dto/pause-roadmap.dto.js';
 import {
@@ -51,7 +53,12 @@ function conflict(code: string, message: string): ConflictException {
 
 @Injectable()
 export class RoadmapsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(RoadmapsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly files: ChallengeFileStorageService,
+  ) {}
 
   private requireUser(userId: string | undefined): string {
     if (!userId) throw new UnauthorizedException();
@@ -129,6 +136,46 @@ export class RoadmapsService {
       });
     }
     return { data: serializeRoadmapDetail(roadmap) };
+  }
+
+  /**
+   * Physical delete: the roadmap cascades to its items, their progress and
+   * challenge submissions, so list counts drop it at once. Uploaded submission
+   * files live outside the database and are removed after the commit.
+   */
+  async remove(userId: string | undefined, id: string) {
+    const ownerId = this.requireUser(userId);
+    const storageKeys = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "roadmap" WHERE "id" = ${id} AND "userId" = ${ownerId} FOR UPDATE`;
+      const roadmap = await tx.roadmap.findFirst({
+        where: { id, userId: ownerId },
+        select: { id: true },
+      });
+      if (!roadmap) {
+        throw new NotFoundException({
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Not Found',
+          code: 'ROADMAP_NOT_FOUND',
+          message: 'Roadmap not found.',
+        });
+      }
+      const submissions = await tx.challengeSubmission.findMany({
+        where: { roadmapItem: { roadmapId: id }, storageKey: { not: null } },
+        select: { storageKey: true },
+      });
+      await tx.roadmap.delete({ where: { id } });
+      return submissions.map((submission) => submission.storageKey!);
+    });
+    // Best effort: the roadmap is already gone; a leftover file is only logged.
+    const removals = await Promise.allSettled(
+      storageKeys.map((key) => this.files.remove(key)),
+    );
+    const failed = removals.filter((result) => result.status === 'rejected');
+    if (failed.length > 0)
+      this.logger.warn(
+        JSON.stringify({ roadmap_id: id, orphan_files: failed.length }),
+      );
+    return { message: 'Roadmap deleted.', data: { id } };
   }
 
   async setPaused(

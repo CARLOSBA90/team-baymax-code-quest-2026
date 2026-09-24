@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -47,5 +48,10 @@ export class RoadmapsController {
   @Get(':id')
   findOne(@Session() session: UserSession, @Param('id') id: string) {
     return this.roadmapsService.findOne(session?.user?.id, id);
+  }
+
+  @Delete(':id')
+  remove(@Session() session: UserSession, @Param('id') id: string) {
+    return this.roadmapsService.remove(session?.user?.id, id);
   }
 }
