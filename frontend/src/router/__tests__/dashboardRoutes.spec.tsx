@@ -5,9 +5,10 @@ import { useSyncExternalStore } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
-import { getAssessmentQuestions } from "@/api/services";
+import { getAssessmentQuestions, getRoadmaps } from "@/api/services";
 import { routes } from "@/router/router";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
+import { EMPTY_ROADMAPS_RESULT, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 
 const store = vi.hoisted(() => {
   const listeners = new Set<() => void>();
@@ -43,10 +44,24 @@ vi.mock("@/api/queries/auth", async (importOriginal) => ({
 vi.mock("@/api/services", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/services")>()),
   getAssessmentQuestions: vi.fn(),
+  getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),
 }));
 
 const USER = { name: "Ada Lovelace", email: "ada@example.com" };
+// El sidebar añade el total al nombre accesible ("Mis Rutas, 5 rutas") cuando la lista ha
+// cargado; la tab bar no lleva pill.
+const ROUTES_LINK_NAME = /^Mis Rutas(, \d+ rutas?)?$/;
+
+function sidebarRoutesLink() {
+  const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+  return within(nav).getByRole("link", { name: ROUTES_LINK_NAME });
+}
+
+function tabBarRoutesLink() {
+  const nav = screen.getByRole("navigation", { name: "Navegación inferior" });
+  return within(nav).getByRole("link", { name: "Mis Rutas" });
+}
 const SESSION = { user: USER, session: { id: "s1" } };
 
 function renderRoutes(initialEntries: string[]) {
@@ -65,6 +80,7 @@ function renderRoutes(initialEntries: string[]) {
 describe("rutas del dashboard", () => {
   beforeEach(() => {
     vi.mocked(getAssessmentQuestions).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
     store.set(SESSION);
     vi.mocked(useSession).mockReturnValue({
       data: { user: USER },
@@ -109,8 +125,34 @@ describe("rutas del dashboard", () => {
   it("clic en Mis Rutas desde el índice (/dashboard) navega a /dashboard/roadmaps", async () => {
     const router = renderRoutes(["/dashboard"]);
     await screen.findByRole("heading", { name: "Mis Rutas" });
-    await userEvent.setup().click(screen.getByRole("link", { name: "Mis Rutas" }));
+    await userEvent.setup().click(sidebarRoutesLink());
     await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+  });
+
+  it("clic en Mis Rutas de la tab bar desde /new navega a /dashboard/roadmaps", async () => {
+    const router = renderRoutes(["/dashboard/roadmaps/new"]);
+    await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    await userEvent.setup().click(tabBarRoutesLink());
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+  });
+
+  it("el layout incluye top bar móvil y tab bar en todas las rutas del dashboard", async () => {
+    renderRoutes(["/dashboard/roadmaps"]);
+    await screen.findByRole("heading", { name: "Mis Rutas", level: 1 });
+    const avatarMenu = screen.getByRole("button", { name: "Menú de usuario de Ada Lovelace" });
+    expect(avatarMenu.closest("header")).toHaveClass("md:hidden");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("el logout desde el menú del avatar lleva a /auth/login", async () => {
+    const router = renderRoutes(["/dashboard/roadmaps"]);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Menú de usuario de Ada Lovelace" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Cerrar sesión" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"));
   });
 
   it("/dashboard/roadmaps/new renderiza el cuestionario dentro del layout con Mis Rutas activo", async () => {
@@ -118,11 +160,29 @@ describe("rutas del dashboard", () => {
 
     const title = await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
     expect(screen.getByRole("main")).toContainElement(title);
-    const sidebar = screen.getByRole("complementary");
-    expect(within(sidebar).getByRole("link", { name: "Mis Rutas" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("con ?status=paused el pill del sidebar sigue mostrando el total global", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    renderRoutes(["/dashboard/roadmaps?status=paused"]);
+
+    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(
+      await within(nav).findByRole("link", { name: "Mis Rutas, 5 rutas" }),
+    ).toBeInTheDocument();
+  });
+
+  it("en /dashboard/roadmaps/new el pill del sidebar muestra el total global", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    renderRoutes(["/dashboard/roadmaps/new"]);
+
+    await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(
+      await within(nav).findByRole("link", { name: "Mis Rutas, 5 rutas" }),
+    ).toBeInTheDocument();
   });
 
   it("/dashboard/roadmaps/new sin sesión redirige a /auth/login", async () => {
@@ -147,5 +207,18 @@ describe("rutas del dashboard", () => {
     expect(
       await screen.findByRole("button", { name: "Crear mi primera ruta" }),
     ).toBeInTheDocument();
+  });
+
+  it("/dashboard/roadmaps/:roadmapId renderiza el detalle vacío dentro del layout con Mis Rutas activo", async () => {
+    renderRoutes(["/dashboard/roadmaps/rm-frontend-react"]);
+
+    const detail = await screen.findByRole("region", { name: "Detalle de la ruta" });
+    const main = screen.getByRole("main");
+    expect(main).toContainElement(detail);
+    expect(detail).toBeEmptyDOMElement();
+    expect(within(main).queryByRole("heading")).not.toBeInTheDocument();
+    expect(within(main).queryByRole("table")).not.toBeInTheDocument();
+    expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
   });
 });

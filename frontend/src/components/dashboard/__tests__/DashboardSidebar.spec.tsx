@@ -12,10 +12,10 @@ function LocationProbe() {
   return <span data-testid="location">{useLocation().pathname}</span>;
 }
 
-function renderSidebar() {
+function renderSidebar(roadmapsCount?: number) {
   return renderWithProviders(
     <>
-      <DashboardSidebar />
+      <DashboardSidebar roadmapsCount={roadmapsCount} />
       <Routes>
         <Route path="*" element={<LocationProbe />} />
       </Routes>
@@ -92,5 +92,46 @@ describe("DashboardSidebar", () => {
     expect(aside).toHaveClass("sidebar-surface");
     expect(aside).not.toHaveClass("nebula");
     expect(aside.querySelector(".nebula")).toBeNull();
+  });
+
+  it("respeta el safe-area izquierdo e inferior con viewport-fit=cover", () => {
+    renderSidebar();
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "pl-[max(1rem,env(safe-area-inset-left))]",
+      "pr-4",
+      "pb-[max(1.25rem,env(safe-area-inset-bottom))]",
+    );
+  });
+
+  it("se oculta en móvil y se muestra como flex desde md", () => {
+    renderSidebar();
+    expect(screen.getByRole("complementary")).toHaveClass(
+      "hidden",
+      "md:flex",
+      "w-[calc(16rem+env(safe-area-inset-left))]",
+      "shrink-0",
+    );
+  });
+
+  it("muestra la pill con roadmapsCount en Mis Rutas", () => {
+    renderSidebar(5);
+    const link = screen.getByRole("link", { name: "Mis Rutas, 5 rutas" });
+    expect(within(link).getByText("5")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("muestra la pill aunque el total sea 0", () => {
+    renderSidebar(0);
+    const link = screen.getByRole("link", { name: "Mis Rutas, 0 rutas" });
+    expect(within(link).getByText("0")).toBeInTheDocument();
+  });
+
+  it("con una sola ruta el nombre accesible va en singular", () => {
+    renderSidebar(1);
+    expect(screen.getByRole("link", { name: "Mis Rutas, 1 ruta" })).toBeInTheDocument();
+  });
+
+  it("sin roadmapsCount no muestra pill", () => {
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Mis Rutas" })).toHaveTextContent(/^Mis Rutas$/);
   });
 });

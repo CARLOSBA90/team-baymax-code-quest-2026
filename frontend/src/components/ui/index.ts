@@ -1,5 +1,6 @@
 export * from "./Badge";
 export * from "./BrandMark";
+export * from "./DropdownMenu";
 export * from "./FullScreenSpinner";
 export * from "./GhostButton";
 export * from "./Modal";

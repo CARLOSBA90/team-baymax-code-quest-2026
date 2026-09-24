@@ -3,14 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ASSESSMENT_QUESTIONS_STALE_TIME, assessmentsKeys } from "@/api/queries/assessments";
-import { getAssessmentQuestions, submitAssessment } from "@/api/services";
+import { getAssessmentQuestions, getRoadmaps, submitAssessment } from "@/api/services";
 import { AssessmentPage, RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
+import { EMPTY_ROADMAPS_RESULT } from "@/test/fixtures/roadmaps";
 import { createTestQueryClient, renderWithProviders } from "@/test/renderWithProviders";
 import type { AssessmentResult } from "@/types";
 
-vi.mock("@/api/services", () => ({ getAssessmentQuestions: vi.fn(), submitAssessment: vi.fn() }));
+vi.mock("@/api/services", () => ({
+  getAssessmentQuestions: vi.fn(),
+  getRoadmaps: vi.fn(),
+  submitAssessment: vi.fn(),
+}));
 
 const FIRST = ASSESSMENT_QUESTIONS_MOCK[0];
 const SECOND = ASSESSMENT_QUESTIONS_MOCK[1];
@@ -97,6 +102,8 @@ async function expectExitNavigates(user: User) {
 describe("AssessmentPage", () => {
   beforeEach(() => {
     vi.mocked(getAssessmentQuestions).mockResolvedValue(ASSESSMENT_QUESTIONS_MOCK);
+    // Al navegar a Mis Rutas se monta `RoadmapsPage`, que pide la lista.
+    vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
     vi.mocked(submitAssessment).mockImplementation((input) =>
       Promise.resolve(buildAssessmentResultMock(input)),
     );
@@ -163,6 +170,21 @@ describe("AssessmentPage", () => {
       expect(location()).toBe("/dashboard/roadmaps");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(submitAssessment).not.toHaveBeenCalled();
+    });
+
+    it("en móvil apila el encabezado y Salir; en fila desde md (sin recortar el wizard)", async () => {
+      renderPage();
+
+      const exit = screen.getByRole("button", { name: "Salir" });
+      const header = exit.parentElement;
+      expect(header?.tagName).toBe("HEADER");
+      expect(header).toHaveClass("flex-col", "md:flex-row", "md:items-end", "md:justify-between");
+      expect(exit).toHaveClass("self-start", "md:self-auto");
+      // La sección crece con su contenido (min-h-full), en vez de quedar fija al alto de main.
+      const section = header?.parentElement;
+      expect(section).toHaveClass("min-h-full");
+      expect(section).not.toHaveClass("h-full");
+      await screen.findByRole("group", { name: FIRST.text });
     });
 
     it("no aplica la clase .nebula a ningún elemento", async () => {
@@ -322,7 +344,7 @@ describe("AssessmentPage", () => {
         await screen.findByRole("heading", { level: 1, name: "Mis Rutas" }),
       ).toBeInTheDocument();
       expect(location()).toBe("/dashboard/roadmaps");
-      expect(screen.getByRole("status")).toHaveTextContent(SUCCESS_NOTICE);
+      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
       for (const spy of consoleSpies) {
         expect(spy).not.toHaveBeenCalled();
       }
