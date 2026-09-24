@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 const BASE = "https://cursos.devtalles.com";
 // Misma ruta que lee prisma/seed.ts, sin depender del directorio de ejecución.
 const CSV_SEED_PATH = fileURLToPath(new URL("../prisma/seed/courses.csv", import.meta.url));
+const TEMARIO_SEED_PATH = fileURLToPath(new URL("../prisma/seed/syllabus.json", import.meta.url));
 const PAUSA_MS = 1000;
 
 // Paginas de listado a recorrer (pestañas de "Todos los cursos")
@@ -60,6 +61,8 @@ type TipoRuta = (typeof ETIQUETAS_RUTA)[number];
 export interface Leccion {
   titulo: string;
   tipo: "VIDEO" | "TEXTO" | "OTRO";
+  /** Leccion marcada "PRUEBA GRATIS" en la pagina publica. */
+  pruebaGratis: boolean;
 }
 
 export interface Seccion {
@@ -278,11 +281,14 @@ export function parseCurso(html: string, url: string): Curso {
     $(cap)
       .find("ol.course-curriculum__chapter-content > li")
       .each((_, li) => {
-        const t = limpiar($(li).find(".course-curriculum__lesson-title").text());
+        // El titulo va en <p>; la etiqueta "PRUEBA GRATIS" es un <span> aparte.
+        const titulo = $(li).find(".course-curriculum__lesson-title");
+        const t = limpiar(titulo.find("p").first().text() || titulo.text());
         if (!t) return;
         const icono = $(li).find("i.toga-icon").attr("class") ?? "";
         const tipo: Leccion["tipo"] = /content-video/.test(icono) ? "VIDEO" : /content-text/.test(icono) ? "TEXTO" : "OTRO";
-        lecciones.push({ titulo: t, tipo });
+        const pruebaGratis = $(li).find('[class*="course-curriculum__chapter-lesson--free"]').length > 0;
+        lecciones.push({ titulo: t, tipo, pruebaGratis });
       });
     temario.push({ titulo: tituloSeccion, lecciones });
   });
@@ -390,6 +396,16 @@ async function main() {
     }
   }
   cursos.sort((a, b) => a.titulo.localeCompare(b.titulo, "es"));
+
+  // Modo temario: solo exporta el temario, sin tocar el CSV del catalogo
+  // (sus niveles se revisan a mano).
+  if (args.includes("--solo-temario")) {
+    const temarios = cursos.map(({ slug, temario }) => ({ slug, temario }));
+    await writeFile(TEMARIO_SEED_PATH, JSON.stringify(temarios, null, 2) + "\n", "utf8");
+    console.log(`\nListo: ${TEMARIO_SEED_PATH} (${temarios.length} cursos)`);
+    return;
+  }
+
   await writeFile("seed/cursos.json", JSON.stringify(cursos, null, 2), "utf8");
   await mkdir(path.dirname(CSV_SEED_PATH), { recursive: true });
   await writeFile(CSV_SEED_PATH, [CSV_CABECERA, ...cursos.map(cursoACsv)].join("\n") + "\n", "utf8");

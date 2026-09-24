@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Header, Post } from '@nestjs/common';
-import { AllowAnonymous, Session } from '@thallesp/nestjs-better-auth';
+import { Session } from '@thallesp/nestjs-better-auth';
 import type { Session as UserSession } from '../auth/auth.js';
 import { AssessmentsService } from './assessments.service.js';
 import type { QuestionsListResponseDto } from './dto/question-response.dto.js';
@@ -10,7 +10,7 @@ import type {
 
 @Controller('assessments')
 export class AssessmentsController {
-  constructor(private readonly assessmentsService: AssessmentsService) { }
+  constructor(private readonly assessmentsService: AssessmentsService) {}
 
   /**
    * GET /api/v1/assessments/questions
@@ -24,7 +24,7 @@ export class AssessmentsController {
 
   /**
    * POST /api/v1/assessments/submit
-   * Envía las respuestas del cuestionario del usuario. 
+   * Envía las respuestas del cuestionario del usuario.
    */
   @Post('submit')
   submit(
@@ -36,7 +36,7 @@ export class AssessmentsController {
 
   /**
    * GET /api/v1/assessments/my-result
-   * Retorna la última evaluación completada por el usuario en sesión. 
+   * Retorna la última evaluación completada por el usuario en sesión.
    */
   @Get('my-result')
   getMyResult(

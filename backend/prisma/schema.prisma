@@ -10,16 +10,18 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  assessments   Assessment[] 
+  id               String                @id
+  name             String
+  email            String
+  emailVerified    Boolean               @default(false)
+  image            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  sessions         Session[]
+  accounts         Account[]
+  assessments      Assessment[]
+  roadmaps         Roadmap[]
+  challengeReviews ChallengeSubmission[] @relation("ChallengeReviewer")
 
   @@unique([email])
   @@map("user")
@@ -84,16 +86,16 @@ enum SkillCategory {
 }
 
 model Question {
-  id        String          @id @default(cuid())
+  id        String        @id @default(cuid())
   text      String
   category  SkillCategory
   order     Int
-  active    Boolean         @default(true)
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
-  options   QuestionOption[]
-  answers   AssessmentAnswer[]
+  options QuestionOption[]
+  answers AssessmentAnswer[]
 
   @@map("question")
 }
@@ -103,23 +105,24 @@ model QuestionOption {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   text       String
-  value      Int      // Puntaje de la opción (1 a 5)
+  value      Int // Puntaje de la opción (1 a 5)
   order      Int
 
   @@map("question_option")
 }
 
 model Assessment {
-  id            String             @id @default(cuid())
+  id            String         @id @default(cuid())
   userId        String
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  version       Int                @default(1)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version       Int            @default(1)
   completedAt   DateTime?
-  createdAt     DateTime           @default(now())
-  profileScores Json?              // Mapa de resultados, ej: {"BACKEND": 20, "FRONTEND": 10}
+  createdAt     DateTime       @default(now())
+  profileScores Json? // Mapa de resultados, ej: {"BACKEND": 20, "FRONTEND": 10}
   goalCategory  SkillCategory?
 
-  answers       AssessmentAnswer[]
+  answers  AssessmentAnswer[]
+  roadmaps Roadmap[]
 
   @@map("assessment")
 }
@@ -169,7 +172,7 @@ model Course {
   url             String
   description     String?
   imageUrl        String?      @map("image_url")
-  level           Int          // 1 beginner, 2 intermediate, 3 advanced
+  level           Int // 1 beginner, 2 intermediate, 3 advanced
   durationHours   Int?
   status          CourseStatus @default(ACTIVE)
   sourceUpdatedAt DateTime?
@@ -179,8 +182,33 @@ model Course {
   skills        CourseSkill[]
   prerequisites CoursePrerequisite[] @relation("CoursePrerequisites")
   requiredBy    CoursePrerequisite[] @relation("PrerequisiteOf")
+  roadmapItems  RoadmapItem[]
+  lessons       CourseLesson[]
 
   @@map("course")
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  OTHER
+}
+
+/// Syllabus of a catalog course, scraped from its public page. Roadmaps copy
+/// it into their items, so later catalog changes do not alter existing ones.
+model CourseLesson {
+  id           String     @id @default(cuid())
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sectionOrder Int
+  sectionTitle String
+  order        Int
+  title        String
+  type         LessonType
+  freePreview  Boolean    @default(false)
+
+  @@unique([courseId, order])
+  @@map("course_lesson")
 }
 
 model CourseSkill {
@@ -188,7 +216,7 @@ model CourseSkill {
   courseId String
   course   Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
   skill    SkillCategory
-  weight   Float         // Peso del skill en el curso (0.0 a 1.0)
+  weight   Float // Peso del skill en el curso (0.0 a 1.0)
 
   @@unique([courseId, skill])
   @@map("course_skill")
@@ -214,7 +242,121 @@ model CatalogImport {
   status     ImportStatus @default(RUNNING)
   created    Int          @default(0)
   updated    Int          @default(0)
-  errors     String?      // Lista de errores serializada como JSON
+  errors     String? // Lista de errores serializada como JSON
 
   @@map("catalog_import")
+}
+
+enum RoadmapItemType {
+  COURSE
+  MEDIA
+  CHALLENGE
+}
+
+model Roadmap {
+  id                        String        @id @default(cuid())
+  userId                    String
+  user                      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessmentId              String
+  assessment                Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  title                     String
+  summary                   String
+  goal                      Json?
+  weeklyHours               Decimal?      @db.Decimal(10, 2)
+  generatorVersion          String
+  catalogHash               String
+  generationContextSnapshot Json
+  pausedAt                  DateTime?     @db.Timestamptz(3)
+  lastActivityAt            DateTime      @default(now()) @db.Timestamptz(3)
+  activityVersion           Int           @default(0)
+  createdAt                 DateTime      @default(now()) @db.Timestamptz(3)
+  items                     RoadmapItem[]
+
+  @@index([userId, createdAt, id])
+  @@index([assessmentId])
+  @@map("roadmap")
+}
+
+model RoadmapItem {
+  id               String                @id @default(cuid())
+  roadmapId        String
+  roadmap          Roadmap               @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  type             RoadmapItemType
+  courseId         String?
+  course           Course?               @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  sourceKey        String
+  order            Int
+  name             String
+  description      String?
+  image            String?
+  url              String?
+  level            Int?
+  estimatedMinutes Decimal?              @db.Decimal(10, 2)
+  reason           String
+  targetSkills     SkillCategory[]
+  contentData      Json
+  progress         Progress?
+  submissions      ChallengeSubmission[]
+
+  @@unique([roadmapId, order])
+  @@unique([roadmapId, sourceKey])
+  @@unique([roadmapId, courseId])
+  @@index([courseId])
+  @@map("roadmap_item")
+}
+
+model Progress {
+  roadmapItemId String      @id
+  roadmapItem   RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  percentage    Float       @default(0)
+  version       Int         @default(0)
+  trackingState Json        @default("{}")
+  startedAt     DateTime?   @db.Timestamptz(3)
+  completedAt   DateTime?   @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@map("progress")
+}
+
+enum ChallengeSubmissionType {
+  TEXT
+  CODE
+  LINK
+  FILE
+}
+
+enum ChallengeSubmissionStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model ChallengeSubmission {
+  id               String                    @id @default(cuid())
+  roadmapItemId    String
+  roadmapItem      RoadmapItem               @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  eventId          String?
+  payloadHash      String?
+  submissionType   ChallengeSubmissionType
+  status           ChallengeSubmissionStatus @default(PENDING_REVIEW)
+  content          String?
+  language         String?
+  url              String?
+  storageKey       String?
+  originalFilename String?
+  mimeType         String?
+  sizeBytes        Int?
+  checksum         String?
+  feedback         Json?
+  evaluatorVersion String?
+  reviewedByUserId String?
+  reviewedByUser   User?                     @relation("ChallengeReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+  createdAt        DateTime                  @default(now()) @db.Timestamptz(3)
+  evaluatedAt      DateTime?                 @db.Timestamptz(3)
+
+  @@unique([roadmapItemId, eventId])
+  @@index([roadmapItemId, status, createdAt])
+  @@index([reviewedByUserId])
+  @@map("challenge_submission")
 }

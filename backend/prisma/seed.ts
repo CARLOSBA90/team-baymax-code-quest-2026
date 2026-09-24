@@ -5,10 +5,17 @@ import { prisma } from '../src/prisma/prisma.service.js';
 import { ImportStatus, SkillCategory } from '../src/generated/prisma/enums.js';
 import { CatalogService } from '../src/modules/catalog/catalog.service.js';
 import { CsvCatalogAdapter } from '../src/modules/catalog/ingestion/csv.adapter.js';
+import {
+  importSyllabus,
+  type ScrapedSyllabus,
+} from '../src/modules/catalog/ingestion/syllabus.importer.js';
 import { normalizeSlug } from '../src/modules/catalog/utils/course-normalizer.util.js';
 
 const COURSES_CSV_PATH = fileURLToPath(
   new URL('./seed/courses.csv', import.meta.url),
+);
+const SYLLABUS_JSON_PATH = fileURLToPath(
+  new URL('./seed/syllabus.json', import.meta.url),
 );
 
 interface SeedOption {
@@ -270,9 +277,27 @@ async function seedCourses() {
   console.log(`${deactivated} cursos que no están en el CSV quedaron INACTIVE`);
 }
 
+/** Loads each course's syllabus (generated with scrape-devtalles --solo-temario). */
+async function seedSyllabus() {
+  console.log('Importando temario desde prisma/seed/syllabus.json...');
+  const entries = JSON.parse(
+    await readFile(SYLLABUS_JSON_PATH, 'utf8'),
+  ) as ScrapedSyllabus[];
+  const result = await importSyllabus(prisma, entries);
+  console.log(
+    `${result.courses} cursos con temario (${result.lessons} lecciones)`,
+  );
+  if (result.unknownSlugs.length > 0)
+    console.warn(`Sin curso en el catálogo: ${result.unknownSlugs.join(', ')}`);
+}
+
 async function main() {
-  await seedQuestions();
-  await seedCourses();
+  // `pnpm seed -- --solo-temario` reloads only the syllabus.
+  if (!process.argv.includes('--solo-temario')) {
+    await seedQuestions();
+    await seedCourses();
+  }
+  await seedSyllabus();
 
   console.log('Seed completado exitosamente.');
 }

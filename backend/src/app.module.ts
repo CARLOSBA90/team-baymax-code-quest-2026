@@ -6,6 +6,8 @@ import { AppService } from './app.service.js';
 import { AssessmentsModule } from './modules/assessments/assessments.module.js';
 import { auth } from './modules/auth/auth.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { ProgressModule } from './modules/progress/progress.module.js';
+import { RoadmapsModule } from './modules/roadmaps/roadmaps.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -17,6 +19,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
     UsersModule,
     AssessmentsModule,
     CatalogModule,
+    RoadmapsModule,
+    ProgressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
