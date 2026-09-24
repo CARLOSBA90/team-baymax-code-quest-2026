@@ -53,6 +53,6 @@ describe("RoadmapsFilterBar", () => {
       <RoadmapsFilterBar active="all" counts={ROADMAPS_LIST_RESULT.counts} onChange={vi.fn()} />,
     );
 
-    expect(screen.getByRole("group")).toHaveClass("overflow-x-auto", "-mx-4", "px-4", "md:mx-0");
+    expect(screen.getByRole("group")).toHaveClass("overflow-x-auto", "-mx-5", "px-5", "md:mx-0");
   });
 });

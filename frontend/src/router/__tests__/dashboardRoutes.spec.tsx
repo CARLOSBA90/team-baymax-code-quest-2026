@@ -8,7 +8,7 @@ import { useLogout, useSession } from "@/api/queries/auth";
 import { getAssessmentQuestions, getRoadmaps } from "@/api/services";
 import { routes } from "@/router/router";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
-import { EMPTY_ROADMAPS_RESULT } from "@/test/fixtures/roadmaps";
+import { EMPTY_ROADMAPS_RESULT, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 
 const store = vi.hoisted(() => {
   const listeners = new Set<() => void>();
@@ -162,6 +162,27 @@ describe("rutas del dashboard", () => {
     expect(screen.getByRole("main")).toContainElement(title);
     expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
     expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("con ?status=paused el pill del sidebar sigue mostrando el total global", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    renderRoutes(["/dashboard/roadmaps?status=paused"]);
+
+    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(
+      await within(nav).findByRole("link", { name: "Mis Rutas, 5 rutas" }),
+    ).toBeInTheDocument();
+  });
+
+  it("en /dashboard/roadmaps/new el pill del sidebar muestra el total global", async () => {
+    vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+    renderRoutes(["/dashboard/roadmaps/new"]);
+
+    await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    const nav = screen.getByRole("navigation", { name: "Navegación principal" });
+    expect(
+      await within(nav).findByRole("link", { name: "Mis Rutas, 5 rutas" }),
+    ).toBeInTheDocument();
   });
 
   it("/dashboard/roadmaps/new sin sesión redirige a /auth/login", async () => {

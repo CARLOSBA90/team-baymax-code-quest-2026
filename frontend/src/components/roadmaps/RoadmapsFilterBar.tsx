@@ -24,7 +24,7 @@ export function RoadmapsFilterBar({ active, counts, onChange }: RoadmapsFilterBa
     <div
       role="group"
       aria-label="Filtrar rutas por estado"
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] md:mx-0 md:w-fit md:gap-1 md:rounded-control md:border md:border-border-field md:bg-bg-ghost md:p-1 [&::-webkit-scrollbar]:hidden"
+      className="-mx-5 flex gap-2 overflow-x-auto px-5 py-1 [scrollbar-width:none] md:mx-0 md:w-fit md:gap-1 md:rounded-control md:border md:border-border-field md:bg-bg-ghost md:p-1 [&::-webkit-scrollbar]:hidden"
     >
       {ROADMAP_FILTERS.map((option) => {
         const pressed = option.value === active;
