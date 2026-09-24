@@ -2,12 +2,11 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegister } from "@/api/queries/auth";
+import { Notice, PrimaryButton } from "@/components/ui";
 import { getAuthErrorMessage } from "@/lib";
 import { type RegisterFormValues, registerSchema } from "@/schemas/";
 import { AuthLink } from "./AuthCard";
-import { AuthNotice } from "./AuthNotice";
 import { PasswordField } from "./PasswordField";
-import { PrimaryButton } from "./PrimaryButton";
 import { TermsDialog } from "./TermsDialog";
 import { TextField } from "./TextField";
 
@@ -92,7 +91,7 @@ export function AuthRegisterForm() {
   return (
     <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
       {isSuccess && (
-        <AuthNotice variant="success">
+        <Notice variant="success">
           <div className="flex flex-col gap-2">
             <p>
               ¡Cuenta creada con éxito! Revisa tu correo para verificar tu cuenta. Te llevaremos al
@@ -100,9 +99,9 @@ export function AuthRegisterForm() {
             </p>
             <AuthLink href="/auth/login" label="Ir a iniciar sesión" />
           </div>
-        </AuthNotice>
+        </Notice>
       )}
-      {isError && <AuthNotice variant="error">{getAuthErrorMessage(error)}</AuthNotice>}
+      {isError && <Notice variant="error">{getAuthErrorMessage(error)}</Notice>}
       <div className="flex flex-col gap-4">
         <TextField
           id="name"

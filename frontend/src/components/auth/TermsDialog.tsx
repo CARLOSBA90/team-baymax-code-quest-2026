@@ -1,7 +1,6 @@
 import { Fragment, useId } from "react";
-import { GhostButton, Modal } from "@/components/ui";
+import { GhostButton, Modal, PrimaryButton } from "@/components/ui";
 import { useScrolledToEnd } from "@/hooks";
-import { PrimaryButton } from "./PrimaryButton";
 import {
   TERMS_CLOSING,
   TERMS_INTRO,

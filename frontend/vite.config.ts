@@ -37,6 +37,8 @@ export default defineConfig({
         "src/components/assessment/**",
         "src/components/ui/GhostButton.tsx",
         "src/components/ui/Modal.tsx",
+        "src/components/ui/Notice.tsx",
+        "src/components/ui/PrimaryButton.tsx",
         "src/hooks/**",
         "src/components/dashboard/**",
         "src/components/ui/NebulaSurface.tsx",

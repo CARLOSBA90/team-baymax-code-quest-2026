@@ -15,11 +15,11 @@ const variants = {
   },
 } as const;
 
-interface AuthNoticeProps {
+interface NoticeProps {
   variant: keyof typeof variants;
 }
 
-export function AuthNotice({ variant, children }: PropsWithChildren<AuthNoticeProps>) {
+export function Notice({ variant, children }: PropsWithChildren<NoticeProps>) {
   const { role, ...colors } = variants[variant];
 
   return (

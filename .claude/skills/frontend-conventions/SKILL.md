@@ -33,11 +33,11 @@ Aplica a todo fichero nuevo o modificado en `frontend/src/`. Biome no cubre esta
   ```tsx
   import type { PropsWithChildren } from "react";
 
-  interface AuthNoticeProps {
+  interface NoticeProps {
     variant: "error" | "info";
   }
 
-  export function AuthNotice({ variant, children }: PropsWithChildren<AuthNoticeProps>) {}
+  export function Notice({ variant, children }: PropsWithChildren<NoticeProps>) {}
   ```
 - Sin props propias: `PropsWithChildren` a secas (`{ children }: PropsWithChildren`).
 - `ReactNode` sigue siendo válido para **otras** props de slot (`icon`, `footer`), solo no para `children`.

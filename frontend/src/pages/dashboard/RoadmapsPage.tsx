@@ -2,7 +2,6 @@ import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/api/errors";
 import { useDeleteRoadmap, useRoadmaps } from "@/api/queries/roadmaps";
-import { AuthNotice, PrimaryButton } from "@/components/auth";
 import { RoadmapsEmptyState } from "@/components/dashboard";
 import {
   DeleteRoadmapDialog,
@@ -12,6 +11,7 @@ import {
   RoadmapsListSkeleton,
   RoadmapsTable,
 } from "@/components/roadmaps";
+import { Notice, PrimaryButton } from "@/components/ui";
 import { useDeleteRoadmapNotice } from "@/hooks";
 import {
   filterRoadmaps,
@@ -85,7 +85,7 @@ interface RoadmapsLoadErrorProps {
 function RoadmapsLoadError({ message, onRetry }: RoadmapsLoadErrorProps) {
   return (
     <div className="flex w-full max-w-md flex-col gap-4">
-      <AuthNotice variant="error">{message}</AuthNotice>
+      <Notice variant="error">{message}</Notice>
       <PrimaryButton onClick={onRetry}>Reintentar</PrimaryButton>
     </div>
   );
@@ -225,13 +225,11 @@ export const RoadmapsPage = () => {
         )}
       </header>
       {showAssessmentNotice && (
-        <AuthNotice variant="success">
+        <Notice variant="success">
           ¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.
-        </AuthNotice>
+        </Notice>
       )}
-      {deleteNotice.message !== null && (
-        <AuthNotice variant="success">{deleteNotice.message}</AuthNotice>
-      )}
+      {deleteNotice.message !== null && <Notice variant="success">{deleteNotice.message}</Notice>}
       {content}
       <DeleteRoadmapDialog
         roadmap={roadmapToDelete}

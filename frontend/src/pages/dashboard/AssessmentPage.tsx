@@ -8,8 +8,7 @@ import {
   ChevronRightIcon,
   CloseIcon,
 } from "@/components/assessment";
-import { AuthNotice, PrimaryButton } from "@/components/auth";
-import { GhostButton, NebulaSurface } from "@/components/ui";
+import { GhostButton, NebulaSurface, Notice, PrimaryButton } from "@/components/ui";
 import { ASSESSMENT_COMPLETED_STATE, getAssessmentSubtitle } from "@/lib";
 import type { AssessmentAnswer } from "@/types";
 
@@ -46,7 +45,7 @@ interface AssessmentLoadErrorProps {
 function AssessmentLoadError({ message, onRetry }: AssessmentLoadErrorProps) {
   return (
     <div className="flex w-full max-w-md flex-col gap-4">
-      <AuthNotice variant="error">{message}</AuthNotice>
+      <Notice variant="error">{message}</Notice>
       <PrimaryButton onClick={onRetry}>Reintentar</PrimaryButton>
     </div>
   );
@@ -85,9 +84,7 @@ export const AssessmentPage = () => {
   } else {
     content = (
       <div className="flex w-full max-w-3xl flex-col gap-6">
-        {submit.isError && (
-          <AuthNotice variant="error">{getApiErrorMessage(submit.error)}</AuthNotice>
-        )}
+        {submit.isError && <Notice variant="error">{getApiErrorMessage(submit.error)}</Notice>}
         <AssessmentWizard
           questions={questions}
           onSubmit={handleSubmit}
