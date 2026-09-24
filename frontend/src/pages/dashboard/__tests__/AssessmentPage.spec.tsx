@@ -12,6 +12,7 @@ import { createTestQueryClient, renderWithProviders } from "@/test/renderWithPro
 import type { AssessmentResult } from "@/types";
 
 vi.mock("@/api/services", () => ({
+  deleteRoadmap: vi.fn(),
   getAssessmentQuestions: vi.fn(),
   getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),

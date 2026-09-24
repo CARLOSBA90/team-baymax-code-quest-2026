@@ -1,12 +1,14 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getRoadmaps } from "@/api/services";
+import { useLogout, useSession } from "@/api/queries/auth";
+import { deleteRoadmap, getRoadmaps } from "@/api/services";
+import { DashboardLayout } from "@/components/layouts";
 import { ASSESSMENT_COMPLETED_STATE } from "@/lib";
 import { RoadmapsPage } from "@/pages";
-import { buildNetworkError } from "@/test/fixtures/api-errors";
+import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
   buildRoadmapSummary,
   buildRoadmapsListResult,
@@ -16,7 +18,9 @@ import {
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { RoadmapsListResult } from "@/types";
 
-vi.mock("@/api/services", () => ({ getRoadmaps: vi.fn() }));
+vi.mock("@/api/services", () => ({ getRoadmaps: vi.fn(), deleteRoadmap: vi.fn() }));
+// Solo lo usa el `DashboardLayout` del test de la pill del sidebar.
+vi.mock("@/api/queries/auth", () => ({ useSession: vi.fn(), useLogout: vi.fn() }));
 
 const SUCCESS_NOTICE =
   "¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.";
@@ -407,21 +411,6 @@ describe("RoadmapsPage", () => {
       ).toBeInTheDocument();
     });
 
-    it("el kebab abre Eliminar ruta y activarlo solo cierra el menú", async () => {
-      const { user } = renderListPage();
-      await waitForList();
-
-      const kebab = within(table()).getByRole("button", { name: `Más acciones para ${FE}` });
-      await user.click(kebab);
-      expect(kebab).toHaveAttribute("aria-expanded", "true");
-      await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
-
-      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-      expect(tableNames()).toContain(FE);
-      expect(currentUrl()).toBe("/dashboard/roadmaps");
-      expect(getRoadmaps).toHaveBeenCalledTimes(1);
-    });
-
     it("la acción de la fila navega al detalle de la ruta", async () => {
       const { user } = renderListPage();
       await waitForList();
@@ -449,6 +438,305 @@ describe("RoadmapsPage", () => {
       await waitForList();
       expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
       expect(tableNames()).toEqual(ALL_NAMES);
+    });
+  });
+
+  describe("Eliminar ruta", () => {
+    const FE_ID = "rm-frontend-react";
+    const FE_DELETED_NOTICE = `Ruta «${FE}» eliminada`;
+    const NOT_FOUND_NOTICE = "Esa ruta ya no existe. Hemos actualizado tu lista.";
+    const GENERIC_DELETE_ERROR = "No se pudo eliminar la ruta. Inténtalo de nuevo.";
+    const WITHOUT_FE = buildRoadmapsListResult({
+      items: ROADMAPS_LIST_RESULT.items.filter((roadmap) => roadmap.id !== FE_ID),
+    });
+
+    beforeEach(() => {
+      vi.mocked(getRoadmaps).mockResolvedValueOnce(ROADMAPS_LIST_RESULT);
+      // Tras borrar, la invalidación vuelve a pedir la lista: el back ya no la tiene.
+      vi.mocked(getRoadmaps).mockResolvedValue(WITHOUT_FE);
+      vi.mocked(deleteRoadmap).mockResolvedValue({ id: FE_ID });
+    });
+
+    function kebab(scope: HTMLElement, name = FE) {
+      return within(scope).getByRole("button", { name: `Más acciones para ${name}` });
+    }
+
+    async function openDeleteDialog(
+      user: ReturnType<typeof userEvent.setup>,
+      scope: HTMLElement = table(),
+      name = FE,
+    ) {
+      await user.click(kebab(scope, name));
+      await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
+      return screen.getByRole("dialog", { name: `¿Eliminar ${name}?` });
+    }
+
+    function confirmButton() {
+      return screen.getByRole("button", { name: /^(Eliminar ruta|Eliminando…)$/ });
+    }
+
+    function heading() {
+      return screen.getByRole("heading", { level: 1, name: "Mis Rutas" });
+    }
+
+    it("desde el kebab de la tabla abre el diálogo de esa ruta sin llamar al back ni navegar", async () => {
+      const { user } = renderListPage();
+      await waitForList();
+
+      const dialog = await openDeleteDialog(user);
+
+      expect(dialog).toHaveAccessibleDescription(/progreso y tus entregas/);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(deleteRoadmap).not.toHaveBeenCalled();
+      expect(currentUrl()).toBe("/dashboard/roadmaps");
+      expect(tableNames()).toContain(FE);
+    });
+
+    it("desde el kebab de la card abre el diálogo de esa ruta", async () => {
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user, cardList(), BE);
+
+      expect(screen.getByRole("dialog", { name: `¿Eliminar ${BE}?` })).toBeInTheDocument();
+      expect(currentUrl()).toBe("/dashboard/roadmaps");
+    });
+
+    it("Cancelar cierra sin llamar al back, sin aviso y devuelve el foco al kebab", async () => {
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(deleteRoadmap).not.toHaveBeenCalled();
+      expect(tableNames()).toContain(FE);
+      expect(screen.queryByText(/eliminada$/)).not.toBeInTheDocument();
+      expect(kebab(table())).toHaveFocus();
+    });
+
+    it("confirmar elimina la ruta: cierra el diálogo, la quita de tabla y cards, avisa y enfoca el h1", async () => {
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toHaveAttribute("role", "status");
+      expect(deleteRoadmap).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(deleteRoadmap).mock.calls[0][0]).toBe(FE_ID);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(tableNames()).not.toContain(FE);
+      expect(cardNames()).not.toContain(FE);
+      expect(screen.getByText("4 rutas · 1 en curso · 2 completadas")).toBeInTheDocument();
+      expect(heading()).toHaveAttribute("tabindex", "-1");
+      await waitFor(() => expect(heading()).toHaveFocus());
+      await waitFor(() => expect(getRoadmaps).toHaveBeenCalledTimes(2));
+      expect(tableNames()).not.toContain(FE);
+    });
+
+    it("mientras está pendiente: Eliminando…, botones deshabilitados, Esc no cierra y una sola llamada", async () => {
+      const pending = deferred<{ id: string }>();
+      vi.mocked(deleteRoadmap).mockReturnValue(pending.promise);
+      const { user } = renderListPage();
+      await waitForList();
+
+      const dialog = await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      const busy = screen.getByRole("button", { name: "Eliminando…" });
+      expect(busy).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+      fireEvent(dialog, new Event("cancel", { cancelable: true }));
+      await user.click(screen.getByRole("button", { name: "Cerrar diálogo" }));
+      await user.click(busy);
+      expect(screen.getByRole("dialog", { name: `¿Eliminar ${FE}?` })).toBeInTheDocument();
+      expect(tableNames()).toContain(FE);
+      expect(deleteRoadmap).toHaveBeenCalledTimes(1);
+
+      await act(async () => pending.resolve({ id: FE_ID }));
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("eliminar la última ruta muestra el estado vacío", async () => {
+      const only = ROADMAPS_LIST_RESULT.items.filter((roadmap) => roadmap.id === FE_ID);
+      vi.mocked(getRoadmaps).mockReset();
+      vi.mocked(getRoadmaps).mockResolvedValueOnce(buildRoadmapsListResult({ items: only }));
+      vi.mocked(getRoadmaps).mockResolvedValue(EMPTY_ROADMAPS_RESULT);
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(
+        await screen.findByRole("heading", { level: 2, name: "Aún no tienes rutas" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      await waitFor(() => expect(heading()).toHaveFocus());
+    });
+
+    it("eliminar la última ruta del filtro activo muestra su mensaje y conserva el filtro", async () => {
+      const inProgressOnlyFe = buildRoadmapsListResult({
+        items: ROADMAPS_LIST_RESULT.items.filter((roadmap) => roadmap.id !== "rm-flutter"),
+      });
+      vi.mocked(getRoadmaps).mockReset();
+      vi.mocked(getRoadmaps).mockResolvedValueOnce(inProgressOnlyFe);
+      vi.mocked(getRoadmaps).mockResolvedValue(
+        buildRoadmapsListResult({
+          items: inProgressOnlyFe.items.filter((roadmap) => roadmap.id !== FE_ID),
+        }),
+      );
+      const { user } = renderListPage("/dashboard/roadmaps?status=in_progress");
+      await waitForList();
+      expect(tableNames()).toEqual([FE]);
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await screen.findByText("No tienes rutas empezadas.")).toBeInTheDocument();
+      expect(filterButton(/^Empezadas/)).toHaveAttribute("aria-pressed", "true");
+      expect(currentUrl()).toBe("/dashboard/roadmaps?status=in_progress");
+      expect(screen.getByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+    });
+
+    it("404: cierra el diálogo, quita la ruta, muestra el aviso neutral (sin el message del back) y enfoca el h1", async () => {
+      vi.mocked(deleteRoadmap).mockRejectedValue(
+        buildAxiosError(404, "Roadmap not found.", { code: "ROADMAP_NOT_FOUND" }),
+      );
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(NOT_FOUND_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(tableNames()).not.toContain(FE);
+      expect(screen.queryByText("Roadmap not found.")).not.toBeInTheDocument();
+      expect(screen.queryByText(FE_DELETED_NOTICE)).not.toBeInTheDocument();
+      await waitFor(() => expect(heading()).toHaveFocus());
+    });
+
+    it("500: muestra el error en español dentro del diálogo y reintentar elimina la ruta", async () => {
+      vi.mocked(deleteRoadmap)
+        .mockRejectedValueOnce(buildAxiosError(500, "Internal server error"))
+        .mockResolvedValueOnce({ id: FE_ID });
+      const { user } = renderListPage();
+      await waitForList();
+
+      const dialog = await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(GENERIC_DELETE_ERROR);
+      expect(screen.queryByText("Internal server error")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Eliminar ruta" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+      expect(tableNames()).toContain(FE);
+      expect(getRoadmaps).toHaveBeenCalledTimes(1);
+
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(deleteRoadmap).toHaveBeenCalledTimes(2);
+    });
+
+    it("error de red: el diálogo sigue abierto con el mensaje de conexión y la ruta sigue listada", async () => {
+      vi.mocked(deleteRoadmap).mockRejectedValue(buildNetworkError());
+      const { user } = renderListPage();
+      await waitForList();
+
+      const dialog = await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await within(dialog).findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+      expect(screen.getByRole("dialog", { name: `¿Eliminar ${FE}?` })).toBeInTheDocument();
+      expect(tableNames()).toContain(FE);
+      expect(cardNames()).toContain(FE);
+    });
+
+    it("reabrir tras un error cancelado no muestra el error previo", async () => {
+      vi.mocked(deleteRoadmap).mockRejectedValue(buildAxiosError(500));
+      const { user } = renderListPage();
+      await waitForList();
+
+      const dialog = await openDeleteDialog(user);
+      await user.click(confirmButton());
+      await within(dialog).findByRole("alert");
+      await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+      const reopened = await openDeleteDialog(user, table(), BE);
+
+      expect(within(reopened).queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Eliminar ruta" })).toBeEnabled();
+    });
+
+    it("cambiar de filtro oculta el aviso", async () => {
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+
+      await user.click(filterButton(/^Completadas/));
+
+      expect(screen.queryByText(FE_DELETED_NOTICE)).not.toBeInTheDocument();
+    });
+
+    it("un segundo borrado reemplaza el aviso", async () => {
+      vi.mocked(deleteRoadmap)
+        .mockResolvedValueOnce({ id: FE_ID })
+        .mockResolvedValueOnce({ id: "rm-backend-nest" });
+      const { user } = renderListPage();
+      await waitForList();
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+
+      await openDeleteDialog(user, table(), BE);
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(`Ruta «${BE}» eliminada`)).toBeInTheDocument();
+      expect(screen.queryByText(FE_DELETED_NOTICE)).not.toBeInTheDocument();
+      expect(vi.mocked(deleteRoadmap).mock.lastCall?.[0]).toBe("rm-backend-nest");
+    });
+
+    it("la pill de Mis Rutas del sidebar baja a 4 rutas tras eliminar", async () => {
+      vi.mocked(useSession).mockReturnValue({
+        data: { user: { name: "Ada Lovelace", email: "ada@example.com" } },
+      } as unknown as ReturnType<typeof useSession>);
+      vi.mocked(useLogout).mockReturnValue({
+        mutate: vi.fn(),
+        isPending: false,
+        error: null,
+      } as unknown as ReturnType<typeof useLogout>);
+      renderWithProviders(
+        <Routes>
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard/roadmaps" element={<RoadmapsPage />} />
+          </Route>
+        </Routes>,
+        { route: "/dashboard/roadmaps" },
+      );
+      const user = userEvent.setup();
+      const sidebarLink = () =>
+        within(screen.getByRole("navigation", { name: "Navegación principal" })).getByRole("link", {
+          name: /^Mis Rutas(, \d+ rutas?)?$/,
+        });
+      await waitForList();
+      expect(sidebarLink()).toHaveAccessibleName("Mis Rutas, 5 rutas");
+
+      await openDeleteDialog(user);
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(FE_DELETED_NOTICE)).toBeInTheDocument();
+      expect(sidebarLink()).toHaveAccessibleName("Mis Rutas, 4 rutas");
     });
   });
 

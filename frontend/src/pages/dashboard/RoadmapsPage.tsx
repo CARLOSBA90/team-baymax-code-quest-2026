@@ -1,25 +1,32 @@
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/api/errors";
-import { useRoadmaps } from "@/api/queries/roadmaps";
+import { useDeleteRoadmap, useRoadmaps } from "@/api/queries/roadmaps";
 import { AuthNotice, PrimaryButton } from "@/components/auth";
 import { RoadmapsEmptyState } from "@/components/dashboard";
 import {
+  DeleteRoadmapDialog,
   PlusIcon,
   RoadmapCardList,
   RoadmapsFilterBar,
   RoadmapsListSkeleton,
   RoadmapsTable,
 } from "@/components/roadmaps";
+import { useDeleteRoadmapNotice } from "@/hooks";
 import {
   filterRoadmaps,
+  getDeleteRoadmapErrorMessage,
+  getRoadmapDeletedMessage,
   getRoadmapsSummary,
   isAssessmentCompletedState,
+  isRoadmapNotFoundError,
   parseRoadmapFilter,
+  ROADMAP_DELETE_NOT_FOUND_MESSAGE,
   ROADMAP_FILTER_EMPTY_MESSAGES,
   ROADMAP_STATUS_PARAM,
   type RoadmapFilter,
 } from "@/lib";
+import type { RoadmapSummary } from "@/types";
 
 /**
  * Entrada del historial (`location.key`) a la que pertenece el aviso. `pending` mientras se
@@ -117,8 +124,49 @@ export const RoadmapsPage = () => {
   );
   const hasRoadmaps = data !== undefined && data.counts.all > 0;
 
-  // TODO(delete-roadmap fase 3): abrir DeleteRoadmapDialog. Por ahora el item solo cierra el menú.
-  const handleDeleteRequest = () => {};
+  const deleteNotice = useDeleteRoadmapNotice();
+  const deleteMutation = useDeleteRoadmap();
+  const [roadmapToDelete, setRoadmapToDelete] = useState<RoadmapSummary | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [focusHeading, setFocusHeading] = useState(false);
+
+  // Tras borrar (o 404) el foco va al h1. Este efecto corre después del de `Modal`, que al
+  // cerrarse devuelve el foco al kebab; así gana el h1 aunque el kebab ya no exista.
+  useEffect(() => {
+    if (!focusHeading) return;
+    headingRef.current?.focus();
+    setFocusHeading(false);
+  }, [focusHeading]);
+
+  const handleDeleteRequest = (roadmap: RoadmapSummary) => {
+    // Sin arrastrar el error de un intento anterior.
+    deleteMutation.reset();
+    setRoadmapToDelete(roadmap);
+  };
+
+  const finishDelete = (message: string) => {
+    setRoadmapToDelete(null);
+    deleteNotice.show(message);
+    setFocusHeading(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    // Guard extra contra el doble click: el botón ya está deshabilitado mientras está pendiente.
+    if (!roadmapToDelete || deleteMutation.isPending) return;
+    const { id, name } = roadmapToDelete;
+    deleteMutation.mutate(id, {
+      onSuccess: () => finishDelete(getRoadmapDeletedMessage(name)),
+      onError: (deleteError) => {
+        // 404: ya no existía; el hook ya la quitó de la caché. Otros errores se quedan en el diálogo.
+        if (isRoadmapNotFoundError(deleteError)) finishDelete(ROADMAP_DELETE_NOT_FOUND_MESSAGE);
+      },
+    });
+  };
+
+  const deleteErrorMessage =
+    deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
+      ? getDeleteRoadmapErrorMessage(deleteMutation.error)
+      : null;
 
   // Los datos mandan sobre el error: una revalidación fallida con la lista ya cargada no la
   // desmonta.
@@ -157,7 +205,13 @@ export const RoadmapsPage = () => {
     <section className="flex min-h-full min-w-0 flex-col gap-7">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col gap-3">
-          <h1 className="font-display text-4xl font-bold text-text-primary">Mis Rutas</h1>
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="font-display text-4xl font-bold text-text-primary outline-none"
+          >
+            Mis Rutas
+          </h1>
           {subtitle !== null && <p className="text-text-secondary">{subtitle}</p>}
         </div>
         {hasRoadmaps && (
@@ -175,7 +229,17 @@ export const RoadmapsPage = () => {
           ¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.
         </AuthNotice>
       )}
+      {deleteNotice.message !== null && (
+        <AuthNotice variant="success">{deleteNotice.message}</AuthNotice>
+      )}
       {content}
+      <DeleteRoadmapDialog
+        roadmap={roadmapToDelete}
+        pending={deleteMutation.isPending}
+        errorMessage={deleteErrorMessage}
+        onCancel={() => setRoadmapToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </section>
   );
 };
