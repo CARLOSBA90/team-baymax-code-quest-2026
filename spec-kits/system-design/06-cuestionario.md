@@ -4,6 +4,24 @@
 
 ---
 
+## Nomenclatura: Ruta de Pagina vs Endpoint API
+
+> **Nota de diseno (2026-09-25)**
+>
+> El cuestionario usa nomenclatura diferente en dos capas — esto es intencional:
+>
+> | Capa | Ruta | Razon |
+> |---|---|---|
+> | **Frontend (pagina)** | `/dashboard/roadmaps/new` | El cuestionario es el punto de entrada para crear una nueva ruta de aprendizaje. Desde la perspectiva del usuario, esta pagina "crea un roadmap nuevo". |
+> | **Backend (API REST)** | `POST /api/v1/assessments/submit` | La operacion es un submit de assessment. El recurso que se crea en esta llamada es un `Assessment`, no un `Roadmap` (el roadmap se genera internamente como efecto del hook inline). |
+>
+> El endpoint no se llama `/roadmaps/create` porque el recurso primario es el assessment.
+> La generacion del roadmap es una consecuencia interna, no la responsabilidad del endpoint.
+>
+> **Decision acordada:** Mantener ambas nomenclaturas. Son correctas en su contexto.
+
+---
+
 ## Objetivo del Cuestionario
 
 El cuestionario convierte las respuestas del usuario en un **AssessmentProfile**:
