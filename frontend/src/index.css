@@ -69,6 +69,37 @@
   --color-mono-pink: #f472b6;
   --color-mono-emerald: #34d399;
 
+  /* Detalle de ruta (design.md §16). Los chips/% violetas usan accent-soft. */
+  --container-detail: 920px; /* columna del detalle → max-w-detail */
+  --color-status-paused-text: #fcd34d; /* chip/título/% en pausa, 10.8:1 */
+  --color-status-paused-bar: #d4a537; /* barra global en pausa (§14.3) */
+  --color-status-completed-text: #6ee7b7; /* chip Completado y % completada, 10.5:1 */
+  --color-rail: rgba(255, 255, 255, 0.1);
+  --color-rail-done: rgba(52, 211, 153, 0.3);
+  --color-node-pending: rgba(255, 255, 255, 0.22); /* borde nodo pendiente */
+  --color-node-next: #a78bfa; /* borde nodo siguiente */
+  --color-node-done: #34d399; /* relleno nodo completado */
+  --color-node-done-check: #052e20; /* check sobre el nodo completado */
+  --color-bg-item: #13111c;
+  --color-bg-item-next: rgba(139, 92, 246, 0.06);
+  --color-bg-item-done: rgba(52, 211, 153, 0.04);
+  --color-border-item: rgba(255, 255, 255, 0.08);
+  --color-border-item-active: rgba(167, 139, 250, 0.22); /* ítem en curso */
+  --color-border-item-next: rgba(167, 139, 250, 0.35);
+  --color-border-item-done: rgba(52, 211, 153, 0.2);
+  --color-bg-next-step: rgba(139, 92, 246, 0.07);
+  --color-border-next-step: rgba(167, 139, 250, 0.3);
+  --color-bg-paused-banner: rgba(251, 191, 36, 0.08);
+  --color-border-paused-banner: rgba(251, 191, 36, 0.28);
+  --color-thumb-from: rgba(124, 58, 237, 0.35); /* placeholder de miniatura */
+  --color-thumb-to: rgba(34, 211, 238, 0.12);
+  --color-thumb-done-from: rgba(52, 211, 153, 0.22);
+  --color-thumb-done-to: rgba(20, 83, 45, 0.25);
+  --color-done-bg: #0c1411; /* panel de ruta completada (.empty-state-surface--success) */
+  --color-done-border: rgba(52, 211, 153, 0.2);
+  --color-done-halo: rgba(52, 211, 153, 0.16);
+  --color-done-dots: rgba(52, 211, 153, 0.12);
+
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Manrope", system-ui, sans-serif;
 
@@ -80,6 +111,7 @@
   --shadow-danger: 0 10px 26px -10px rgba(220, 38, 38, 0.8); /* = danger-solid */
   --shadow-ring-focus: 0 0 0 3px rgba(139, 92, 246, 0.22);
   --shadow-ring-danger: 0 0 0 3px rgba(248, 113, 113, 0.3); /* anillo de foco rojo (= danger) */
+  --shadow-node-next: 0 0 0 5px rgba(139, 92, 246, 0.2); /* halo del nodo siguiente (timeline) */
 }
 
 :root {
@@ -195,6 +227,16 @@ body {
 
 .empty-state-surface > * {
   position: relative;
+}
+
+/* Variante verde (panel de ruta completada, design.md §16): redefine localmente las custom
+   properties que lee `.empty-state-surface`, así halo, puntos, borde y viñeta salen verdes sin
+   duplicar el fondo. Uso: `className="empty-state-surface empty-state-surface--success"`. */
+.empty-state-surface--success {
+  --color-empty-bg: var(--color-done-bg);
+  --color-empty-border: var(--color-done-border);
+  --color-empty-halo: var(--color-done-halo);
+  --color-empty-dots: var(--color-done-dots);
 }
 
 /* AuthCard (design.md §5.3): sin soporte de backdrop-filter, la card usa fondo sólido en
