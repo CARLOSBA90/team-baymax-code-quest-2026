@@ -100,6 +100,14 @@ describe("DashboardLayout", () => {
     expect(column.parentElement).toHaveClass("flex", "h-dvh", "overflow-hidden");
   });
 
+  it("main es relative: contiene los descendientes absolutos (sr-only) y no estira el documento", () => {
+    renderLayout();
+    const main = screen.getByRole("main");
+    expect(main).toHaveClass("relative", "overflow-auto");
+    const shell = main.parentElement?.parentElement as HTMLElement;
+    expect(shell).toHaveClass("h-dvh", "overflow-hidden");
+  });
+
   it("la tab bar no es position:fixed", () => {
     renderLayout();
     expect(screen.getByRole("navigation", { name: "Navegación inferior" })).not.toHaveClass(
