@@ -4,6 +4,24 @@
 
 ---
 
+## Nomenclatura: Ruta de Pagina vs Endpoint API
+
+> **Nota de diseno (2026-09-25)**
+>
+> El cuestionario usa nomenclatura diferente en dos capas — esto es intencional:
+>
+> | Capa | Ruta | Razon |
+> |---|---|---|
+> | **Frontend (pagina)** | `/dashboard/roadmaps/new` | El cuestionario es el punto de entrada para crear una nueva ruta de aprendizaje. Desde la perspectiva del usuario, esta pagina "crea un roadmap nuevo". |
+> | **Backend (API REST)** | `POST /api/v1/assessments/submit` | La operacion es un submit de assessment. El recurso que se crea en esta llamada es un `Assessment`, no un `Roadmap` (el roadmap se genera internamente como efecto del hook inline). |
+>
+> El endpoint no se llama `/roadmaps/create` porque el recurso primario es el assessment.
+> La generacion del roadmap es una consecuencia interna, no la responsabilidad del endpoint.
+>
+> **Decision acordada:** Mantener ambas nomenclaturas. Son correctas en su contexto.
+
+---
+
 ## Objetivo del Cuestionario
 
 El cuestionario convierte las respuestas del usuario en un **AssessmentProfile**:
@@ -184,13 +202,17 @@ const questions = [
 
 ---
 
-## Flujo Tecnico: Frontend -> Backend
+## Flujo Tecnico: Frontend -> Backend (Diseño Actual)
+
+> **ACTUALIZADO 2026-09-25** — La generacion del roadmap es responsabilidad interna del backend.
+> El flujo de 2 llamadas (submit + generate) descrito en versiones anteriores **nunca se implemento en el frontend**
+> y fue reemplazado por un hook inline dentro de `AssessmentsService.submit()`.
 
 ```
 Usuario responde el cuestionario en React
         |
         v
-POST /api/v1/assessments
+POST /api/v1/assessments/submit
 Body: {
   answers: [
     { questionId: "q1", optionId: "opt3" },
@@ -204,14 +226,86 @@ AssessmentsController.submit()
         |
         v
 AssessmentsService.submit(userId, answers):
-  1. Crear Assessment { userId, version: N }
-  2. Guardar AssessmentAnswer por cada respuesta
-  3. Calcular profileScores segun las opciones elegidas
-  4. Actualizar Assessment.profileScores y Assessment.completedAt
-  5. Retornar: { assessmentId, profileScores, goalCategory }
+  1. Validar respuestas (formato y completitud)
+  2. Obtener preguntas activas desde la DB
+  3. Calcular profileScores y goalCategory segun las opciones elegidas
+  4. Persistir Assessment + AssessmentAnswers en DB
+  5. [HOOK INLINE] Resolver Roadmap:
+       - Si ya existe una ruta para el assessment:
+           roadmap = { status: "EXISTS", id: existingRoadmap.id }
+       - Si no existe, invocar RoadmapGenerationService.generate(userId, { assessmentId }):
+           * Exito: Roadmap y RoadmapItems creados en DB.
+             roadmap = { status: "GENERATED", id: generatedRoadmap.id }
+           * Fallo controlado (try/catch + Logger.warn): si falla (catalogo vacio,
+             timeout, error de generador), se loguea como advertencia,
+             el Assessment queda persistido y la request NO explota.
+             roadmap = { status: "FAILED", message: "No se pudo generar la ruta de aprendizaje." }
+  6. Retornar: { data: { ...AssessmentResult, roadmap } } con HTTP 201
         |
         v
-Frontend recibe el resultado y redirige a:
-  POST /api/v1/roadmaps/generate
-  Body: { assessmentId, weeklyHours, maxCourses }
+Frontend recibe 201 Created y evalua data.roadmap.status:
+  - Caso Exito ("GENERATED" o "EXISTS"):
+      * Navega a /dashboard/roadmaps (o directamente a /dashboard/roadmaps/:id).
+      * GET /api/v1/roadmaps -> La nueva ruta existe en DB y se renderiza inmediatamente.
+  - Caso Falla Controlada ("FAILED"):
+      * El Assessment fue guardado con exito.
+      * La nueva ruta NO existe en DB.
+      * El frontend informa al usuario que las respuestas fueron registradas pero
+        la ruta no pudo auto-generarse, ofreciendo un reintento manual
+        (usando POST /api/v1/roadmaps/generate).
 ```
+
+### Formato de respuesta de `POST /api/v1/assessments/submit`
+
+```json
+{
+  "data": {
+    "id": "cuid_assessment_123",
+    "userId": "user_id_456",
+    "version": 1,
+    "goalCategory": "BACKEND",
+    "profileScores": {
+      "BACKEND": 20,
+      "FRONTEND": 5
+    },
+    "completedAt": "2026-09-25T15:00:00.000Z",
+    "createdAt": "2026-09-25T15:00:00.000Z",
+    "roadmap": {
+      "status": "GENERATED",
+      "id": "cuid_roadmap_789"
+    }
+  }
+}
+```
+
+En caso de fallo controlado en la generacion (mensaje sanitizado para evitar divulgacion de detalles internos, CWE-209):
+
+```json
+{
+  "data": {
+    "id": "cuid_assessment_123",
+    "userId": "user_id_456",
+    "version": 1,
+    "goalCategory": "BACKEND",
+    "profileScores": { "BACKEND": 20 },
+    "completedAt": "2026-09-25T15:00:00.000Z",
+    "createdAt": "2026-09-25T15:00:00.000Z",
+    "roadmap": {
+      "status": "FAILED",
+      "message": "No se pudo generar la ruta de aprendizaje."
+    }
+  }
+}
+```
+
+> **Nota de Seguridad (CWE-209):** El campo `roadmap.message` devuelve un mensaje sanitizado y genérico al cliente. Los detalles técnicos (errores de Prisma, timeouts de red, etc.) se preservan exclusivamente en los registros internos del servidor (`Logger.warn`) para evitar filtración de información sobre la infraestructura o la base de datos.
+
+### Estado del endpoint POST /api/v1/roadmaps/generate
+
+| Endpoint | Estado | Uso |
+|---|---|---|
+| `POST /api/v1/roadmaps/generate` | Activo pero **secundario** | Re-generacion manual de ruta con parametros avanzados o reintento si la auto-generacion inline fallo |
+
+El endpoint se mantiene en el backend para casos de uso secundarios (ej: el usuario quiere
+regenerar su ruta con distintos parametros o reintentar tras un `status: "FAILED"`). No debe ser llamado por el frontend en el flujo primario exitoso del cuestionario.
+

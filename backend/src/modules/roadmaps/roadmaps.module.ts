@@ -24,6 +24,6 @@ import { GeneratorConfigurationController } from './generator-configuration.cont
     NvidiaRoadmapGenerator,
     RoadmapGeneratorOrchestrator,
   ],
-  exports: [RoadmapsService],
+  exports: [RoadmapsService, RoadmapGenerationService],
 })
 export class RoadmapsModule {}
