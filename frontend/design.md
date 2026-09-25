@@ -1,8 +1,8 @@
 # DevTalles Paths — Especificación de diseño
 
 **Dirección visual:** Nebula (opción A)
-**Alcance de este documento:** Login (§1–13), Dashboard · Mis Rutas (§14) y Cuestionario (§15). Los tokens de §2 son la base de toda la app.
-**Versión:** 1.1 · 2026-09-21
+**Alcance de este documento:** Login (§1–13), Dashboard · Mis Rutas (§14), Cuestionario (§15) y Detalle de ruta (§16). Los tokens de §2 son la base de toda la app.
+**Versión:** 1.2 · 2026-09-24
 
 ---
 
@@ -679,3 +679,195 @@ Barra de 5 segmentos de 5px, gap 6: completados `#8B5CF6`, actual `#C4B5FD`, pen
 - Pantalla de resultado: qué ve el usuario después de "Descubrir mi ruta de aprendizaje" (ruta generada, cursos en orden, botón para guardarla).
 - Versión móvil del cuestionario.
 - Diálogo de confirmación al salir con respuestas a medias.
+
+---
+
+## 16. Detalle de ruta · `/dashboard/roadmaps/:id`
+
+Validado el 2026-09-24. Los artboards están en la página **Detalle de ruta** del canvas: en curso, pausada, completada, diálogo de confirmación y móvil. El razonamiento largo de las decisiones está en `roadmap-detail-design.md`; esta sección es la especificación para implementar.
+
+### 16.1 Decisiones cerradas
+
+1. **Timeline vertical**, no tabla: el orden es la secuencia recomendada por el cuestionario y el riel indica la posición sin leer texto. Los ítems pendientes **no** están bloqueados.
+2. **Sin feedback optimista.** La acción es irreversible, el 409 por ruta pausada es un rechazo rutinario y el servidor recalcula progreso, estado y `next_step`.
+3. **Confirmación en diálogo**, no doble clic sobre el mismo botón.
+4. **Fondo plano** (`--bg-base`). Los puntos y el halo vuelven solo en el panel de ruta completada y en el 404.
+5. El backend **garantiza al menos un curso** en `content[]`: no se diseña el estado de ruta sin cursos.
+
+### 16.2 Layout
+
+```
+Sidebar 256px (§14.1)  │  Main: padding 36 48 48, columna de 920px, gap 22
+                       │  ├─ ‹ Mis Rutas
+                       │  ├─ Cabecera: h1 30px + summary · botón ⋯ 44px
+                       │  ├─ Badge de estado · «Última actividad: …»
+                       │  ├─ Barra global 8px + «X de N cursos · H h en total · quedan ~R h» + %
+                       │  ├─ «Continúa aquí» / banner de pausa / panel de cierre
+                       │  ├─ «CURSOS DE LA RUTA»  ·  «2 de 5»
+                       │  └─ <ol> timeline
+```
+
+Ancho máximo del contenido: **920px**. Más ancho y la descripción de dos líneas se vuelve inmanejable.
+
+`totalHours = Σ estimated_minutes / 60`; `remainingHours` suma solo los no completados. Se muestran los dos: el total dimensiona, el restante motiva.
+
+### 16.3 Ítem del timeline
+
+| Propiedad | Valor |
+|---|---|
+| `<li>` | `position: relative`, `padding-left: 44px`, `padding-bottom: 14px` |
+| Nodo | 14×14, radio 50%, `left: 7px`, `top: 22px`, borde 2px |
+| Riel | 2px, `left: 13px`, de `top: 30px` a `bottom: 0`; oculto en el último ítem |
+| Tarjeta | padding 16×18, radio 16 |
+| Miniatura | 96×64, radio 10 (en móvil 64×44, radio 9) |
+| Título | `<h3>` 15/600, con el número en `--text-muted` 700 delante |
+| Meta | 12.5px `--text-muted`: nivel · horas · «completado el 12 ago» |
+| Descripción | 13px, `-webkit-line-clamp: 2` (1 en móvil) |
+| Acciones | fila a la derecha, botones de 40px |
+
+**Estados** (derivados, nunca un campo `status` por ítem):
+
+```
+completed   ← progress === 100
+in_progress ← started_at != null && progress < 100
+next        ← roadmap_item_id === next_step.roadmap_item_id   (gana sobre in_progress al pintar el chip)
+pending     ← resto
+```
+
+| Estado | Nodo | Borde tarjeta | Fondo tarjeta | Chip |
+|---|---|---|---|---|
+| Pendiente | hueco, borde `rgba(255,255,255,0.22)` | `rgba(255,255,255,0.08)` | `#13111C` | ninguno |
+| Siguiente | relleno `--accent`, borde `#A78BFA`, halo `0 0 0 5px rgba(139,92,246,0.20)` | `rgba(167,139,250,0.35)` | `rgba(139,92,246,0.06)` | «Siguiente» violeta |
+| En curso | borde `--accent-hover`, punto interior | `rgba(167,139,250,0.22)` | `#13111C` | «En curso» violeta + barra del ítem **solo si** `0 < progress < 100` |
+| Completado | relleno `#34D399` + check `#052E20` | `rgba(52,211,153,0.20)` | `rgba(52,211,153,0.04)` | «Completado» verde |
+| Enviando | pulso suave (estático con `prefers-reduced-motion`) | — | — | botón: spinner + «Marcando…», `disabled`, `aria-busy` |
+| Error | — | — | — | mensaje `role="alert"` `#FCA5A5` + «Reintentar» |
+| Pausado | opacidad 0.5 | — | tarjeta al 88% | botón completar `disabled` (opacidad 0.45) + `aria-describedby` |
+
+Segmento del riel entre ítems completados: `rgba(52,211,153,0.30)`. El resto: `rgba(255,255,255,0.10)`.
+
+El botón de completar **desaparece** al completarse; no se queda deshabilitado. «Ir al curso» sigue activo con la ruta pausada: pausar significa «no cuentes mi avance», no «no puedo estudiar».
+
+**Tipos de ítem.** `COURSE` icono play-en-rectángulo, `MEDIA` documento, `CHALLENGE` bandera. Etiqueta de texto solo cuando no es `COURSE`. Un tipo desconocido cae en icono genérico + el valor crudo: no rompe la pantalla.
+
+**Tracking no disponible.** Si `tracking.enabled === false` o `tracking.type ∉ {COMPLETION, READING}`, no se renderiza el botón. En su lugar, 12.5px `--text-muted` con `disabled_reason` o «El avance de este curso se registra automáticamente».
+
+### 16.4 «Continúa aquí»
+
+Tarjeta con borde `rgba(167,139,250,0.30)` y fondo `rgba(139,92,246,0.07)`, radio 18, padding 20×22. Miniatura 116×78, título `<h2>` 19px, meta «Paso N de M · nivel · horas», descripción a una línea y el `reason` precedido de ⓘ en `--text-muted`. Acciones: «Ir al curso» **primario** + «Marcar como completado» ghost, 46px.
+
+El curso aparece dos veces (aquí y en el timeline). Es deliberado, pero **los dos botones comparten estado de mutación**: si uno está enviando, el otro también. La tarjeta no se muestra con la ruta pausada ni completada.
+
+### 16.5 Estados de pantalla
+
+| Estado | Tratamiento |
+|---|---|
+| Cargando | Skeleton con la geometría real (título 280×30, summary 420×16, badge 90×26, barra 100%×8, tarjeta 100%×150, 5 filas 100%×112). `aria-busy`, texto oculto «Cargando la ruta» |
+| 404 / sin permiso | Un solo estado (la API no distingue, y hace bien): card con puntos y halo, «No encontramos esta ruta», CTA a Mis Rutas |
+| Error de carga | Card sin puntos, «No pudimos cargar la ruta», «Reintentar» (refetch, no recarga) |
+| Pausada | Badge ámbar + banner (§16.6) + botones de completar deshabilitados |
+| Completada | Badge verde, barra al 100% en `--success`, panel de cierre con puntos y halo verdes; el timeline se queda debajo como registro. **Sin confeti por defecto** |
+
+### 16.6 Banner de pausa
+
+Padding 18×20, radio 16, borde `rgba(251,191,36,0.28)`, fondo `rgba(251,191,36,0.08)`. Icono de pausa en cuadro de 40px. Título «Esta ruta está en pausa» en `#FCD34D`, texto de apoyo en `--text-label`, y a la derecha el botón primario **«Reanudar ruta»**.
+
+`PATCH /roadmaps/:id/pause` con `{ paused: false, expectedActivityVersion: data.activity_version }`. Si responde 409 por versión desfasada: refetch + «Alguien actualizó esta ruta desde otro lugar. Ya tienes la versión más reciente.»
+
+### 16.7 Flujo de «Marcar como completado»
+
+Diálogo: icono de check en cuadro violeta, `<h2>` «¿Marcar este curso como completado?», el curso en una caja con su miniatura, y la advertencia «Esta acción **no se puede deshacer**». Botones: «Cancelar» (foco inicial) y «Sí, completar». Esc cierra. El error de red se muestra **dentro** del diálogo para reintentar sin reabrirlo.
+
+```
+confirmar → POST /progress/track { roadmap_item_id, completed: true }
+  ├─ 200 → cerrar · refetch detalle · anuncio en live region · foco al <h3> del ítem
+  │        si status pasó a COMPLETED: panel de cierre y foco a su título
+  ├─ 409 ROADMAP_PAUSED → cerrar · refetch · banner de pausa · foco al banner
+  │        «Esta ruta está pausada. Reanúdala para registrar tu avance.»
+  ├─ 401 → login conservando la ruta de vuelta
+  ├─ 404 → refetch + aviso (el ítem ya no existe)
+  └─ red / 5xx → error dentro del diálogo + «Reintentar»; tras 2 fallos, mención a la conexión
+```
+
+El bloqueo es **por ítem**, nunca de pantalla: nada de overlay global. Marcar dos veces desde dos pestañas es inocuo (idempotente); un conflicto por `progress_version` se trata como el 409 —refrescar y mostrar el estado real— sin error rojo, porque el resultado que el usuario quería ya se cumplió.
+
+### 16.8 Responsive
+
+**≤640px**
+
+- **Desaparece el riel**: 40px sobre 390 es un 10% del ancho para decoración. El estado pasa a un punto de 15px junto al número del paso, dentro de la tarjeta.
+- El `summary` se oculta (`sr-only`).
+- Miniatura 64×44, descripción a una línea, botones a ancho completo y apilados (44–48px), «Ir al curso» arriba.
+- Se omiten las horas totales; queda «quedan ~51 h».
+
+**641–1023px**: como escritorio con el riel a 28px, miniatura 80×56 y acciones en una sola fila.
+
+### 16.9 Accesibilidad
+
+- `<h1>` = nombre de la ruta. «Cursos de la ruta» es `<h2>`; cada curso `<h3>`. La tarjeta «Continúa aquí» tiene su propio `<h2>`.
+- El timeline es un `<ol>` con un `<li>` por ítem, en el orden de la ruta. **El riel y los nodos son `aria-hidden`**: decoración.
+- Posición como texto real: «Paso 3 de 5».
+- Barra global: `role="progressbar"`, `aria-valuenow/min/max`, `aria-labelledby` al nombre de la ruta y `aria-valuetext="40 por ciento. 2 de 5 cursos completados."` — «40» a secas no dice nada.
+- Estado nunca solo por color: chip con texto + forma distinta de nodo (check / punto / hueco).
+- Enlaces externos: `target="_blank" rel="noopener noreferrer"`, icono ↗ `aria-hidden` y texto oculto «(se abre en una pestaña nueva)».
+- **Foco tras completar:** el botón pulsado desaparece, así que el foco se mueve al `<h3>` del ítem (`tabindex="-1"`); al panel de cierre si la ruta terminó; al banner si hubo 409.
+- Una sola región `aria-live="polite"` a nivel de página: «Golang: Backend Profesional marcado como completado. Progreso de la ruta: 60 por ciento, 3 de 5 cursos.» Los errores van en `role="alert"` junto al control que falló.
+- Imágenes de portada decorativas (`alt=""`): el nombre ya está como texto.
+- Área táctil ≥44px, incluido el ⋯. El diálogo atrapa el foco y lo devuelve al cerrarse.
+
+**Contrastes medidos sobre `#13111C`:** chip Completado `#6EE7B7` 10.5:1 · chips violeta `#C4B5FD` 8.7:1 · chip En pausa `#FCD34D` 10.8:1 · `reason` `#8B87A0` 5.3:1 · error `#FCA5A5` 9.6:1.
+
+Cuando llegue el tema claro, estos cinco hay que rehacerlos: los pasteles sobre blanco caen por debajo de 4.5:1 (orientativamente `#047857`, `#6D28D9`, `#B45309`, `#B91C1C`). **Define el riel y los nodos con tokens desde el principio**, no con blancos translúcidos, o habrá que reescribirlos.
+
+### 16.10 Componentes
+
+```
+RoadmapDetailPage                    ← ruta, orquesta queries y estados de pantalla
+├─ RoadmapDetailSkeleton
+├─ RoadmapNotFound
+├─ RoadmapLoadError            { error, onRetry }
+└─ RoadmapDetail               { roadmap }
+   ├─ RoadmapHeader            { name, summary, status, lastActivity, onPauseToggle, isPausing }
+   │  ├─ StatusBadge           { status }
+   │  ├─ RoadmapMenu           { onPause, onResume, isPaused }
+   │  └─ RoadmapProgress       { progress, completed, total, totalHours, remainingHours, labelledBy }
+   ├─ PausedBanner             { pausedAt, onResume, isResuming, error }
+   ├─ NextStepCard             { item, onComplete, completeState, disabled, disabledReason }
+   ├─ RoadmapCompletedPanel    { completedCount, totalHours, onCreateNew }
+   └─ RoadmapTimeline          { items, nextStepId, isPaused, onComplete, mutations }
+      └─ RoadmapItem           { item, index, total, state, isPaused, onComplete, completeState }
+         ├─ ItemTypeIcon       { type }
+         ├─ ItemMeta           { level, estimatedMinutes, type, completedAt }
+         ├─ ItemStatusChip     { state, completedAt }
+         ├─ ExternalCourseLink { url, name, variant }        ← 'primary' | 'ghost'
+         └─ CompleteButton     { itemId, itemName, tracking, disabled, disabledReason, state }
+            └─ ConfirmCompleteDialog { open, itemName, isSubmitting, error, onConfirm, onCancel }
+```
+
+```
+useRoadmap(id)        → { data, isLoading, error, refetch }
+useTrackProgress(id)  → mutate({ roadmapItemId }); estado por ítem: 'idle'|'pending'|'error'
+usePauseRoadmap(id)   → mutate({ paused, expectedActivityVersion })
+```
+
+`completeState` se resuelve **por `roadmap_item_id`**, no con un booleano global: así el botón de la tarjeta destacada y el de la fila comparten estado sin bloquear el resto de la lista.
+
+Helpers puros, sin JSX y con test propio — aquí vive toda la interpretación de la API:
+
+```
+getItemState(item, nextStepId)   → 'completed'|'in_progress'|'next'|'pending'
+canTrack(tracking)               → boolean         ← COMPLETION|READING && enabled
+totalHours(content) / remainingHours(content)
+formatHours(minutes)             → "26 h"
+formatRelative(iso)              → "hace 2 h"      ← relativo hasta 7 días, fecha absoluta después
+```
+
+Si el backend añade un `type` o un `tracking.type` nuevo, se toca ahí y en el icono. En ningún otro sitio.
+
+### 16.11 Pendientes
+
+- **`reason` llega en inglés** («Develops the BACKEND skills identified in the assessment»). Traducirlo en el backend; si no es posible, ocultarlo antes que mezclar idiomas.
+- **`content[].image`**: en los artboards son marcadores con gradiente. En producción es `<img>` en 96×64 (64×44 en móvil), `object-fit: cover`, con color de fondo mientras carga y el mismo marcador si falla.
+- **Miga de pan en móvil**: solo hay «‹ Mis Rutas». Si aparecen más niveles habrá que replantearla.
+- **`syllabus` y `resume`** llegan en `null` y no se usan. Si traen contenido, el sitio natural es una fila desplegable dentro del ítem.
+- **Confirmación al salir del cuestionario** con respuestas a medias (viene de §15.6, sigue pendiente).
