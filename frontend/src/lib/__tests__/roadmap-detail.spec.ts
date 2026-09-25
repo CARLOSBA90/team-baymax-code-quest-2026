@@ -6,7 +6,10 @@ import {
   getCompletedCount,
   getItemState,
   getRemainingMinutes,
+  getRoadmapProgressSummary,
+  getRoadmapProgressValueText,
   getRoadmapStepsProgressLabel,
+  getStepsCompletedLabel,
   getTotalMinutes,
   ITEM_COMPLETED_PROGRESS,
   isItemCompleted,
@@ -180,5 +183,101 @@ describe("getRoadmapStepsProgressLabel", () => {
     [0, 0, "0 de 0 pasos"],
   ])("(%s, %s) → %s", (completed, total, expected) => {
     expect(getRoadmapStepsProgressLabel(completed, total)).toBe(expected);
+  });
+});
+
+describe("getStepsCompletedLabel", () => {
+  it.each([
+    [2, 5, "2 de 5 pasos completados"],
+    [1, 1, "1 de 1 paso completado"],
+    [0, 1, "0 de 1 paso completado"],
+    [0, 0, "0 de 0 pasos completados"],
+  ])("(%s, %s) → %s", (completed, total, expected) => {
+    expect(getStepsCompletedLabel(completed, total)).toBe(expected);
+  });
+});
+
+describe("getRoadmapProgressValueText", () => {
+  it.each([
+    [40, 2, 5, "40 por ciento. 2 de 5 pasos completados."],
+    [33.33, 1, 3, "33 por ciento. 1 de 3 pasos completados."],
+    [100.4, 5, 5, "100 por ciento. 5 de 5 pasos completados."],
+    [0, 0, 1, "0 por ciento. 0 de 1 paso completado."],
+  ])("(%s, %s, %s) → %s", (progress, completed, total, expected) => {
+    expect(getRoadmapProgressValueText(progress, completed, total)).toBe(expected);
+  });
+});
+
+describe("getRoadmapProgressSummary", () => {
+  it("en curso: pasos, total y lo que queda", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 2,
+        total: 5,
+        totalMinutes: 4620,
+        remainingMinutes: 3060,
+        isCompleted: false,
+      }),
+    ).toBe("2 de 5 pasos · 77 h en total · quedan ~51 h");
+  });
+
+  it("completada: sin «quedan»", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 5,
+        total: 5,
+        totalMinutes: 4620,
+        remainingMinutes: 0,
+        isCompleted: true,
+      }),
+    ).toBe("5 de 5 pasos · 77 h en total");
+  });
+
+  it("completada con minutos restantes (datos incoherentes): tampoco «quedan»", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 4,
+        total: 5,
+        totalMinutes: 4620,
+        remainingMinutes: 60,
+        isCompleted: true,
+      }),
+    ).toBe("4 de 5 pasos · 77 h en total");
+  });
+
+  it("sin completar pero sin minutos restantes: sin «quedan»", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 1,
+        total: 2,
+        totalMinutes: 120,
+        remainingMinutes: 0,
+        isCompleted: false,
+      }),
+    ).toBe("1 de 2 pasos · 2 h en total");
+  });
+
+  it("singular y minutos por debajo de una hora", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 0,
+        total: 1,
+        totalMinutes: 45,
+        remainingMinutes: 45,
+        isCompleted: false,
+      }),
+    ).toBe("0 de 1 paso · 45 min en total · quedan ~45 min");
+  });
+
+  it("sin minutos: solo los pasos", () => {
+    expect(
+      getRoadmapProgressSummary({
+        completed: 0,
+        total: 0,
+        totalMinutes: 0,
+        remainingMinutes: 0,
+        isCompleted: false,
+      }),
+    ).toBe("0 de 0 pasos");
   });
 });

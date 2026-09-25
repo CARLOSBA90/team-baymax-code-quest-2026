@@ -1,4 +1,5 @@
 import type { RoadmapItem, RoadmapItemState, RoadmapItemTracking } from "@/types";
+import { clampProgress } from "./roadmap-presentation";
 
 /** Progreso (0-100) a partir del cual un ítem cuenta como completado. */
 export const ITEM_COMPLETED_PROGRESS = 100;
@@ -88,4 +89,44 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 /** «1 de 4 pasos»; singular «paso» si el total es 1. */
 export function getRoadmapStepsProgressLabel(completed: number, total: number): string {
   return `${completed} de ${total} ${total === 1 ? "paso" : "pasos"}`;
+}
+
+/** «2 de 5 pasos completados»; singular «1 de 1 paso completado». */
+export function getStepsCompletedLabel(completed: number, total: number): string {
+  const suffix = total === 1 ? "completado" : "completados";
+  return `${getRoadmapStepsProgressLabel(completed, total)} ${suffix}`;
+}
+
+/** `aria-valuetext` de la barra global: «40 por ciento. 2 de 5 pasos completados.» */
+export function getRoadmapProgressValueText(
+  progress: number,
+  completed: number,
+  total: number,
+): string {
+  return `${clampProgress(progress)} por ciento. ${getStepsCompletedLabel(completed, total)}.`;
+}
+
+export interface RoadmapProgressSummaryInput {
+  completed: number;
+  total: number;
+  totalMinutes: number;
+  remainingMinutes: number;
+  isCompleted: boolean;
+}
+
+/**
+ * «2 de 5 pasos · 77 h en total · quedan ~51 h». Omite «en total» sin minutos y «quedan» si la
+ * ruta está completada o no queda tiempo.
+ */
+export function getRoadmapProgressSummary({
+  completed,
+  total,
+  totalMinutes,
+  remainingMinutes,
+  isCompleted,
+}: RoadmapProgressSummaryInput): string {
+  const parts = [getRoadmapStepsProgressLabel(completed, total)];
+  if (totalMinutes > 0) parts.push(`${formatHours(totalMinutes)} en total`);
+  if (!isCompleted && remainingMinutes > 0) parts.push(`quedan ~${formatHours(remainingMinutes)}`);
+  return parts.join(" · ");
 }

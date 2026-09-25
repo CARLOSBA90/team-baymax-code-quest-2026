@@ -61,7 +61,11 @@ describe("RoadmapDetailPage", () => {
     expect(getRoadmap).toHaveBeenCalledWith(ID);
     expect(screen.getByText(ROADMAP_DETAIL.summary)).toBeInTheDocument();
     expect(screen.getByText("Empezada")).toBeInTheDocument();
-    expect(screen.getByText("1 de 4 pasos")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: ROADMAP_DETAIL.name })).toHaveAttribute(
+      "aria-valuenow",
+      "33",
+    );
+    expect(screen.getByText("1 de 4 pasos · 7 h en total · quedan ~5 h")).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

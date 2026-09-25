@@ -24,12 +24,22 @@ describe("RoadmapDetailView", () => {
     expect(screen.queryByText("En curso")).not.toBeInTheDocument();
   });
 
-  it("muestra la barra de progreso redondeada y «X de N pasos» contando todos los tipos", () => {
+  it("coloca el contenido en la columna de detalle de 920px", () => {
     renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "33");
-    // 1 completado de 4 ítems (COURSE, COURSE, MEDIA, CHALLENGE).
-    expect(screen.getByText("1 de 4 pasos")).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { level: 1, name: ROADMAP_DETAIL.name });
+    expect(heading.closest(".max-w-detail")).toHaveClass("flex", "w-full", "flex-col", "gap-5.5");
+  });
+
+  it("muestra la barra global nombrada por el h1, redondeada, con resumen de pasos y horas", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+    const bar = screen.getByRole("progressbar", { name: ROADMAP_DETAIL.name });
+    expect(bar).toHaveAttribute("aria-valuenow", "33");
+    expect(bar).toHaveAttribute("aria-valuetext", "33 por ciento. 1 de 4 pasos completados.");
+    // 1 completado de 4 ítems (COURSE, COURSE, MEDIA, CHALLENGE); 390 min en total, 270 restantes.
+    expect(screen.getByText("1 de 4 pasos · 7 h en total · quedan ~5 h")).toBeInTheDocument();
+    expect(screen.getByText("33%")).toHaveClass("text-accent-soft");
   });
 
   it("lista los pasos en orden dentro de «Pasos de la ruta»", () => {
@@ -45,7 +55,11 @@ describe("RoadmapDetailView", () => {
   it("acota el progreso por encima de 100", () => {
     renderWithProviders(<RoadmapDetailView roadmap={buildRoadmapDetail({ progress: 100.4 })} />);
 
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByRole("progressbar", { name: ROADMAP_DETAIL.name })).toHaveAttribute(
+      "aria-valuenow",
+      "100",
+    );
+    expect(screen.getByText("100%")).toBeInTheDocument();
   });
 
   it("usa el singular con un único paso", () => {
@@ -53,13 +67,18 @@ describe("RoadmapDetailView", () => {
       <RoadmapDetailView roadmap={buildRoadmapDetail({ items: [buildRoadmapItem()] })} />,
     );
 
-    expect(screen.getByText("0 de 1 paso")).toBeInTheDocument();
+    // buildRoadmapItem: 60 min, sin completar.
+    expect(screen.getByText("0 de 1 paso · 1 h en total · quedan ~1 h")).toBeInTheDocument();
   });
 
   it("sin pasos muestra «0 de 0 pasos» y ningún listitem", () => {
     renderWithProviders(<RoadmapDetailView roadmap={buildRoadmapDetail({ items: [] })} />);
 
     expect(screen.getByText("0 de 0 pasos")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: ROADMAP_DETAIL.name })).toHaveAttribute(
+      "aria-valuetext",
+      "33 por ciento. 0 de 0 pasos completados.",
+    );
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
