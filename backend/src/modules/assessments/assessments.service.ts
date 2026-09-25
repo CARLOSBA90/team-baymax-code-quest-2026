@@ -10,6 +10,7 @@ import type { QuestionsListResponseDto } from './dto/question-response.dto.js';
 import type {
   AssessmentResultDto,
   AssessmentResultResponseDto,
+  RoadmapGenerationResultDto,
   SubmitAssessmentDto,
 } from './dto/submit-assessment.dto.js';
 import type {
@@ -88,19 +89,45 @@ export class AssessmentsService {
       validatedAnswers,
     );
 
+    let roadmap: RoadmapGenerationResultDto;
     try {
-      await this.roadmapGenerationService.generate(userId, {
-        assessmentId: assessment.id,
+      const existingRoadmap = await this.prisma.roadmap.findFirst({
+        where: { assessmentId: assessment.id },
+        select: { id: true },
       });
+
+      if (existingRoadmap) {
+        roadmap = {
+          status: 'EXISTS',
+          id: existingRoadmap.id,
+        };
+      } else {
+        const generated = await this.roadmapGenerationService.generate(userId, {
+          assessmentId: assessment.id,
+        });
+        roadmap = {
+          status: 'GENERATED',
+          id: generated.data.id,
+        };
+      }
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${message}`,
       );
+      roadmap = {
+        status: 'FAILED',
+        message,
+      };
     }
 
-    return { data: assessment };
+    return {
+      data: {
+        ...assessment,
+        roadmap,
+      },
+    };
   }
 
   /**

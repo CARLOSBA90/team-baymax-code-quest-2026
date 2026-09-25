@@ -12,6 +12,9 @@ describe('AssessmentsService', () => {
       create: ReturnType<typeof vi.fn>;
       findFirst: ReturnType<typeof vi.fn>;
     };
+    roadmap: {
+      findFirst: ReturnType<typeof vi.fn>;
+    };
   };
   let roadmapGenerationMock: { generate: ReturnType<typeof vi.fn> };
 
@@ -24,8 +27,13 @@ describe('AssessmentsService', () => {
         create: vi.fn(),
         findFirst: vi.fn(),
       },
+      roadmap: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
     };
-    roadmapGenerationMock = { generate: vi.fn().mockResolvedValue(undefined) };
+    roadmapGenerationMock = {
+      generate: vi.fn().mockResolvedValue({ data: { id: 'roadmap-gen-1' } }),
+    };
     service = new AssessmentsService(
       prismaMock as unknown as PrismaService,
       roadmapGenerationMock as unknown as RoadmapGenerationService,
@@ -213,7 +221,15 @@ describe('AssessmentsService', () => {
       expect(createCall.data.profileScores).toMatchObject({
         BACKEND: 20,
       });
-      expect(result).toEqual({ data: mockSavedAssessment });
+      expect(result).toEqual({
+        data: {
+          ...mockSavedAssessment,
+          roadmap: {
+            status: 'GENERATED',
+            id: 'roadmap-gen-1',
+          },
+        },
+      });
     });
 
     it('calls roadmapGenerationService.generate once with the persisted assessmentId', async () => {
@@ -230,7 +246,7 @@ describe('AssessmentsService', () => {
       };
       prismaMock.assessment.create.mockResolvedValue(mockSavedAssessment);
 
-      await service.submit('user-1', {
+      const result = await service.submit('user-1', {
         answers: [
           { questionId: 'q-1', optionId: 'opt-1-back' },
           { questionId: 'q-2', optionId: 'opt-2-lvl4' },
@@ -241,9 +257,13 @@ describe('AssessmentsService', () => {
         'user-1',
         { assessmentId: 'assm-1' },
       );
+      expect(result.data.roadmap).toEqual({
+        status: 'GENERATED',
+        id: 'roadmap-gen-1',
+      });
     });
 
-    it('does not throw and still returns the assessment if roadmap generation fails', async () => {
+    it('does not throw and indicates FAILED status when roadmap generation fails', async () => {
       prismaMock.question.findMany.mockResolvedValue(mockActiveQuestions);
 
       const mockSavedAssessment = {
@@ -267,8 +287,50 @@ describe('AssessmentsService', () => {
         ],
       });
 
-      // El submit no explota: el assessment fue persistido y se retorna correctamente
-      expect(result).toEqual({ data: mockSavedAssessment });
+      // El submit no explota: el assessment fue persistido y se retorna con status FAILED
+      expect(result).toEqual({
+        data: {
+          ...mockSavedAssessment,
+          roadmap: {
+            status: 'FAILED',
+            message: 'Catalog is empty — no courses available',
+          },
+        },
+      });
+    });
+
+    it('returns roadmap with status EXISTS if a roadmap already exists for the assessment', async () => {
+      prismaMock.question.findMany.mockResolvedValue(mockActiveQuestions);
+
+      const mockSavedAssessment = {
+        id: 'assm-1',
+        userId: 'user-1',
+        version: 1,
+        goalCategory: SkillCategory.BACKEND,
+        profileScores: { BACKEND: 20 },
+        completedAt: new Date('2026-09-20T00:00:00.000Z'),
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+      };
+      prismaMock.assessment.create.mockResolvedValue(mockSavedAssessment);
+      prismaMock.roadmap.findFirst.mockResolvedValue({ id: 'roadmap-existing-99' });
+
+      const result = await service.submit('user-1', {
+        answers: [
+          { questionId: 'q-1', optionId: 'opt-1-back' },
+          { questionId: 'q-2', optionId: 'opt-2-lvl4' },
+        ],
+      });
+
+      expect(roadmapGenerationMock.generate).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        data: {
+          ...mockSavedAssessment,
+          roadmap: {
+            status: 'EXISTS',
+            id: 'roadmap-existing-99',
+          },
+        },
+      });
     });
   });
 

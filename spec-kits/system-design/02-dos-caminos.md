@@ -204,14 +204,16 @@ sin obtener ninguna ruta generada.
 
 ```
 AssessmentsService.submit()
-  └─> [HOOK INLINE] RoadmapGenerationService.generate(userId, { assessmentId })
-        ├─ Exito: Roadmap persiste en DB antes de retornar HTTP 201
-        └─ Fallo: try/catch absorbe el error, Logger.warn, Assessment se guarda igual
+  └─> [HOOK INLINE] Resolver Roadmap
+        ├─ Ya existe: roadmap.status = "EXISTS" (id: existingRoadmap.id)
+        ├─ Exito al generar: roadmap.status = "GENERATED" (id: generatedRoadmap.id)
+        └─ Fallo controlado: roadmap.status = "FAILED" (message: error.message)
+            Assessment persiste en DB, respuesta 201 informa al cliente sin romper la request.
 ```
 
 ### Estado de POST /api/v1/roadmaps/generate
 
 | Rol | Estado |
 |---|---|
-| Flujo del cuestionario (primario) | ❌ **Deprecado** — no se usa desde el frontend |
-| Re-generacion manual con parametros avanzados | ✅ Disponible como endpoint secundario |
+| Flujo del cuestionario (primario) | ❌ **Deprecado** — la ruta se autogenera inline en `submit()` |
+| Reintento tras fallo o re-generacion manual con parametros | ✅ Disponible como endpoint secundario |

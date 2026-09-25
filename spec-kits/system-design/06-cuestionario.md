@@ -230,26 +230,80 @@ AssessmentsService.submit(userId, answers):
   2. Obtener preguntas activas desde la DB
   3. Calcular profileScores y goalCategory segun las opciones elegidas
   4. Persistir Assessment + AssessmentAnswers en DB
-  5. [HOOK INLINE] RoadmapGenerationService.generate(userId, { assessmentId }):
-       - Exito: Roadmap y RoadmapItems creados en DB antes de responder al cliente.
-       - Fallo controlado (try/catch + Logger.warn): si falla (catalogo vacio,
-         timeout, error de generador), el error se loguea como advertencia,
-         el Assessment queda persistido y la request NO explota.
-  6. Retornar: { data: AssessmentResult } con HTTP 201
+  5. [HOOK INLINE] Resolver Roadmap:
+       - Si ya existe una ruta para el assessment:
+           roadmap = { status: "EXISTS", id: existingRoadmap.id }
+       - Si no existe, invocar RoadmapGenerationService.generate(userId, { assessmentId }):
+           * Exito: Roadmap y RoadmapItems creados en DB.
+             roadmap = { status: "GENERATED", id: generatedRoadmap.id }
+           * Fallo controlado (try/catch + Logger.warn): si falla (catalogo vacio,
+             timeout, error de generador), se loguea como advertencia,
+             el Assessment queda persistido y la request NO explota.
+             roadmap = { status: "FAILED", message: error.message }
+  6. Retornar: { data: { ...AssessmentResult, roadmap } } con HTTP 201
         |
         v
-Frontend recibe 201 Created -> navega a /dashboard/roadmaps
-        |
-        v
-GET /api/v1/roadmaps -> La nueva ruta ya existe en DB y se renderiza inmediatamente.
+Frontend recibe 201 Created y evalua data.roadmap.status:
+  - Caso Exito ("GENERATED" o "EXISTS"):
+      * Navega a /dashboard/roadmaps (o directamente a /dashboard/roadmaps/:id).
+      * GET /api/v1/roadmaps -> La nueva ruta existe en DB y se renderiza inmediatamente.
+  - Caso Falla Controlada ("FAILED"):
+      * El Assessment fue guardado con exito.
+      * La nueva ruta NO existe en DB.
+      * El frontend informa al usuario que las respuestas fueron registradas pero
+        la ruta no pudo auto-generarse, ofreciendo un reintento manual
+        (usando POST /api/v1/roadmaps/generate).
+```
+
+### Formato de respuesta de `POST /api/v1/assessments/submit`
+
+```json
+{
+  "data": {
+    "id": "cuid_assessment_123",
+    "userId": "user_id_456",
+    "version": 1,
+    "goalCategory": "BACKEND",
+    "profileScores": {
+      "BACKEND": 20,
+      "FRONTEND": 5
+    },
+    "completedAt": "2026-09-25T15:00:00.000Z",
+    "createdAt": "2026-09-25T15:00:00.000Z",
+    "roadmap": {
+      "status": "GENERATED",
+      "id": "cuid_roadmap_789"
+    }
+  }
+}
+```
+
+En caso de fallo controlado en la generacion:
+
+```json
+{
+  "data": {
+    "id": "cuid_assessment_123",
+    "userId": "user_id_456",
+    "version": 1,
+    "goalCategory": "BACKEND",
+    "profileScores": { "BACKEND": 20 },
+    "completedAt": "2026-09-25T15:00:00.000Z",
+    "createdAt": "2026-09-25T15:00:00.000Z",
+    "roadmap": {
+      "status": "FAILED",
+      "message": "No se pudo auto-generar la ruta: There are no active courses."
+    }
+  }
+}
 ```
 
 ### Estado del endpoint POST /api/v1/roadmaps/generate
 
 | Endpoint | Estado | Uso |
 |---|---|---|
-| `POST /api/v1/roadmaps/generate` | Activo pero **NO usado en el flujo del cuestionario** | Re-generacion manual de ruta con parametros avanzados |
+| `POST /api/v1/roadmaps/generate` | Activo pero **secundario** | Re-generacion manual de ruta con parametros avanzados o reintento si la auto-generacion inline fallo |
 
 El endpoint se mantiene en el backend para casos de uso secundarios (ej: el usuario quiere
-regenerar su ruta con distintos parametros). No debe ser llamado por el frontend como
-parte del flujo normal del cuestionario.
+regenerar su ruta con distintos parametros o reintentar tras un `status: "FAILED"`). No debe ser llamado por el frontend en el flujo primario exitoso del cuestionario.
+
