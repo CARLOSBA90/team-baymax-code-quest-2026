@@ -34,3 +34,8 @@ CLAUDE.md
 CLAUDE.md
 CLAUDE.md
 CLAUDE.md
+backend/Dockerfile
+docker-compose.yml
+backend/.dockerignore
+backend/.env.production
+tasks/todo.md
