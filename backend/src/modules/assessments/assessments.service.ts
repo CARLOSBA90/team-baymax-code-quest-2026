@@ -111,14 +111,14 @@ export class AssessmentsService {
         };
       }
     } catch (error) {
-      const message =
+      const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${message}`,
+        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${errorMessage}`,
       );
       roadmap = {
         status: 'FAILED',
-        message,
+        message: 'No se pudo generar la ruta de aprendizaje.',
       };
     }
 

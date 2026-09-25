@@ -287,13 +287,13 @@ describe('AssessmentsService', () => {
         ],
       });
 
-      // El submit no explota: el assessment fue persistido y se retorna con status FAILED
+      // El submit no explota: el assessment fue persistido y se retorna con status FAILED y mensaje sanitizado
       expect(result).toEqual({
         data: {
           ...mockSavedAssessment,
           roadmap: {
             status: 'FAILED',
-            message: 'Catalog is empty — no courses available',
+            message: 'No se pudo generar la ruta de aprendizaje.',
           },
         },
       });

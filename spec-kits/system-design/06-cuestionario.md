@@ -239,7 +239,7 @@ AssessmentsService.submit(userId, answers):
            * Fallo controlado (try/catch + Logger.warn): si falla (catalogo vacio,
              timeout, error de generador), se loguea como advertencia,
              el Assessment queda persistido y la request NO explota.
-             roadmap = { status: "FAILED", message: error.message }
+             roadmap = { status: "FAILED", message: "No se pudo generar la ruta de aprendizaje." }
   6. Retornar: { data: { ...AssessmentResult, roadmap } } con HTTP 201
         |
         v
@@ -278,7 +278,7 @@ Frontend recibe 201 Created y evalua data.roadmap.status:
 }
 ```
 
-En caso de fallo controlado en la generacion:
+En caso de fallo controlado en la generacion (mensaje sanitizado para evitar divulgacion de detalles internos, CWE-209):
 
 ```json
 {
@@ -292,11 +292,13 @@ En caso de fallo controlado en la generacion:
     "createdAt": "2026-09-25T15:00:00.000Z",
     "roadmap": {
       "status": "FAILED",
-      "message": "No se pudo auto-generar la ruta: There are no active courses."
+      "message": "No se pudo generar la ruta de aprendizaje."
     }
   }
 }
 ```
+
+> **Nota de Seguridad (CWE-209):** El campo `roadmap.message` devuelve un mensaje sanitizado y genérico al cliente. Los detalles técnicos (errores de Prisma, timeouts de red, etc.) se preservan exclusivamente en los registros internos del servidor (`Logger.warn`) para evitar filtración de información sobre la infraestructura o la base de datos.
 
 ### Estado del endpoint POST /api/v1/roadmaps/generate
 
