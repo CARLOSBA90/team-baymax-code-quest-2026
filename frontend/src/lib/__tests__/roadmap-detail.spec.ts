@@ -3,18 +3,25 @@ import {
   canTrack,
   formatHours,
   formatRelative,
+  formatShortDate,
   getCompletedCount,
+  getItemMeta,
   getItemState,
+  getItemTypeLabel,
   getRemainingMinutes,
   getRoadmapProgressSummary,
   getRoadmapProgressValueText,
   getRoadmapStepsProgressLabel,
+  getStepLabel,
   getStepsCompletedLabel,
   getTotalMinutes,
+  getTrackingUnavailableMessage,
   ITEM_COMPLETED_PROGRESS,
   isItemCompleted,
+  TRACKING_UNAVAILABLE_MESSAGES,
 } from "@/lib";
 import { buildRoadmapItem } from "@/test/fixtures/roadmap-detail";
+import type { RoadmapItemTracking } from "@/types";
 
 const STARTED_AT = "2026-09-20T12:00:00Z";
 
@@ -279,5 +286,171 @@ describe("getRoadmapProgressSummary", () => {
         isCompleted: false,
       }),
     ).toBe("0 de 0 pasos");
+  });
+});
+
+describe("formatShortDate", () => {
+  const NOW = new Date("2026-09-25T12:00:00Z");
+
+  it("omite el año si coincide con el de now", () => {
+    expect(formatShortDate("2026-08-12T12:00:00Z", NOW)).toBe("12 ago");
+  });
+
+  it("añade el año si difiere del de now", () => {
+    expect(formatShortDate("2025-08-12T12:00:00Z", NOW)).toBe("12 ago 2025");
+  });
+
+  it("un ISO inválido devuelve cadena vacía sin lanzar", () => {
+    expect(() => formatShortDate("no-es-fecha", NOW)).not.toThrow();
+    expect(formatShortDate("no-es-fecha", NOW)).toBe("");
+  });
+
+  it("coincide con la rama ≥7 días de formatRelative", () => {
+    expect(formatRelative("2026-08-12T12:00:00Z", NOW)).toBe(
+      formatShortDate("2026-08-12T12:00:00Z", NOW),
+    );
+  });
+});
+
+describe("getStepLabel", () => {
+  it("«Paso i de N»", () => {
+    expect(getStepLabel(3, 5)).toBe("Paso 3 de 5");
+  });
+
+  it("usa la posición en la lista, no el `order` del ítem", () => {
+    const items = [
+      buildRoadmapItem({ roadmapItemId: "a", order: 10 }),
+      buildRoadmapItem({ roadmapItemId: "b", order: 20 }),
+      buildRoadmapItem({ roadmapItemId: "c", order: 30 }),
+    ];
+    const index = items.findIndex((item) => item.order === 20);
+    expect(getStepLabel(index + 1, items.length)).toBe("Paso 2 de 3");
+  });
+});
+
+describe("getItemTypeLabel", () => {
+  it.each([
+    ["COURSE", null],
+    ["MEDIA", "Recurso"],
+    ["CHALLENGE", "Reto"],
+    ["PODCAST", "PODCAST"],
+    ["toString", "toString"],
+  ])("%s → %s", (type, expected) => {
+    expect(getItemTypeLabel(type)).toBe(expected);
+  });
+});
+
+describe("getItemMeta", () => {
+  const NOW = new Date("2026-09-25T12:00:00Z");
+
+  it("curso completado: nivel, horas y fecha de compleción", () => {
+    const item = buildRoadmapItem({
+      level: "beginner",
+      estimatedMinutes: 720,
+      completedAt: "2026-08-12T12:00:00Z",
+    });
+    expect(getItemMeta(item, { now: NOW })).toBe("Básico · 12 h · completado el 12 ago");
+  });
+
+  it("curso pendiente: nivel y horas", () => {
+    const item = buildRoadmapItem({ level: "intermediate", estimatedMinutes: 540 });
+    expect(getItemMeta(item, { now: NOW })).toBe("Intermedio · 9 h");
+  });
+
+  it("sin nivel ni minutos → cadena vacía", () => {
+    const item = buildRoadmapItem({ level: null, estimatedMinutes: null });
+    expect(getItemMeta(item, { now: NOW })).toBe("");
+  });
+
+  it("sin nivel con minutos → solo la duración", () => {
+    const item = buildRoadmapItem({ level: null, estimatedMinutes: 45 });
+    expect(getItemMeta(item, { now: NOW })).toBe("45 min");
+  });
+
+  it("MEDIA sin nivel ni minutos → «Recurso»", () => {
+    const item = buildRoadmapItem({ type: "MEDIA", level: null, estimatedMinutes: null });
+    expect(getItemMeta(item, { now: NOW })).toBe("Recurso");
+  });
+
+  it("CHALLENGE y tipo desconocido van primero", () => {
+    expect(
+      getItemMeta(buildRoadmapItem({ type: "CHALLENGE", level: "advanced", estimatedMinutes: 90 })),
+    ).toBe("Reto · Avanzado · 2 h");
+    expect(getItemMeta(buildRoadmapItem({ type: "PODCAST", estimatedMinutes: null }))).toBe(
+      "PODCAST",
+    );
+  });
+
+  it("completedAt null o inválido → sin «completado el»", () => {
+    const base = { level: "beginner" as const, estimatedMinutes: 120 };
+    expect(getItemMeta(buildRoadmapItem({ ...base, completedAt: null }), { now: NOW })).toBe(
+      "Básico · 2 h",
+    );
+    expect(getItemMeta(buildRoadmapItem({ ...base, completedAt: "x" }), { now: NOW })).toBe(
+      "Básico · 2 h",
+    );
+  });
+
+  it("con paso: «Paso i de N» delante", () => {
+    const item = buildRoadmapItem({ level: "beginner", estimatedMinutes: 1560 });
+    expect(getItemMeta(item, { step: { number: 3, total: 5 }, now: NOW })).toBe(
+      "Paso 3 de 5 · Básico · 26 h",
+    );
+  });
+
+  it("beginner es «Básico», nunca «Principiante»", () => {
+    const meta = getItemMeta(buildRoadmapItem({ level: "beginner" }));
+    expect(meta).toContain("Básico");
+    expect(meta).not.toContain("Principiante");
+  });
+});
+
+describe("getTrackingUnavailableMessage", () => {
+  const METADATA = "Aún no podemos registrar el avance de este curso.";
+  const AUTOMATIC = "El avance de este curso se registra automáticamente.";
+  const CHALLENGE = "El avance se registra al enviar el reto.";
+  const GENERIC = "No se puede marcar como completado desde aquí.";
+  const tracking = (
+    type: string,
+    enabled: boolean,
+    disabledReason: string | null = null,
+  ): RoadmapItemTracking => ({ type, enabled, disabledReason });
+
+  it.each<[string, RoadmapItemTracking, string | null]>([
+    ["COMPLETION habilitado", tracking("COMPLETION", true), null],
+    ["READING habilitado", tracking("READING", true), null],
+    [
+      "TRACKING_METADATA_MISSING",
+      tracking("COMPLETION", false, "TRACKING_METADATA_MISSING"),
+      METADATA,
+    ],
+    ["SYLLABUS_MISSING", tracking("LESSONS", false, "SYLLABUS_MISSING"), METADATA],
+    ["VIDEO habilitado", tracking("VIDEO", true), AUTOMATIC],
+    ["LESSONS habilitado", tracking("LESSONS", true), AUTOMATIC],
+    ["CHALLENGE habilitado", tracking("CHALLENGE", true), CHALLENGE],
+    [
+      "CHALLENGE con disabledReason (tiene precedencia)",
+      tracking("CHALLENGE", false, "TRACKING_METADATA_MISSING"),
+      METADATA,
+    ],
+    ["código desconocido", tracking("COMPLETION", false, "SOMETHING_NEW"), GENERIC],
+    ["tipo desconocido", tracking("QUIZ", true), GENERIC],
+  ])("%s", (_label, value, expected) => {
+    expect(getTrackingUnavailableMessage(value)).toBe(expected);
+  });
+
+  it("nunca contiene el código crudo", () => {
+    const message = getTrackingUnavailableMessage(tracking("COMPLETION", false, "SOMETHING_NEW"));
+    expect(message).not.toContain("SOMETHING_NEW");
+    for (const code of Object.keys(TRACKING_UNAVAILABLE_MESSAGES)) {
+      expect(TRACKING_UNAVAILABLE_MESSAGES[code]).not.toContain(code);
+    }
+  });
+
+  it("mapea los códigos reales del backend", () => {
+    expect(TRACKING_UNAVAILABLE_MESSAGES).toEqual({
+      TRACKING_METADATA_MISSING: METADATA,
+      SYLLABUS_MISSING: METADATA,
+    });
   });
 });

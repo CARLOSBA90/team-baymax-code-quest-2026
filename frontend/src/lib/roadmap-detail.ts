@@ -1,4 +1,5 @@
-import type { RoadmapItem, RoadmapItemState, RoadmapItemTracking } from "@/types";
+import type { RoadmapItem, RoadmapItemState, RoadmapItemTracking, RoadmapItemType } from "@/types";
+import { ROADMAP_LEVEL_LABELS } from "./roadmap-labels";
 import { clampProgress } from "./roadmap-presentation";
 
 /** Progreso (0-100) a partir del cual un ítem cuenta como completado. */
@@ -81,6 +82,17 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
     return RELATIVE.format(-Math.floor(elapsed / DAY_MS), "day");
   }
 
+  return formatShortDate(iso, now);
+}
+
+/**
+ * Fecha corta («12 ago»), con año solo si difiere del de `now` («12 ago 2025»). El año se compara
+ * en zona local, la misma que usan los formatters. ISO inválido → "".
+ */
+export function formatShortDate(iso: string, now: Date = new Date()): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "";
+
   const then = new Date(time);
   const formatter = then.getFullYear() === now.getFullYear() ? SHORT_DATE : SHORT_DATE_WITH_YEAR;
   return formatter.format(then);
@@ -129,4 +141,77 @@ export function getRoadmapProgressSummary({
   if (totalMinutes > 0) parts.push(`${formatHours(totalMinutes)} en total`);
   if (!isCompleted && remainingMinutes > 0) parts.push(`quedan ~${formatHours(remainingMinutes)}`);
   return parts.join(" · ");
+}
+
+/** «Paso 3 de 5»; `stepNumber` es la posición 1-based en la lista, no el `order` del ítem. */
+export function getStepLabel(stepNumber: number, total: number): string {
+  return `Paso ${stepNumber} de ${total}`;
+}
+
+const ITEM_TYPE_LABELS: Record<string, string | null> = {
+  COURSE: null,
+  MEDIA: "Recurso",
+  CHALLENGE: "Reto",
+};
+
+/** COURSE → `null` (sin etiqueta); MEDIA → «Recurso»; CHALLENGE → «Reto»; desconocido → crudo. */
+export function getItemTypeLabel(type: RoadmapItemType): string | null {
+  return Object.hasOwn(ITEM_TYPE_LABELS, type) ? ITEM_TYPE_LABELS[type] : type;
+}
+
+export interface ItemMetaOptions {
+  /** Posición del paso («Paso i de N»); se omite si no se pasa. */
+  step?: { number: number; total: number };
+  now?: Date;
+}
+
+/**
+ * Meta de un ítem unida con « · »: [«Paso i de N»?, tipo?, nivel?, duración?, «completado el …»?].
+ * Las partes nulas o inválidas se omiten sin separadores sobrantes.
+ */
+export function getItemMeta(
+  item: Pick<RoadmapItem, "type" | "level" | "estimatedMinutes" | "completedAt">,
+  { step, now = new Date() }: ItemMetaOptions = {},
+): string {
+  const parts: string[] = [];
+  if (step) parts.push(getStepLabel(step.number, step.total));
+  const typeLabel = getItemTypeLabel(item.type);
+  if (typeLabel) parts.push(typeLabel);
+  if (item.level) parts.push(ROADMAP_LEVEL_LABELS[item.level]);
+  if (item.estimatedMinutes !== null) parts.push(formatHours(item.estimatedMinutes));
+  const completedOn = item.completedAt ? formatShortDate(item.completedAt, now) : "";
+  if (completedOn) parts.push(`completado el ${completedOn}`);
+  return parts.join(" · ");
+}
+
+const TRACKING_METADATA_MESSAGE = "Aún no podemos registrar el avance de este curso.";
+const TRACKING_GENERIC_MESSAGE = "No se puede marcar como completado desde aquí.";
+const TRACKING_AUTOMATIC_MESSAGE = "El avance de este curso se registra automáticamente.";
+const TRACKING_CHALLENGE_MESSAGE = "El avance se registra al enviar el reto.";
+
+/** Texto por `disabledReason` (códigos de `backend/src/modules/progress/progress.constants.ts`). */
+export const TRACKING_UNAVAILABLE_MESSAGES: Readonly<Record<string, string>> = {
+  TRACKING_METADATA_MISSING: TRACKING_METADATA_MESSAGE,
+  SYLLABUS_MISSING: TRACKING_METADATA_MESSAGE,
+};
+
+const AUTOMATIC_TRACKING_TYPES: ReadonlySet<string> = new Set(["VIDEO", "LESSONS"]);
+
+/**
+ * Por qué un ítem no se marca a mano (`null` si `canTrack`). Precedencia: `disabledReason` (código
+ * conocido → su texto, desconocido → genérico) > VIDEO/LESSONS automáticos > CHALLENGE > genérico.
+ * Nunca devuelve el código crudo.
+ */
+export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): string | null {
+  if (canTrack(tracking)) return null;
+  if (tracking.disabledReason) {
+    return Object.hasOwn(TRACKING_UNAVAILABLE_MESSAGES, tracking.disabledReason)
+      ? TRACKING_UNAVAILABLE_MESSAGES[tracking.disabledReason]
+      : TRACKING_GENERIC_MESSAGE;
+  }
+  if (tracking.enabled && AUTOMATIC_TRACKING_TYPES.has(tracking.type)) {
+    return TRACKING_AUTOMATIC_MESSAGE;
+  }
+  if (tracking.type === "CHALLENGE") return TRACKING_CHALLENGE_MESSAGE;
+  return TRACKING_GENERIC_MESSAGE;
 }
