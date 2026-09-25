@@ -184,13 +184,17 @@ const questions = [
 
 ---
 
-## Flujo Tecnico: Frontend -> Backend
+## Flujo Tecnico: Frontend -> Backend (Diseño Actual)
+
+> **ACTUALIZADO 2026-09-25** — La generacion del roadmap es responsabilidad interna del backend.
+> El flujo de 2 llamadas (submit + generate) descrito en versiones anteriores **nunca se implemento en el frontend**
+> y fue reemplazado por un hook inline dentro de `AssessmentsService.submit()`.
 
 ```
 Usuario responde el cuestionario en React
         |
         v
-POST /api/v1/assessments
+POST /api/v1/assessments/submit
 Body: {
   answers: [
     { questionId: "q1", optionId: "opt3" },
@@ -204,14 +208,30 @@ AssessmentsController.submit()
         |
         v
 AssessmentsService.submit(userId, answers):
-  1. Crear Assessment { userId, version: N }
-  2. Guardar AssessmentAnswer por cada respuesta
-  3. Calcular profileScores segun las opciones elegidas
-  4. Actualizar Assessment.profileScores y Assessment.completedAt
-  5. Retornar: { assessmentId, profileScores, goalCategory }
+  1. Validar respuestas (formato y completitud)
+  2. Obtener preguntas activas desde la DB
+  3. Calcular profileScores y goalCategory segun las opciones elegidas
+  4. Persistir Assessment + AssessmentAnswers en DB
+  5. [HOOK INLINE] RoadmapGenerationService.generate(userId, { assessmentId }):
+       - Exito: Roadmap y RoadmapItems creados en DB antes de responder al cliente.
+       - Fallo controlado (try/catch + Logger.warn): si falla (catalogo vacio,
+         timeout, error de generador), el error se loguea como advertencia,
+         el Assessment queda persistido y la request NO explota.
+  6. Retornar: { data: AssessmentResult } con HTTP 201
         |
         v
-Frontend recibe el resultado y redirige a:
-  POST /api/v1/roadmaps/generate
-  Body: { assessmentId, weeklyHours, maxCourses }
+Frontend recibe 201 Created -> navega a /dashboard/roadmaps
+        |
+        v
+GET /api/v1/roadmaps -> La nueva ruta ya existe en DB y se renderiza inmediatamente.
 ```
+
+### Estado del endpoint POST /api/v1/roadmaps/generate
+
+| Endpoint | Estado | Uso |
+|---|---|---|
+| `POST /api/v1/roadmaps/generate` | Activo pero **NO usado en el flujo del cuestionario** | Re-generacion manual de ruta con parametros avanzados |
+
+El endpoint se mantiene en el backend para casos de uso secundarios (ej: el usuario quiere
+regenerar su ruta con distintos parametros). No debe ser llamado por el frontend como
+parte del flujo normal del cuestionario.

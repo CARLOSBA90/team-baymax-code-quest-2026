@@ -182,3 +182,36 @@ Esto es lo que la propuesta tecnica original llama "dejar la interfaz detras de 
 - [03 — Catalogo de Cursos](./03-catalogo-cursos.md): como obtenemos los cursos
 - [04 — Entidades](./04-entidades.md): modelo de datos completo
 - [05 — Algoritmo de Rutas](./05-algoritmo-rutas.md): implementacion detallada de cada camino
+
+---
+
+## Nota de Arquitectura: Generacion Automatica Inline (Implementado)
+
+> **ACTUALIZADO 2026-09-25**
+
+Independientemente del camino elegido (A o B), la **arquitectura canonica de CodeQuest**
+es que la generacion del roadmap ocurre **de forma automatica e inline** dentro de
+`AssessmentsService.submit()`, inmediatamente despues de persistir el Assessment.
+
+### Por que esta decision
+
+El diseno original en este documento asumia que el frontend haria una segunda llamada
+explicita a `POST /api/v1/roadmaps/generate`. Esa segunda llamada **nunca fue implementada**
+en el cliente, lo que resultaba en que los usuarios completaban el cuestionario
+sin obtener ninguna ruta generada.
+
+### Arquitectura actual
+
+```
+AssessmentsService.submit()
+  └─> [HOOK INLINE] RoadmapGenerationService.generate(userId, { assessmentId })
+        ├─ Exito: Roadmap persiste en DB antes de retornar HTTP 201
+        └─ Fallo: try/catch absorbe el error, Logger.warn, Assessment se guarda igual
+```
+
+### Estado de POST /api/v1/roadmaps/generate
+
+| Rol | Estado |
+|---|---|
+| Flujo del cuestionario (primario) | ❌ **Deprecado** — no se usa desde el frontend |
+| Re-generacion manual con parametros avanzados | ✅ Disponible como endpoint secundario |
