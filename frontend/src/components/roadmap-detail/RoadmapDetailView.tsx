@@ -1,8 +1,8 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import { RoadmapStatusBadge } from "@/components/roadmaps";
 import { getCompletedCount, getRemainingMinutes, getTotalMinutes } from "@/lib";
 import type { RoadmapDetail } from "@/types";
+import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
 
 export interface RoadmapDetailViewProps {
@@ -30,13 +30,13 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         <span aria-hidden="true">‹</span>
         Mis Rutas
       </Link>
-      <header className="flex flex-col items-start gap-3">
-        <h1 id={headingId} className="font-display text-4xl font-bold text-text-primary">
-          {roadmap.name}
-        </h1>
-        <p className="text-text-secondary">{roadmap.summary}</p>
-        <RoadmapStatusBadge status={roadmap.status} />
-      </header>
+      <RoadmapHeader
+        name={roadmap.name}
+        summary={roadmap.summary}
+        status={roadmap.status}
+        lastActivity={roadmap.lastActivity}
+        headingId={headingId}
+      />
       <RoadmapProgress
         progress={roadmap.progress}
         status={roadmap.status}

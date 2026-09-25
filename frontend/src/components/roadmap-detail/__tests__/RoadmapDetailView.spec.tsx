@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import {
   buildRoadmapDetail,
@@ -9,7 +9,17 @@ import {
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 describe("RoadmapDetailView", () => {
-  it("enlaza a Mis Rutas y muestra nombre, resumen y estado con las etiquetas actuales", () => {
+  beforeEach(() => {
+    // Solo Date: «Última actividad» depende del reloj (fixture: 2026-09-21T18:30Z).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("enlaza a Mis Rutas y muestra nombre, resumen, estado y última actividad", () => {
     renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
     expect(screen.getByRole("link", { name: "Mis Rutas" })).toHaveAttribute(
@@ -22,6 +32,7 @@ describe("RoadmapDetailView", () => {
     expect(screen.getByText(ROADMAP_DETAIL.summary)).toBeInTheDocument();
     expect(screen.getByText("Empezada")).toBeInTheDocument();
     expect(screen.queryByText("En curso")).not.toBeInTheDocument();
+    expect(screen.getByText("Última actividad: hace 3 días")).toBeInTheDocument();
   });
 
   it("coloca el contenido en la columna de detalle de 920px", () => {
