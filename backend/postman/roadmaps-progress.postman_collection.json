@@ -1,0 +1,1332 @@
+{
+  "info": {
+    "name": "CodeQuest - Roadmaps and Progress",
+    "description": "Local-only collection for authentication, assessment, roadmap generation, listing, detail, progress and pause. Run folders in order. The assessment requests create the prerequisite automatically. The server selects the primary generator with ROADMAP_GENERATOR_PROVIDER; registered services provide automatic fallbacks and RULES remains the final local fallback. Includes content tracking and challenge submission examples. This collection remains local-only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001"
+    },
+    {
+      "key": "origin",
+      "value": "http://localhost:5173"
+    },
+    {
+      "key": "email",
+      "value": "roadmap.test@example.com"
+    },
+    {
+      "key": "password",
+      "value": "secret123"
+    },
+    {
+      "key": "assessmentAnswers",
+      "value": "[]"
+    },
+    {
+      "key": "assessmentId",
+      "value": ""
+    },
+    {
+      "key": "declaredLevel",
+      "value": "BEGINNER"
+    },
+    {
+      "key": "generationMode",
+      "value": "AUTO"
+    },
+    {
+      "key": "roadmapId",
+      "value": ""
+    },
+    {
+      "key": "roadmapItemId",
+      "value": ""
+    },
+    {
+      "key": "activityVersion",
+      "value": "0"
+    },
+    {
+      "key": "submissionId",
+      "value": ""
+    },
+    {
+      "key": "readingItemId",
+      "value": ""
+    },
+    {
+      "key": "videoItemId",
+      "value": ""
+    },
+    {
+      "key": "challengeItemId",
+      "value": ""
+    },
+    {
+      "key": "courseItemId",
+      "value": ""
+    },
+    {
+      "key": "completedVersion",
+      "value": ""
+    },
+    {
+      "key": "lastProgressVersion",
+      "value": ""
+    },
+    {
+      "key": "lessonItemId",
+      "value": ""
+    },
+    {
+      "key": "lessonId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Sign up (optional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Roadmap Test\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/sign-up/email"
+          }
+        },
+        {
+          "name": "Sign in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Authentication succeeds', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/sign-in/email"
+          }
+        },
+        {
+          "name": "Get session",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/get-session"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Assessment prerequisite",
+      "item": [
+        {
+          "name": "Get assessment questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Questions are returned', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "const questions = body.data || [];",
+                  "const answers = questions.map((question) => {",
+                  "  if (!question.options || question.options.length === 0) {",
+                  "    throw new Error(`Question ${question.id} has no options`);",
+                  "  }",
+                  "  return { questionId: question.id, optionId: question.options[0].id };",
+                  "});",
+                  "pm.collectionVariables.set('assessmentAnswers', JSON.stringify(answers));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/assessments/questions"
+          }
+        },
+        {
+          "name": "Submit completed assessment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Assessment is completed', () => pm.expect(pm.response.code).to.eql(201));",
+                  "const body = pm.response.json();",
+                  "if (body.data) pm.collectionVariables.set('assessmentId', body.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": {{assessmentAnswers}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/assessments/submit"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Roadmaps",
+      "description": "Set generationMode to AUTO, AI or DETERMINISTIC. AUTO uses the server configuration; AI prioritizes registered AI providers; DETERMINISTIC uses RULES only. NVIDIA reads NVIDIA_MODELS in order, keeps NVIDIA_MODEL for compatibility, and finishes with provider fallbacks and RULES.",
+      "item": [
+        {
+          "name": "Generate roadmap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Roadmap is created', () => pm.expect(pm.response.code).to.eql(201));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Roadmap starts at zero progress', () => pm.expect(body.data.progress).to.eql(0));",
+                  "  pm.test('Roadmap contains generated content', () => pm.expect(body.data.content).to.be.an('array').that.is.not.empty);",
+                  "  pm.test('Generator metadata identifies AI or deterministic output', () => {",
+                  "    pm.expect(body.data.generator).to.be.an('object');",
+                  "    pm.expect(body.data.generator.type).to.be.oneOf(['AI', 'DETERMINISTIC', 'UNKNOWN']);",
+                  "    pm.expect(body.data.generator.provider).to.be.a('string');",
+                  "  });",
+                  "  const requestedMode = pm.collectionVariables.get('generationMode');",
+                  "  if (requestedMode === 'DETERMINISTIC') {",
+                  "    pm.test('DETERMINISTIC mode uses RULES', () => {",
+                  "      pm.expect(body.data.generator.type).to.eql('DETERMINISTIC');",
+                  "      pm.expect(body.data.generator.provider).to.eql('RULES');",
+                  "    });",
+                  "  }",
+                  "  if (requestedMode === 'AI') {",
+                  "    pm.test('AI mode attempts NVIDIA before any fallback', () => {",
+                  "      pm.expect(body.data.generator.attempted_providers[0]).to.eql('NVIDIA');",
+                  "    });",
+                  "  }",
+                  "  pm.collectionVariables.set('roadmapId', body.data.id);",
+                  "  pm.collectionVariables.set('activityVersion', body.data.activity_version);",
+                  "  const first = body.data.content && body.data.content[0];",
+                  "  if (first) {",
+                  "    pm.collectionVariables.set('roadmapItemId', first.roadmap_item_id);",
+                  "    pm.collectionVariables.set('progressVersion', first.progress_version);",
+                  "  }",
+                  "}",
+                  "// Calidad de la ruta generada",
+                  "if (body.data) {",
+                  "  const levels = { beginner: 1, intermediate: 2, advanced: 3 };",
+                  "  const content = body.data.content || [];",
+                  "  pm.test('Each item explains why it was chosen', () => {",
+                  "    content.forEach((item) => pm.expect(item.reason, item.name).to.be.a('string').and.not.empty);",
+                  "  });",
+                  "  pm.test('Items go from lower to higher level', () => {",
+                  "    const ranks = content.map((item) => levels[item.level] ?? 0);",
+                  "    ranks.slice(1).forEach((rank, index) => pm.expect(rank, content[index + 1].name).to.be.at.least(ranks[index]));",
+                  "  });",
+                  "  pm.test('Order values are consecutive from 1', () => {",
+                  "    content.forEach((item, index) => pm.expect(item.order).to.eql(index + 1));",
+                  "  });",
+                  "  if (body.data.generator.type === 'AI') {",
+                  "    pm.test('AI generation reports the models that raced', () => {",
+                  "      pm.expect(body.data.generator.attempted_models).to.be.an('array').that.is.not.empty;",
+                  "      pm.expect(body.data.generator.attempted_models).to.include(body.data.generator.version.replace(/^nvidia:/, \"\"));",
+                  "    });",
+                  "  }",
+                  "  console.log('Ruta generada:', content.map((item) => `${item.order}. [${item.level}] ${item.name} — ${item.reason}`).join('\\n'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assessmentId\": \"{{assessmentId}}\",\n  \"title\": \"Mi ruta de backend\",\n  \"goal\": {\n    \"type\": \"SKILL\",\n    \"description\": \"Quiero aprender APIs backend con Node\"\n  },\n  \"declaredLevel\": \"{{declaredLevel}}\",\n  \"generationMode\": \"{{generationMode}}\",\n  \"weeklyHours\": 5\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/roadmaps/generate"
+          }
+        },
+        {
+          "name": "List roadmaps",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/roadmaps?page=1&limit=100"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns one page with totals and per-status counts', () => {",
+                  "  const limit = Number(pm.request.url.query.get('limit'));",
+                  "  pm.expect(body.data.length).to.be.at.most(limit);",
+                  "  pm.expect(body.meta).to.have.all.keys('total', 'page', 'limit', 'totalPages');",
+                  "  pm.expect(body.counts).to.have.all.keys('all', 'notStarted', 'inProgress', 'paused', 'completed');",
+                  "  pm.expect(body.counts.all).to.eql(body.counts.notStarted + body.counts.inProgress + body.counts.paused + body.counts.completed);",
+                  "});",
+                  "pm.test('Summaries do not carry item content', () => {",
+                  "  body.data.forEach((roadmap) => pm.expect(roadmap).to.not.have.property('content'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "description": "Igual que el frontend: limit=100 (máximo) y filtrado por estado en el cliente. counts es global."
+        },
+        {
+          "name": "Get roadmap detail",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.collectionVariables.set('activityVersion', body.data.activity_version);",
+                  "  const content = body.data.content || [];",
+                  "  const first = content[0];",
+                  "  if (first) {",
+                  "    pm.collectionVariables.set('roadmapItemId', first.roadmap_item_id);",
+                  "  }",
+                  "  pm.test('Every item exposes its tracking policy', () => {",
+                  "    content.forEach((item) => pm.expect(item.tracking).to.have.property('type'));",
+                  "  });",
+                  "  // Guarda un item por tipo de tracking para la carpeta 6.",
+                  "  const byType = { COMPLETION: 'courseItemId', LESSONS: 'lessonItemId', READING: 'readingItemId', VIDEO: 'videoItemId', CHALLENGE: 'challengeItemId' };",
+                  "  Object.entries(byType).forEach(([type, variable]) => {",
+                  "    const item = content.find((entry) => entry.tracking && entry.tracking.type === type);",
+                  "    pm.collectionVariables.set(variable, item ? item.roadmap_item_id : '');",
+                  "  });",
+                  "  pm.collectionVariables.set('submissionId', '');",
+                  "  // Primera lección del primer curso con temario (tracking LESSONS).",
+                  "  const withSyllabus = content.find((item) => item.tracking && item.tracking.type === 'LESSONS');",
+                  "  const firstLesson = withSyllabus && withSyllabus.syllabus.sections[0].lessons[0];",
+                  "  pm.collectionVariables.set('lessonId', firstLesson ? firstLesson.lesson_id : '');",
+                  "  pm.test('Courses with a syllabus expose their lessons', () => {",
+                  "    content.filter((item) => item.tracking.type === 'LESSONS').forEach((item) => {",
+                  "      pm.expect(item.syllabus.total_lessons, item.name).to.be.above(0);",
+                  "      pm.expect(item.syllabus.total_lessons).to.eql(item.tracking.metadata.total_lessons);",
+                  "    });",
+                  "  });",
+                  "  pm.test('Roadmap says where to continue', () => {",
+                  "    pm.expect(body.data).to.have.property('next_step');",
+                  "    if (body.data.next_step && body.data.next_step.lesson) pm.expect(body.data.next_step.lesson).to.have.all.keys('lesson_id', 'title', 'section_title', 'position', 'position_seconds');",
+                  "  });",
+                  "  if (body.data.next_step) console.log(`Continúa en: ${body.data.next_step.name}${body.data.next_step.lesson ? ` → lección ${body.data.next_step.lesson.position}: ${body.data.next_step.lesson.title}` : ''}`);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}"
+          }
+        },
+        {
+          "name": "Pause roadmap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data) pm.collectionVariables.set('activityVersion', body.data.activity_version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paused\": true,\n  \"expectedActivityVersion\": {{activityVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}/pause"
+          }
+        },
+        {
+          "name": "Resume roadmap",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data) pm.collectionVariables.set('activityVersion', body.data.activity_version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paused\": false,\n  \"expectedActivityVersion\": {{activityVersion}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}/pause"
+          }
+        },
+        {
+          "name": "Delete roadmap",
+          "description": "Borrado físico de la ruta {{roadmapId}} con sus items, progreso y entregas. Ejecútalo al final: las demás peticiones usan esa ruta.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Returns the deleted id', () => {",
+                  "  pm.expect(body.message).to.eql('Roadmap deleted.');",
+                  "  pm.expect(body.data.id).to.eql(pm.collectionVariables.get('roadmapId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}"
+          }
+        },
+        {
+          "name": "Delete roadmap again (404)",
+          "description": "La ruta ya no existe (o es de otro usuario): 404.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.expect(pm.response.code).to.eql(404));",
+                  "pm.test('Code is ROADMAP_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('ROADMAP_NOT_FOUND'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/roadmaps/{{roadmapId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Generator administration",
+      "description": "Requires the signed-in verified email to be included in ADMIN_EMAILS. Returns effective configuration without secrets.",
+      "item": [
+        {
+          "name": "Get effective generator configuration",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "(() => {",
+                  "if (pm.response.code === 403) {",
+                  "  pm.test('Requiere un usuario incluido en ADMIN_EMAILS (403 esperado para otros usuarios)', () => pm.expect(pm.response.code).to.eql(403));",
+                  "  return;",
+                  "}",
+                  "pm.test('Admin configuration is returned', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Configuration does not expose an API key', () => pm.expect(JSON.stringify(body)).not.to.include('NVIDIA_API_KEY'));",
+                  "pm.test('Provider chain and NVIDIA models are visible', () => {",
+                  "  pm.expect(body.data.provider_chain).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(body.data.nvidia.models).to.be.an('array');",
+                  "});",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/roadmap-generator/config"
+          }
+        },
+        {
+          "name": "Probe NVIDIA model",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"nvidia/nemotron-3.5-lightning-30b-a3b\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/roadmap-generator/probe",
+            "description": "Admin session required. Empty body tests the first configured model. Send model to test another configured model. This makes a real minimal request, with a 10-second timeout; success does not guarantee roadmap generation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "if (pm.response.code === 403) {",
+                  "  pm.test('Requiere un usuario incluido en ADMIN_EMAILS (403 esperado para otros usuarios)', () => pm.expect(pm.response.code).to.eql(403));",
+                  "  return;",
+                  "}",
+                  "pm.test('Probe responds', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test('Reports queue and reasoning diagnostics', () => {",
+                  "  pm.expect(data.status).to.be.oneOf(['OK', 'QUEUED', 'TIMEOUT', 'TOKEN_LIMIT', 'HTTP_ERROR', 'EMPTY_RESPONSE', 'INVALID_RESPONSE', 'CONNECTION_ERROR']);",
+                  "  pm.expect(data).to.have.all.keys('provider', 'model', 'status', 'elapsed_ms', 'timeout_ms', 'first_token_timeout_ms', 'queue_ms', 'first_answer_ms', 'reasoning_chars', 'completion_tokens', 'http_status', 'checked_at', 'generation_guaranteed');",
+                  "});",
+                  "console.log(`${data.model}: ${data.status} | cola ${data.queue_ms} ms | 1ª respuesta ${data.first_answer_ms} ms | razonamiento ${data.reasoning_chars} chars | total ${data.elapsed_ms} ms`);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "description": "Llamada real mínima en streaming. status: OK, QUEUED (sin primer token: cola del proveedor), TIMEOUT, TOKEN_LIMIT (agotó tokens razonando), HTTP_ERROR, EMPTY_RESPONSE, INVALID_RESPONSE o CONNECTION_ERROR. queue_ms = espera hasta el primer chunk; reasoning_chars = cuánto razonó antes de responder. Cambia \"model\" para probar cada modelo configurado."
+        }
+      ]
+    },
+    {
+      "name": "5. Progress tracking",
+      "description": "Un solo endpoint para cualquier contenido: POST /api/v1/progress/track.\nEl cliente manda roadmap_item_id y el dato que corresponde según tracking.type del item:\n- LESSONS (cursos con temario) → \"lesson_id\" + \"completed\" (true marca, false desmarca) o \"lesson_id\" + \"position_seconds\" (segundo del video de la lección, para reanudar)\n- COMPLETION (cursos sin temario) o READING → \"completed\": true\n- VIDEO → \"position_seconds\"\n- CHALLENGE → \"submission\" (FILE va como multipart con el archivo)\nEl backend deduce el tipo, valida, evita duplicados y calcula el porcentaje. No hay UUID ni porcentaje enviado por el cliente.\nEjecuta antes '3. Roadmaps / Get roadmap detail': guarda lessonItemId + lessonId, courseItemId, readingItemId, videoItemId y challengeItemId. Las rutas generadas hoy tienen cursos con temario (LESSONS).",
+      "item": [
+        {
+          "name": "Mark lesson as done",
+          "description": "Marca una lección del temario. El curso avanza lecciones marcadas / total y la ruta promedia sus cursos.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('lessonItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene lessonItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('The lesson counts towards the course', () => {",
+                  "  pm.expect(body.data.lessons.completed).to.eql(1);",
+                  "  pm.expect(body.data.progress).to.eql(Math.floor((10000 / body.data.lessons.total) + 1e-9) / 100);",
+                  "});",
+                  "pm.test('The next lesson is the following one', () => {",
+                  "  pm.expect(body.data.lessons.last_lesson_id).to.eql(pm.collectionVariables.get('lessonId'));",
+                  "  pm.expect(body.data.lessons.next_lesson.position).to.eql(2);",
+                  "});",
+                  "console.log(`Curso: ${body.data.lessons.completed}/${body.data.lessons.total} lecciones = ${body.data.progress} % | Continúa en la lección ${body.data.lessons.next_lesson.position}: ${body.data.lessons.next_lesson.title}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{lessonItemId}}\",\n  \"lesson_id\": \"{{lessonId}}\",\n  \"completed\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Unmark lesson",
+          "description": "Desmarca la lección: el porcentaje del curso vuelve a bajar.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('lessonItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene lessonItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('The lesson no longer counts', () => {",
+                  "  pm.expect(body.data.lessons.completed).to.eql(0);",
+                  "  pm.expect(body.data.progress).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{lessonItemId}}\",\n  \"lesson_id\": \"{{lessonId}}\",\n  \"completed\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Report lesson video position",
+          "description": "Mientras se reproduce una lección, el frontend reporta cada tracking.report_interval_seconds (y al pausar) el segundo actual. El backend lo guarda para reanudar: next_lesson.position_seconds y next_step.lesson.position_seconds indican dónde se quedó.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('lessonItemId')) pm.execution.skipRequest();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Resumes the lesson at the reported second', () => {",
+                  "  pm.expect(body.data.lessons.next_lesson.lesson_id).to.eql(pm.collectionVariables.get('lessonId'));",
+                  "  pm.expect(body.data.lessons.next_lesson.position_seconds).to.eql(312);",
+                  "});",
+                  "console.log(`Se quedó en la lección ${body.data.lessons.next_lesson.position}: ${body.data.lessons.next_lesson.title}, segundo ${body.data.lessons.next_lesson.position_seconds}`);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{lessonItemId}}\",\n  \"lesson_id\": \"{{lessonId}}\",\n  \"position_seconds\": 312\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Lesson from another course (422)",
+          "description": "Solo se aceptan lecciones del temario de ese curso.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('lessonItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene lessonItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('Code is LESSON_NOT_IN_ITEM', () => pm.expect(pm.response.json().code).to.eql('LESSON_NOT_IN_ITEM'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{lessonItemId}}\",\n  \"lesson_id\": \"lesson-that-does-not-exist\",\n  \"completed\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Mark course as completed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('courseItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene courseItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}",
+                  "pm.test('Course is completed', () => pm.expect(body.data.progress).to.eql(100));",
+                  "pm.collectionVariables.set('completedVersion', body.data.progress_version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{courseItemId}}\",\n  \"completed\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Mark the same course again (no duplicate)",
+          "description": "Repetir el reporte no duplica nada: el backend ve que el curso ya está al 100 % y responde el mismo estado.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('courseItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene courseItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}",
+                  "pm.test('Nothing changes on a repeated report', () => {",
+                  "  pm.expect(body.data.progress_version).to.eql(Number(pm.collectionVariables.get('completedVersion')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{courseItemId}}\",\n  \"completed\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Wrong field for this item (422)",
+          "description": "Un curso se completa con \"completed\"; mandar \"position_seconds\" (de video) se rechaza.",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('courseItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene courseItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.expect(pm.response.code).to.eql(422));",
+                  "pm.test('Code is TRACKING_REPORT_MISMATCH', () => pm.expect(pm.response.json().code).to.eql('TRACKING_REPORT_MISMATCH'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{courseItemId}}\",\n  \"position_seconds\": 10\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Mark reading as read",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('readingItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene readingItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{readingItemId}}\",\n  \"completed\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Report video position",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('videoItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene videoItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}",
+                  "pm.test('Resume position is returned', () => pm.expect(body.data.resume.position_seconds).to.eql(135));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{videoItemId}}\",\n  \"position_seconds\": 135\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Submit code challenge",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('challengeItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene challengeItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', () => pm.expect(pm.response.code).to.eql(202));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}",
+                  "pm.test('Submission is pending review', () => pm.expect(body.data.submission.status).to.eql('PENDING_REVIEW'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{challengeItemId}}\",\n  \"submission\": {\n    \"type\": \"CODE\",\n    \"language\": \"typescript\",\n    \"content\": \"export const sum = (a: number, b: number) => a + b;\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Submit text challenge",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('challengeItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene challengeItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', () => pm.expect(pm.response.code).to.eql(202));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{challengeItemId}}\",\n  \"submission\": {\n    \"type\": \"TEXT\",\n    \"content\": \"Mi respuesta al reto.\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Submit link challenge",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('challengeItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene challengeItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', () => pm.expect(pm.response.code).to.eql(202));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roadmap_item_id\": \"{{challengeItemId}}\",\n  \"submission\": {\n    \"type\": \"LINK\",\n    \"url\": \"https://github.com/usuario/reto\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Submit file challenge",
+          "description": "Entrega FILE en una sola petición multipart. Selecciona un archivo permitido por tracking.allowed_file_extensions (por defecto .pdf, .zip, .png, .jpg, .jpeg, .txt, .md).",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('challengeItemId')) {",
+                  "  console.log('Omitido: esta ruta no tiene challengeItemId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202', () => pm.expect(pm.response.code).to.eql(202));",
+                  "const body = pm.response.json();",
+                  "if (body.data) {",
+                  "  pm.test('Response includes item and roadmap progress', () => {",
+                  "    pm.expect(body.data.progress).to.be.a('number');",
+                  "    pm.expect(body.data.roadmap.progress).to.be.a('number');",
+                  "  });",
+                  "  pm.collectionVariables.set('lastProgressVersion', body.data.progress_version);",
+                  "  if (body.data.submission) pm.collectionVariables.set('submissionId', body.data.submission.id);",
+                  "}",
+                  "pm.test('Submission is pending review', () => pm.expect(body.data.submission.status).to.eql('PENDING_REVIEW'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "roadmap_item_id",
+                  "value": "{{challengeItemId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "submission",
+                  "value": "{\"type\":\"FILE\"}",
+                  "type": "text"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/progress/track"
+          }
+        },
+        {
+          "name": "Get roadmap progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Origin",
+                "value": "{{origin}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/progress/roadmap/{{roadmapId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Progress is returned', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Items expose tracking and resume data', () => {",
+                  "  body.data.items.forEach((item) => { pm.expect(item).to.have.property('tracking'); pm.expect(item).to.have.property('resume'); });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Challenge review (admin)",
+      "description": "Evaluación de entregas. No es un reporte de progreso: la aprobación es la que lleva el reto al 100 %.",
+      "item": [
+        {
+          "name": "Review challenge submission (admin)",
+          "description": "Requiere una sesión cuyo email esté en ADMIN_EMAILS. Usa la última entrega enviada (submissionId).",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('submissionId')) {",
+                  "  console.log('Omitido: la ruta no tiene submissionId. Ver descripción de la carpeta.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(() => {",
+                  "if (pm.response.code === 403) {",
+                  "  pm.test('Requiere un usuario incluido en ADMIN_EMAILS (403 esperado para otros usuarios)', () => pm.expect(pm.response.code).to.eql(403));",
+                  "  return;",
+                  "}",
+                  "pm.test('Review succeeds', () => pm.expect(pm.response.code).to.eql(200));",
+                  "const body = pm.response.json();",
+                  "if (body.data) pm.collectionVariables.set('activityVersion', body.data.activity_version);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"APPROVED\",\n  \"feedback\": \"Cumple los criterios de aceptación.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/challenge-submissions/{{submissionId}}/review"
+          }
+        }
+      ]
+    }
+  ]
+}

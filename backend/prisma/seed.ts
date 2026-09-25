@@ -1,6 +1,22 @@
 import 'dotenv/config';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { prisma } from '../src/prisma/prisma.service.js';
-import { SkillCategory } from '../src/generated/prisma/enums.js';
+import { ImportStatus, SkillCategory } from '../src/generated/prisma/enums.js';
+import { CatalogService } from '../src/modules/catalog/catalog.service.js';
+import { CsvCatalogAdapter } from '../src/modules/catalog/ingestion/csv.adapter.js';
+import {
+  importSyllabus,
+  type ScrapedSyllabus,
+} from '../src/modules/catalog/ingestion/syllabus.importer.js';
+import { normalizeSlug } from '../src/modules/catalog/utils/course-normalizer.util.js';
+
+const COURSES_CSV_PATH = fileURLToPath(
+  new URL('./seed/courses.csv', import.meta.url),
+);
+const SYLLABUS_JSON_PATH = fileURLToPath(
+  new URL('./seed/syllabus.json', import.meta.url),
+);
 
 interface SeedOption {
   text: string;
@@ -193,7 +209,7 @@ const questionsToSeed: SeedQuestion[] = [
   },
 ];
 
-async function main() {
+async function seedQuestions() {
   console.log('Iniciando seed de preguntas para CodeQuest...');
 
   // Evitar fallos por restricciones de clave foránea o duplicados si ya existen preguntas
@@ -229,6 +245,59 @@ async function main() {
       `✓ Pregunta ${createdQuestion.order} creada con ${createdQuestion.options.length} opciones [${createdQuestion.category}]`,
     );
   }
+}
+
+/**
+ * Importa el CSV del catálogo y marca INACTIVE los cursos que ya no vienen en
+ * él: el CSV es la fuente de verdad. Reimportarlo no duplica ni reescribe.
+ */
+async function seedCourses() {
+  console.log('Importando catálogo desde prisma/seed/courses.csv...');
+
+  const csv = await readFile(COURSES_CSV_PATH, 'utf8');
+  const catalog = new CatalogService(prisma);
+  const { message, data } = await catalog.importFromCsv(csv);
+
+  console.log(message);
+  for (const error of data.errors) {
+    console.warn(
+      `Fila ${error.row ?? '-'} (${error.slug ?? '-'}): ${error.message}`,
+    );
+  }
+
+  if (data.status === ImportStatus.FAILED) {
+    console.warn('La importación falló; no se desactiva ningún curso.');
+    return;
+  }
+
+  const rows = await new CsvCatalogAdapter(csv).fetchCourses();
+  const deactivated = await catalog.deactivateMissing(
+    rows.map((row) => normalizeSlug(row.slug)).filter(Boolean),
+  );
+  console.log(`${deactivated} cursos que no están en el CSV quedaron INACTIVE`);
+}
+
+/** Loads each course's syllabus (generated with scrape-devtalles --solo-temario). */
+async function seedSyllabus() {
+  console.log('Importando temario desde prisma/seed/syllabus.json...');
+  const entries = JSON.parse(
+    await readFile(SYLLABUS_JSON_PATH, 'utf8'),
+  ) as ScrapedSyllabus[];
+  const result = await importSyllabus(prisma, entries);
+  console.log(
+    `${result.courses} cursos con temario (${result.lessons} lecciones)`,
+  );
+  if (result.unknownSlugs.length > 0)
+    console.warn(`Sin curso en el catálogo: ${result.unknownSlugs.join(', ')}`);
+}
+
+async function main() {
+  // `pnpm seed -- --solo-temario` reloads only the syllabus.
+  if (!process.argv.includes('--solo-temario')) {
+    await seedQuestions();
+    await seedCourses();
+  }
+  await seedSyllabus();
 
   console.log('Seed completado exitosamente.');
 }

@@ -1,14 +1,24 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { trustedOrigins } from './modules/auth/auth.js';
 
-/** Arranca la API con CORS, prefijo global api/v1 y el puerto de PORT. */
+/** Arranca la API con validación, CORS, prefijo api/v1 y el puerto de PORT. */
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     // Better Auth lee el body crudo; AuthModule reactiva los parsers JSON y
     // urlencoded en las demás rutas.
     bodyParser: false,
   });
+
+  // Valida los DTOs de clase con class-validator; las interfaces no se validan.
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   app.enableCors({
     origin: trustedOrigins,

@@ -32,6 +32,8 @@ async function bootstrap({ flag, nodeEnv }: Env) {
   process.env.NODE_ENV = nodeEnv ?? '';
   // Vacío en lugar de delete: ConfigModule.forRoot() recargaría el .env local.
   process.env.EXPOSE_VERIFICATION_URL = flag ?? '';
+  // El flujo completo comprueba el 403 de un email sin verificar.
+  process.env.REQUIRE_EMAIL_VERIFICATION = 'true';
 
   vi.resetModules();
   const { Test } = await import('@nestjs/testing');

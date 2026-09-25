@@ -15,6 +15,8 @@
   --color-bg-field-focus: rgba(255, 255, 255, 0.05);
   --color-bg-ghost: rgba(255, 255, 255, 0.035);
   --color-bg-ghost-hover: rgba(255, 255, 255, 0.07);
+  --color-bg-overlay: rgba(11, 10, 16, 0.6); /* bg-base al 60 %: backdrop del Modal */
+  --color-bg-overlay-solid: rgba(11, 10, 16, 0.92); /* backdrop del Modal sin backdrop-filter */
 
   --color-border-card: rgba(167, 139, 250, 0.16);
   --color-border-field: rgba(255, 255, 255, 0.1);
@@ -37,9 +39,35 @@
   --color-accent-soft-hover: #ddd6fe;
   --color-accent-ring: rgba(139, 92, 246, 0.22);
 
+  --color-bg-sidebar: #0e0d15;
+  --color-bg-nav-active: rgba(139, 92, 246, 0.13);
+  --color-sidebar-halo: rgba(124, 58, 237, 0.2);
+  --color-sidebar-dots: rgba(167, 139, 250, 0.09);
+
+  --color-empty-bg: #0f0d17;
+  --color-empty-border: rgba(167, 139, 250, 0.14);
+  --color-empty-halo: rgba(124, 58, 237, 0.24);
+  --color-empty-dots: rgba(167, 139, 250, 0.15);
+
   --color-brand-discord: #5865f2;
   --color-success: #34d399;
   --color-danger: #f87171;
+  --color-danger-solid: #dc2626; /* fondo del botón destructivo: texto blanco ≈ 4.8:1 (AA) */
+
+  /* Mis Rutas: estado de la ruta (badge + barra de progreso). Tints con /opacidad. */
+  --color-status-started: #a78bfa; /* Empezada: texto/dot violeta */
+  --color-status-started-bar: #8b5cf6; /* relleno barra Empezada */
+  --color-status-paused: #fbbf24; /* En pausa: ámbar */
+  --color-status-completed: #34d399; /* Completada: verde (= success) */
+  --color-status-idle: #9b97ad; /* Sin empezar: neutro */
+  --color-progress-track: rgba(255, 255, 255, 0.08);
+
+  /* Mis Rutas: acento del monograma de cada ruta */
+  --color-mono-violet: #a78bfa;
+  --color-mono-cyan: #22d3ee;
+  --color-mono-amber: #fbbf24;
+  --color-mono-pink: #f472b6;
+  --color-mono-emerald: #34d399;
 
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Manrope", system-ui, sans-serif;
@@ -49,7 +77,9 @@
 
   --shadow-card: 0 30px 70px -20px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   --shadow-primary: 0 10px 26px -10px rgba(124, 58, 237, 0.8);
+  --shadow-danger: 0 10px 26px -10px rgba(220, 38, 38, 0.8); /* = danger-solid */
   --shadow-ring-focus: 0 0 0 3px rgba(139, 92, 246, 0.22);
+  --shadow-ring-danger: 0 0 0 3px rgba(248, 113, 113, 0.3); /* anillo de foco rojo (= danger) */
 }
 
 :root {
@@ -109,6 +139,62 @@ body {
     rgba(11, 10, 16, 0) 30%,
     rgba(11, 10, 16, 0.85) 100%
   );
+}
+
+/* Superficie del sidebar del dashboard (design.md §14.2): halo violeta anclado en 30% 0%
+   + retícula de puntos de 1px cada 22px. Independiente de .nebula (pantalla completa). */
+.sidebar-surface {
+  background-color: var(--color-bg-sidebar);
+  background-image:
+    radial-gradient(circle at 30% 0%, var(--color-sidebar-halo) 0%, transparent 45%),
+    radial-gradient(var(--color-sidebar-dots) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    22px 22px;
+}
+
+/* Fondo del estado vacío (design.md §14.6, refinado sobre el artboard exportado por el
+   usuario, `empty-route.svg` / recipe "Mis Rutas · estado vacío@2x"). Independiente de
+   `.nebula` y de `.sidebar-surface` — NO se unifican, son fondos deliberadamente distintos:
+   - `.nebula` (login): bg #0B0A10, halo 0.30 en 50% 12% que se apaga en 58%, SÍ tiene halo
+     cian secundario, puntos 0.17 cada 26px, viñeta elipse 70%x55% hasta 0.85.
+   - `.sidebar-surface`: halo anclado en 30% 0%, puntos cada 22px, sin viñeta.
+   - `.empty-state-surface` (esta clase): bg #0F0D17, halo 0.24 en 50% 0% que se apaga en
+     60%, SIN halo cian, puntos 0.15 cada 24px, viñeta elipse 60%x60% hasta 0.85 vía `::before`
+     (sustituye a un div absoluto separado del artboard original — mismo resultado, un nodo
+     menos en el DOM).
+   El color de fondo (`--color-empty-bg`) se reutiliza también como `fill` de los dos nodos
+   "vacíos" de `RouteIllustration` (ver RoadmapsEmptyState.tsx): esos nodos tapan la línea
+   punteada que pasa por detrás dibujando un disco del mismo color que el fondo del
+   contenedor, así que ambos DEBEN leer del mismo token para no desincronizarse nunca. */
+.empty-state-surface {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--color-empty-border);
+  background-color: var(--color-empty-bg);
+  background-image:
+    radial-gradient(circle at 50% 0%, var(--color-empty-halo) 0%, transparent 60%),
+    radial-gradient(var(--color-empty-dots) 1.2px, transparent 1.2px);
+  background-size:
+    100% 100%,
+    24px 24px;
+}
+
+.empty-state-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 60% at 50% 50%,
+    color-mix(in srgb, var(--color-empty-bg) 0%, transparent) 25%,
+    color-mix(in srgb, var(--color-empty-bg) 85%, transparent) 100%
+  );
+}
+
+.empty-state-surface > * {
+  position: relative;
 }
 
 /* AuthCard (design.md §5.3): sin soporte de backdrop-filter, la card usa fondo sólido en

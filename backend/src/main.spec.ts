@@ -1,8 +1,11 @@
+import { ValidationPipe } from '@nestjs/common';
+
 const mocks = vi.hoisted(() => ({
   app: {
     enableCors: vi.fn(),
     listen: vi.fn().mockResolvedValue(undefined),
     setGlobalPrefix: vi.fn(),
+    useGlobalPipes: vi.fn(),
   },
   AppModule: class AppModule {},
   create: vi.fn(),
@@ -51,6 +54,19 @@ describe('bootstrap', () => {
     });
     expect(mocks.app.setGlobalPrefix).toHaveBeenCalledExactlyOnceWith('api/v1');
     expect(mocks.app.listen).toHaveBeenCalledExactlyOnceWith('4310');
+  });
+
+  it('registers a global ValidationPipe with whitelist and transform', async () => {
+    await import('./main.js');
+
+    expect(mocks.app.useGlobalPipes).toHaveBeenCalledExactlyOnceWith(
+      expect.any(ValidationPipe),
+    );
+    const [pipe] = mocks.app.useGlobalPipes.mock.calls[0];
+    expect(pipe).toMatchObject({
+      isTransformEnabled: true,
+      validatorOptions: { whitelist: true, forbidNonWhitelisted: true },
+    });
   });
 
   it('listens on port 3001 when PORT is absent', async () => {

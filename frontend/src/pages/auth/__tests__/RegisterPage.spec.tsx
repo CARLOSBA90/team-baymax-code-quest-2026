@@ -1,4 +1,4 @@
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +21,22 @@ const confirmInput = () => screen.getByLabelText(/^confirmar contraseña$/i);
 const termsCheckbox = () =>
   screen.getByRole("checkbox", { name: "Acepto los términos y condiciones" });
 const submitButton = () => screen.getByRole("button", { name: "Crear cuenta" });
+const termsTrigger = () => screen.getByRole("button", { name: "términos y condiciones" });
+const termsDialog = () => screen.getByRole("dialog", { name: "Términos y condiciones" });
+const dialogElement = () => document.querySelector("dialog") as HTMLDialogElement;
+const TERMS_ERROR = "Debes aceptar los términos y condiciones";
+
+// Simula contenido de términos más alto que su contenedor (jsdom no tiene layout).
+function mockTermsOverflow() {
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(300);
+}
+
+function scrollTermsToEnd() {
+  const region = screen.getByRole("region", { name: "Texto de los términos y condiciones" });
+  region.scrollTop = 700;
+  fireEvent.scroll(region);
+}
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -321,6 +337,221 @@ describe("RegisterPage", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       );
+    });
+  });
+
+  describe("términos y condiciones", () => {
+    it("el checkbox conserva el nombre accesible completo", () => {
+      renderRegister();
+
+      expect(termsCheckbox()).toBeInTheDocument();
+      expect(termsTrigger()).toHaveAttribute("type", "button");
+      expect(termsTrigger()).toHaveAttribute("aria-haspopup", "dialog");
+    });
+
+    it('click en el checkbox y en "Acepto los" lo conmuta sin abrir el diálogo', async () => {
+      const user = userEvent.setup();
+      renderRegister();
+
+      await user.click(termsCheckbox());
+      expect(termsCheckbox()).toBeChecked();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      await user.click(screen.getByText("Acepto los"));
+      expect(termsCheckbox()).not.toBeChecked();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("Space en el checkbox lo marca sin abrir el diálogo", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+
+      act(() => termsCheckbox().focus());
+      await user.keyboard(" ");
+
+      expect(termsCheckbox()).toBeChecked();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["click", async (user: User) => user.click(termsTrigger())],
+      [
+        "Enter",
+        async (user: User) => {
+          act(() => termsTrigger().focus());
+          await user.keyboard("{Enter}");
+        },
+      ],
+      [
+        "Space",
+        async (user: User) => {
+          act(() => termsTrigger().focus());
+          await user.keyboard(" ");
+        },
+      ],
+    ])("%s en el botón abre el diálogo sin conmutar ni enviar", async (_label, activate) => {
+      const user = userEvent.setup();
+      renderRegister();
+      await fillValid(user);
+      await user.click(termsCheckbox());
+      expect(termsCheckbox()).not.toBeChecked();
+
+      await activate(user);
+
+      expect(termsDialog()).toBeVisible();
+      expect(screen.getByRole("button", { name: "Cerrar" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Aceptar" })).toBeInTheDocument();
+      expect(termsCheckbox()).not.toBeChecked();
+      expect(signUpEmail).not.toHaveBeenCalled();
+    });
+
+    it("abrir con el checkbox marcado lo deja marcado", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+      await user.click(termsCheckbox());
+
+      await user.click(termsTrigger());
+
+      expect(termsDialog()).toBeVisible();
+      expect(termsCheckbox()).toBeChecked();
+    });
+
+    it("Aceptar marca el checkbox, limpia el error, cierra y devuelve el foco", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+      await user.click(submitButton());
+      expect(screen.getByText(TERMS_ERROR)).toBeInTheDocument();
+
+      mockTermsOverflow();
+      await user.click(termsTrigger());
+      scrollTermsToEnd();
+      await user.click(screen.getByRole("button", { name: "Aceptar" }));
+
+      expect(termsCheckbox()).toBeChecked();
+      expect(screen.queryByText(TERMS_ERROR)).not.toBeInTheDocument();
+      expect(termsCheckbox()).not.toHaveAttribute("aria-invalid", "true");
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(termsTrigger()).toHaveFocus();
+    });
+
+    it("Aceptar con campos válidos no envía el formulario", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+      await fillValid(user);
+      await user.click(termsCheckbox());
+
+      mockTermsOverflow();
+      await user.click(termsTrigger());
+      scrollTermsToEnd();
+      await user.click(screen.getByRole("button", { name: "Aceptar" }));
+
+      expect(termsCheckbox()).toBeChecked();
+      expect(signUpEmail).not.toHaveBeenCalled();
+    });
+
+    it("Aceptar con el checkbox ya marcado lo deja marcado y cierra", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+      await user.click(termsCheckbox());
+
+      mockTermsOverflow();
+      await user.click(termsTrigger());
+      scrollTermsToEnd();
+      await user.click(screen.getByRole("button", { name: "Aceptar" }));
+
+      expect(termsCheckbox()).toBeChecked();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("con contenido largo, Aceptar se habilita solo al llegar al final", async () => {
+      const user = userEvent.setup();
+      mockTermsOverflow();
+      renderRegister();
+
+      await user.click(termsTrigger());
+      const accept = screen.getByRole("button", { name: "Aceptar" });
+      expect(accept).toBeDisabled();
+
+      scrollTermsToEnd();
+      expect(accept).toBeEnabled();
+      await user.click(accept);
+      expect(termsCheckbox()).toBeChecked();
+    });
+
+    it.each([
+      ["Cerrar", async (user: User) => user.click(screen.getByRole("button", { name: "Cerrar" }))],
+      [
+        "la X",
+        async (user: User) => user.click(screen.getByRole("button", { name: "Cerrar diálogo" })),
+      ],
+      [
+        "Esc",
+        () => {
+          fireEvent(dialogElement(), new Event("cancel", { cancelable: true }));
+          return Promise.resolve();
+        },
+      ],
+      ["el backdrop", async (user: User) => user.click(dialogElement())],
+    ])("cerrar con %s mantiene el checkbox marcado y devuelve el foco", async (_label, dismiss) => {
+      const user = userEvent.setup();
+      renderRegister();
+      await fillValid(user);
+
+      await user.click(termsTrigger());
+      expect(termsDialog()).toBeVisible();
+      await dismiss(user);
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(termsCheckbox()).toBeChecked();
+      expect(termsTrigger()).toHaveFocus();
+      expect(signUpEmail).not.toHaveBeenCalled();
+    });
+
+    it("Cerrar con el checkbox desmarcado lo deja desmarcado", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+
+      await user.click(termsTrigger());
+      await user.click(screen.getByRole("button", { name: "Cerrar" }));
+
+      expect(termsCheckbox()).not.toBeChecked();
+    });
+
+    it("cerrar sin aceptar mantiene visible el error de términos", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+      await user.click(submitButton());
+      expect(screen.getByText(TERMS_ERROR)).toBeInTheDocument();
+
+      await user.click(termsTrigger());
+      await user.click(screen.getByRole("button", { name: "Cerrar" }));
+
+      expect(screen.getByText(TERMS_ERROR)).toBeInTheDocument();
+      expect(termsCheckbox()).toHaveAttribute("aria-invalid", "true");
+    });
+
+    it("con el formulario bloqueado el botón está deshabilitado y no abre el diálogo", async () => {
+      vi.mocked(signUpEmail).mockReturnValue(new Promise(() => undefined));
+      const user = userEvent.setup();
+      renderRegister();
+      await fillValid(user);
+      await user.click(submitButton());
+      await screen.findByRole("button", { name: "Creando cuenta…" });
+
+      expect(termsTrigger()).toBeDisabled();
+      await user.click(termsTrigger());
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("tab order: checkbox → términos y condiciones → Crear cuenta", async () => {
+      const user = userEvent.setup();
+      renderRegister();
+
+      act(() => termsCheckbox().focus());
+      await user.tab();
+      expect(termsTrigger()).toHaveFocus();
+      await user.tab();
+      expect(submitButton()).toHaveFocus();
     });
   });
 });

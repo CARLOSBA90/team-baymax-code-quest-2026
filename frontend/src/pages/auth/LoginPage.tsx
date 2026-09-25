@@ -4,9 +4,9 @@ import {
   AuthDivider,
   AuthLink,
   AuthLoginForm,
-  AuthNotice,
   AuthSocialSignInButtons,
 } from "@/components/auth";
+import { Notice } from "@/components/ui";
 import { getOAuthQueryErrorMessage } from "@/lib";
 
 export const LoginPage = () => {
@@ -23,7 +23,7 @@ export const LoginPage = () => {
         </>
       }
     >
-      {oauthError && <AuthNotice variant="error">{oauthError}</AuthNotice>}
+      {oauthError && <Notice variant="error">{oauthError}</Notice>}
       <AuthSocialSignInButtons />
       <AuthDivider />
       <AuthLoginForm />

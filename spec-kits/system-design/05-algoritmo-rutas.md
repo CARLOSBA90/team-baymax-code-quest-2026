@@ -4,6 +4,38 @@
 > Ambas comparten el mismo contrato externo (DTOs y API).
 > El modulo `roadmaps` encapsula la logica detras de `RoadmapGeneratorService`.
 
+## Implementacion vigente
+
+El modulo usa una estrategia intercambiable mediante `RoadmapGenerator`. Cada
+servicio se registra por si mismo en `RoadmapGeneratorRegistry` e informa su
+nombre, prioridad de fallback y disponibilidad. La implementacion `RULES` es
+deterministica y funciona sin servicios externos. La
+implementacion `NVIDIA` consume el endpoint OpenAI-compatible de NVIDIA NIM y
+recibe el objetivo, nivel declarado, resultado del assessment y candidatos del
+catalogo. El orquestador obtiene del registro la cadena de servicios disponibles,
+prueba primero el proveedor configurado, continua por prioridad y conserva
+`RULES` como ultimo respaldo. Un timeout, error HTTP, JSON invalido, ID
+desconocido, duplicado o salida fuera de limites activa el siguiente servicio.
+
+La IA no crea registros de catalogo: solo ordena y explica cursos activos del
+snapshot capturado. Luego el backend valida la seleccion, agrega los
+prerrequisitos requeridos y persiste `Roadmap`, `RoadmapItem` y `Progress` en
+una sola operacion anidada. El proveedor y su version quedan registrados dentro
+de `generationContextSnapshot`, junto con los proveedores intentados; las
+credenciales nunca se guardan ni se retornan en la API. Agregar un proveedor no
+requiere modificar el orquestador: debe implementar la interfaz, registrarse al
+iniciar y agregarse a los providers del modulo.
+
+Variables de entorno:
+
+```dotenv
+ROADMAP_GENERATOR_PROVIDER=RULES
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+NVIDIA_API_KEY=
+NVIDIA_MODEL=
+NVIDIA_TIMEOUT_MS=10000
+```
+
 ---
 
 ## Contrato del Generador (comun a ambos caminos)

@@ -2,12 +2,12 @@ import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRegister } from "@/api/queries/auth";
+import { Notice, PrimaryButton } from "@/components/ui";
 import { getAuthErrorMessage } from "@/lib";
 import { type RegisterFormValues, registerSchema } from "@/schemas/";
 import { AuthLink } from "./AuthCard";
-import { AuthNotice } from "./AuthNotice";
 import { PasswordField } from "./PasswordField";
-import { PrimaryButton } from "./PrimaryButton";
+import { TermsDialog } from "./TermsDialog";
 import { TextField } from "./TextField";
 
 type FormErrors = Partial<Record<keyof RegisterFormValues, string>>;
@@ -26,6 +26,7 @@ const INITIAL_VALUES: RegisterFormValues = {
 export function AuthRegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const { mutate, isPending, isError, isSuccess, error, reset } = useRegister();
   const navigate = useNavigate();
 
@@ -44,11 +45,21 @@ export function AuthRegisterForm() {
     setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
   };
 
-  const handleAcceptTermsChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { checked } = event.target;
+  const setAcceptTerms = (checked: boolean) => {
     setValues((prev) => ({ ...prev, acceptTerms: checked }));
     setErrors((prev) => (prev.acceptTerms ? { ...prev, acceptTerms: undefined } : prev));
   };
+
+  const handleAcceptTermsChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setAcceptTerms(event.target.checked);
+  };
+
+  const handleTermsAccept = () => {
+    setAcceptTerms(true);
+    setIsTermsOpen(false);
+  };
+
+  const handleTermsClose = () => setIsTermsOpen(false);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,7 +91,7 @@ export function AuthRegisterForm() {
   return (
     <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
       {isSuccess && (
-        <AuthNotice variant="success">
+        <Notice variant="success">
           <div className="flex flex-col gap-2">
             <p>
               ¡Cuenta creada con éxito! Revisa tu correo para verificar tu cuenta. Te llevaremos al
@@ -88,9 +99,9 @@ export function AuthRegisterForm() {
             </p>
             <AuthLink href="/auth/login" label="Ir a iniciar sesión" />
           </div>
-        </AuthNotice>
+        </Notice>
       )}
-      {isError && <AuthNotice variant="error">{getAuthErrorMessage(error)}</AuthNotice>}
+      {isError && <Notice variant="error">{getAuthErrorMessage(error)}</Notice>}
       <div className="flex flex-col gap-4">
         <TextField
           id="name"
@@ -135,10 +146,7 @@ export function AuthRegisterForm() {
           disabled={isLocked}
         />
         <div className="flex flex-col gap-4">
-          <label
-            htmlFor="acceptTerms"
-            className="flex items-start gap-3 font-body text-xs text-text-secondary"
-          >
+          <div className="flex items-start gap-3 font-body text-xs text-text-secondary">
             <input
               id="acceptTerms"
               type="checkbox"
@@ -146,12 +154,27 @@ export function AuthRegisterForm() {
               checked={values.acceptTerms}
               onChange={handleAcceptTermsChange}
               disabled={isLocked}
+              aria-labelledby="acceptTerms-label acceptTerms-trigger"
               aria-invalid={errors.acceptTerms ? "true" : undefined}
               aria-describedby={errors.acceptTerms ? "acceptTerms-error" : undefined}
               className="h-4 w-4 shrink-0 accent-accent disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <span>Acepto los términos y condiciones</span>
-          </label>
+            <p>
+              <label id="acceptTerms-label" htmlFor="acceptTerms">
+                Acepto los
+              </label>{" "}
+              <button
+                id="acceptTerms-trigger"
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => setIsTermsOpen(true)}
+                disabled={isLocked}
+                className="cursor-pointer rounded-sm font-semibold text-accent-soft underline underline-offset-4 outline-none transition-colors hover:not-disabled:text-accent-soft-hover focus-visible:shadow-ring-focus disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                términos y condiciones
+              </button>
+            </p>
+          </div>
           {errors.acceptTerms && (
             <p id="acceptTerms-error" className="text-xs text-danger">
               {errors.acceptTerms}
@@ -167,6 +190,7 @@ export function AuthRegisterForm() {
       >
         Crear cuenta
       </PrimaryButton>
+      <TermsDialog open={isTermsOpen} onClose={handleTermsClose} onAccept={handleTermsAccept} />
     </form>
   );
 }
