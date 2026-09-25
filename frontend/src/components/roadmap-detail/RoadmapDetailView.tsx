@@ -4,6 +4,7 @@ import { getCompletedCount, getRemainingMinutes, getTotalMinutes } from "@/lib";
 import type { RoadmapDetail } from "@/types";
 import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
+import { RoadmapTimeline } from "./RoadmapTimeline";
 
 export interface RoadmapDetailViewProps {
   roadmap: RoadmapDetail;
@@ -46,16 +47,12 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         remainingMinutes={remainingMinutes}
         labelledBy={headingId}
       />
-      <ol aria-label="Pasos de la ruta" className="flex flex-col gap-3">
-        {items.map((item) => (
-          <li
-            key={item.roadmapItemId}
-            className="rounded-card border border-border-field bg-bg-ghost px-4 py-4 text-text-primary"
-          >
-            {item.name}
-          </li>
-        ))}
-      </ol>
+      <RoadmapTimeline
+        items={items}
+        nextStepId={roadmap.nextStep?.roadmapItemId ?? null}
+        completed={completed}
+        isPaused={false}
+      />
     </div>
   );
 }

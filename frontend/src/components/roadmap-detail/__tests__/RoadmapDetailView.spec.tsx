@@ -58,9 +58,12 @@ describe("RoadmapDetailView", () => {
 
     const list = screen.getByRole("list", { name: "Pasos de la ruta" });
     const items = within(list).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual(
-      ROADMAP_DETAIL.items.map((item) => item.name),
+    expect(items.map((item) => within(item).getByRole("heading", { level: 3 }))).toEqual(
+      ROADMAP_DETAIL.items.map((item, i) =>
+        screen.getByRole("heading", { level: 3, name: `Paso ${i + 1} de 4: ${item.name}` }),
+      ),
     );
+    expect(screen.getByRole("heading", { level: 2, name: "Pasos de la ruta" })).toBeInTheDocument();
   });
 
   it("acota el progreso por encima de 100", () => {
@@ -93,9 +96,13 @@ describe("RoadmapDetailView", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
-  it("no tiene botones (vista mínima sin acciones)", () => {
+  it("todos los botones están deshabilitados y no hay menú ⋯", () => {
     renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) expect(button).toBeDisabled();
+    expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
   });
 });
