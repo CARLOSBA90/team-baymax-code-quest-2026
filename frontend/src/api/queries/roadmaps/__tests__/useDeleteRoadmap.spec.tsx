@@ -3,14 +3,17 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { roadmapsKeys, useDeleteRoadmap } from "@/api/queries/roadmaps";
-import { deleteRoadmap } from "@/api/services";
+import { deleteRoadmap, getRoadmap } from "@/api/services";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
+import { buildRoadmapDetail, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 import type { RoadmapsListResult } from "@/types";
 
-vi.mock("@/api/services", () => ({ deleteRoadmap: vi.fn() }));
+vi.mock("@/api/services", () => ({ deleteRoadmap: vi.fn(), getRoadmap: vi.fn() }));
 
 const FE_ID = "rm-frontend-react";
+const OTHER_ID = "rm-backend-node";
+const OTHER_DETAIL = buildRoadmapDetail({ id: OTHER_ID, name: "Backend con Node" });
 
 function createQueryClient(preloaded = true) {
   const queryClient = new QueryClient({
@@ -111,5 +114,59 @@ describe("useDeleteRoadmap", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(getList(queryClient)).toBeUndefined();
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: roadmapsKeys.all });
+  });
+
+  describe("caché del detalle", () => {
+    function createClientWithDetails() {
+      const queryClient = createQueryClient();
+      queryClient.setQueryData(roadmapsKeys.detail(FE_ID), structuredClone(ROADMAP_DETAIL));
+      queryClient.setQueryData(roadmapsKeys.detail(OTHER_ID), structuredClone(OTHER_DETAIL));
+      return queryClient;
+    }
+
+    it("tras un 200 elimina el detalle de la ruta borrada e invalida el resto", async () => {
+      vi.mocked(deleteRoadmap).mockResolvedValue({ id: FE_ID });
+      const queryClient = createClientWithDetails();
+      const { result } = renderDeleteHook(queryClient);
+
+      act(() => result.current.mutate(FE_ID));
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(queryClient.getQueryState(roadmapsKeys.detail(FE_ID))).toBeUndefined();
+      expect(queryClient.getQueryData(roadmapsKeys.detail(OTHER_ID))).toEqual(OTHER_DETAIL);
+      expect(queryClient.getQueryState(roadmapsKeys.detail(OTHER_ID))?.isInvalidated).toBe(true);
+      expect(getList(queryClient)?.items.map((item) => item.id)).not.toContain(FE_ID);
+      expect(getRoadmap).not.toHaveBeenCalledWith(FE_ID);
+    });
+
+    it("un 404 también elimina el detalle de la ruta", async () => {
+      vi.mocked(deleteRoadmap).mockRejectedValue(
+        buildAxiosError(404, "Roadmap not found.", { code: "ROADMAP_NOT_FOUND" }),
+      );
+      const queryClient = createClientWithDetails();
+      const { result } = renderDeleteHook(queryClient);
+
+      act(() => result.current.mutate(FE_ID));
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(queryClient.getQueryState(roadmapsKeys.detail(FE_ID))).toBeUndefined();
+      expect(getRoadmap).not.toHaveBeenCalledWith(FE_ID);
+    });
+
+    it.each([
+      ["500", buildAxiosError(500)],
+      ["fallo de red", buildNetworkError()],
+    ])("un %s conserva el detalle y el listado", async (_label, error) => {
+      vi.mocked(deleteRoadmap).mockRejectedValue(error);
+      const queryClient = createClientWithDetails();
+      const { result } = renderDeleteHook(queryClient);
+
+      act(() => result.current.mutate(FE_ID));
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(queryClient.getQueryData(roadmapsKeys.detail(FE_ID))).toEqual(ROADMAP_DETAIL);
+      expect(queryClient.getQueryState(roadmapsKeys.detail(FE_ID))?.isInvalidated).toBe(false);
+      expect(getList(queryClient)).toEqual(ROADMAPS_LIST_RESULT);
+    });
   });
 });

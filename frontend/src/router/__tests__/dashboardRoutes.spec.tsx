@@ -5,9 +5,11 @@ import { useSyncExternalStore } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
-import { getAssessmentQuestions, getRoadmaps } from "@/api/services";
+import { getAssessmentQuestions, getRoadmap, getRoadmaps } from "@/api/services";
 import { routes } from "@/router/router";
+import { buildAxiosError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
+import { ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { EMPTY_ROADMAPS_RESULT, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 import { preloadLazyRoutes } from "@/test/renderRoutes";
 
@@ -46,6 +48,7 @@ vi.mock("@/api/services", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/api/services")>()),
   deleteRoadmap: vi.fn(),
   getAssessmentQuestions: vi.fn(),
+  getRoadmap: vi.fn(),
   getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),
 }));
@@ -213,16 +216,43 @@ describe("rutas del dashboard", () => {
     ).toBeInTheDocument();
   });
 
-  it("/dashboard/roadmaps/:roadmapId renderiza el detalle vacío dentro del layout con Mis Rutas activo", async () => {
-    renderRoutes(["/dashboard/roadmaps/rm-frontend-react"]);
+  it("/dashboard/roadmaps/:roadmapId renderiza el detalle dentro del layout con Mis Rutas activo", async () => {
+    vi.mocked(getRoadmap).mockResolvedValue(ROADMAP_DETAIL);
+    renderRoutes([`/dashboard/roadmaps/${ROADMAP_DETAIL.id}`]);
 
-    const detail = await screen.findByRole("region", { name: "Detalle de la ruta" });
+    const title = await screen.findByRole("heading", { level: 1, name: ROADMAP_DETAIL.name });
     const main = screen.getByRole("main");
-    expect(main).toContainElement(detail);
-    expect(detail).toBeEmptyDOMElement();
-    expect(within(main).queryByRole("heading")).not.toBeInTheDocument();
-    expect(within(main).queryByRole("table")).not.toBeInTheDocument();
+    expect(main).toContainElement(title);
+    expect(within(main).getByRole("region", { name: "Detalle de la ruta" })).toContainElement(
+      title,
+    );
     expect(sidebarRoutesLink()).toHaveAttribute("aria-current", "page");
     expect(tabBarRoutesLink()).toHaveAttribute("aria-current", "page");
+    expect(getRoadmap).toHaveBeenCalledWith(ROADMAP_DETAIL.id);
+  });
+
+  it("/dashboard/roadmaps/new es el cuestionario y no pide ningún detalle", async () => {
+    renderRoutes(["/dashboard/roadmaps/new"]);
+
+    await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" });
+    expect(getRoadmap).not.toHaveBeenCalled();
+  });
+
+  it("/dashboard/roadmaps/:roadmapId sin sesión redirige a /auth/login sin pedir el detalle", async () => {
+    store.set(null);
+    const router = renderRoutes(["/dashboard/roadmaps/abc"]);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/auth/login"));
+    expect(getRoadmap).not.toHaveBeenCalled();
+  });
+
+  it("con 404 el CTA «Volver a Mis Rutas» navega a /dashboard/roadmaps", async () => {
+    vi.mocked(getRoadmap).mockRejectedValue(buildAxiosError(404));
+    const router = renderRoutes(["/dashboard/roadmaps/nope"]);
+
+    await userEvent.setup().click(await screen.findByRole("link", { name: "Volver a Mis Rutas" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+    expect(await screen.findByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
   });
 });
