@@ -8,14 +8,16 @@ import { removeRoadmapFromList } from "./roadmaps-cache";
 
 /**
  * Borrado pesimista de una ruta: la caché solo cambia cuando responde el back. Tras 200 — o 404
- * `ROADMAP_NOT_FOUND`, que significa que ya no existe — quita la ruta del listado cacheado y
- * invalida `roadmapsKeys.all`. Cualquier otro error deja la caché intacta. La UI (cerrar el
- * diálogo, avisos, foco) va en los callbacks por llamada de `mutate`.
+ * `ROADMAP_NOT_FOUND`, que significa que ya no existe — elimina la entrada de su detalle
+ * (`roadmapsKeys.detail(id)`, así la invalidación no la vuelve a pedir), quita la ruta del listado
+ * cacheado e invalida `roadmapsKeys.all`. Cualquier otro error deja la caché intacta. La UI
+ * (cerrar el diálogo, avisos, foco) va en los callbacks por llamada de `mutate`.
  */
 export function useDeleteRoadmap(): UseMutationResult<{ id: string }, Error, string> {
   const queryClient = useQueryClient();
 
   const removeAndInvalidate = (id: string) => {
+    queryClient.removeQueries({ queryKey: roadmapsKeys.detail(id), exact: true });
     queryClient.setQueryData<RoadmapsListResult>(
       roadmapsKeys.list(),
       (old) => old && removeRoadmapFromList(old, id),
