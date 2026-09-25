@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { RoadmapGenerationService } from '../roadmaps/roadmap-generation.service.js';
 import type { QuestionsListResponseDto } from './dto/question-response.dto.js';
 import type {
   AssessmentResultDto,
@@ -19,7 +21,12 @@ import { AssessmentValidator } from './validators/assessment.validator.js';
 
 @Injectable()
 export class AssessmentsService {
-  constructor(private readonly prisma: PrismaService) { }
+  private readonly logger = new Logger(AssessmentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly roadmapGenerationService: RoadmapGenerationService,
+  ) {}
 
   /**
    * Obtiene la lista completa de preguntas activas con sus opciones para el cuestionario. 
@@ -80,6 +87,18 @@ export class AssessmentsService {
       profile,
       validatedAnswers,
     );
+
+    try {
+      await this.roadmapGenerationService.generate(userId, {
+        assessmentId: assessment.id,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
 
     return { data: assessment };
   }
