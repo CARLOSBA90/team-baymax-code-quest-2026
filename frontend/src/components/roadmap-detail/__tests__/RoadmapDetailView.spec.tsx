@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import {
   buildNotStartedRoadmapDetail,
+  buildPausedRoadmapDetail,
   buildRoadmapDetail,
   buildRoadmapItem,
   ROADMAP_DETAIL,
@@ -153,5 +154,44 @@ describe("RoadmapDetailView", () => {
 
     expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeInTheDocument();
+  });
+
+  it("en pausa muestra el banner en vez de «Continúa aquí» y describe los botones de completar", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={buildPausedRoadmapDetail()} />);
+
+    expect(screen.getByText("En pausa")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Esta ruta está en pausa" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^La pausaste el 3 de septiembre\./)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeDisabled();
+    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
+
+    // Sin atenuar: el siguiente paso conserva su chip (#224 Q1).
+    const items = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
+      "listitem",
+    );
+    expect(items[1]).toHaveAttribute("data-state", "next");
+    expect(within(items[1]).getByText("Siguiente")).toBeInTheDocument();
+
+    const completeButtons = screen.getAllByRole("button", { name: /^Marcar como completado/ });
+    expect(completeButtons.length).toBeGreaterThan(0);
+    for (const button of completeButtons) {
+      expect(button).toBeDisabled();
+      expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
+    }
+
+    expect(screen.getByTestId("roadmap-detail-progress-fill")).toHaveClass("bg-status-paused-bar");
+    expect(screen.getByText("33%")).toHaveClass("text-status-paused-text");
+  });
+
+  it("fuera de pausa no hay banner ni descripción en los botones de completar", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+    expect(screen.queryByText("Esta ruta está en pausa")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reanudar ruta" })).not.toBeInTheDocument();
+    for (const button of screen.getAllByRole("button", { name: /^Marcar como completado/ })) {
+      expect(button).not.toHaveAttribute("aria-describedby");
+    }
   });
 });

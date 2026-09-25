@@ -228,3 +228,8 @@ export function buildNotStartedRoadmapDetail(): RoadmapDetail {
     nextStep: { roadmapItemId: first.roadmapItemId, name: first.name, url: first.url },
   };
 }
+
+/** `ROADMAP_DETAIL` en pausa desde el 3 de septiembre de 2026; ítems y siguiente paso intactos. */
+export function buildPausedRoadmapDetail(): RoadmapDetail {
+  return buildRoadmapDetail({ status: "PAUSED", pausedAt: "2026-09-03T12:00:00.000Z" });
+}

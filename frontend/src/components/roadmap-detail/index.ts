@@ -5,6 +5,7 @@ export * from "./ItemStatusChip";
 export * from "./ItemThumbnail";
 export * from "./ItemTypeIcon";
 export * from "./NextStepCard";
+export * from "./PausedBanner";
 export * from "./RoadmapDetailIcons";
 export * from "./RoadmapDetailSkeleton";
 export * from "./RoadmapDetailView";

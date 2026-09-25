@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canTrack,
   formatHours,
+  formatLongDate,
   formatRelative,
   formatShortDate,
   getCompletedCount,
@@ -310,6 +311,25 @@ describe("formatShortDate", () => {
     expect(formatRelative("2026-08-12T12:00:00Z", NOW)).toBe(
       formatShortDate("2026-08-12T12:00:00Z", NOW),
     );
+  });
+});
+
+describe("formatLongDate", () => {
+  it("día y mes largo sin año si coincide con el de now", () => {
+    expect(formatLongDate("2026-09-03T12:00:00Z", new Date("2026-09-25T12:00:00Z"))).toBe(
+      "3 de septiembre",
+    );
+  });
+
+  it("añade el año si difiere del de now", () => {
+    expect(formatLongDate("2025-09-03T12:00:00Z", new Date("2026-01-10T12:00:00Z"))).toBe(
+      "3 de septiembre de 2025",
+    );
+  });
+
+  it("un ISO inválido devuelve cadena vacía sin lanzar", () => {
+    expect(() => formatLongDate("no-es-fecha")).not.toThrow();
+    expect(formatLongDate("no-es-fecha")).toBe("");
   });
 });
 

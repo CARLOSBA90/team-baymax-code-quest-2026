@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getCompletedCount, getNextStepItem, getRemainingMinutes, getTotalMinutes } from "@/lib";
 import type { RoadmapDetail } from "@/types";
 import { NextStepCard } from "./NextStepCard";
+import { PausedBanner } from "./PausedBanner";
 import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
 import { RoadmapTimeline } from "./RoadmapTimeline";
@@ -18,6 +19,8 @@ export interface RoadmapDetailViewProps {
 export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const { items } = roadmap;
   const headingId = useId();
+  const pausedDescriptionId = useId();
+  const isPaused = roadmap.status === "PAUSED";
   const completed = getCompletedCount(items);
   const total = items.length;
   const totalMinutes = getTotalMinutes(items);
@@ -51,6 +54,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         remainingMinutes={remainingMinutes}
         labelledBy={headingId}
       />
+      {isPaused ? (
+        <PausedBanner pausedAt={roadmap.pausedAt} descriptionId={pausedDescriptionId} />
+      ) : null}
       {nextStepItem ? (
         <NextStepCard item={nextStepItem.item} stepNumber={nextStepItem.stepNumber} total={total} />
       ) : null}
@@ -58,7 +64,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         items={items}
         nextStepId={roadmap.nextStep?.roadmapItemId ?? null}
         completed={completed}
-        isPaused={false}
+        isPaused={isPaused}
+        pausedDescriptionId={isPaused ? pausedDescriptionId : undefined}
       />
     </div>
   );

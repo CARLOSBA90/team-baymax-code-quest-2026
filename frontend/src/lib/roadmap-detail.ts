@@ -27,6 +27,12 @@ const SHORT_DATE_WITH_YEAR = new Intl.DateTimeFormat("es", {
   month: "short",
   year: "numeric",
 });
+const LONG_DATE = new Intl.DateTimeFormat("es", { day: "numeric", month: "long" });
+const LONG_DATE_WITH_YEAR = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 export function isItemCompleted(item: Pick<RoadmapItem, "progress">): boolean {
   return item.progress >= ITEM_COMPLETED_PROGRESS;
@@ -101,6 +107,19 @@ export function formatShortDate(iso: string, now: Date = new Date()): string {
 
   const then = new Date(time);
   const formatter = then.getFullYear() === now.getFullYear() ? SHORT_DATE : SHORT_DATE_WITH_YEAR;
+  return formatter.format(then);
+}
+
+/**
+ * Fecha larga («3 de septiembre»), con año solo si difiere del de `now` («3 de septiembre de
+ * 2025»). El año se compara en zona local. ISO inválido → "".
+ */
+export function formatLongDate(iso: string, now: Date = new Date()): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "";
+
+  const then = new Date(time);
+  const formatter = then.getFullYear() === now.getFullYear() ? LONG_DATE : LONG_DATE_WITH_YEAR;
   return formatter.format(then);
 }
 
