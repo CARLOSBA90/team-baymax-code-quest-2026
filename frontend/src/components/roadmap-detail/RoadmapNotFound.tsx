@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { NebulaSurface } from "@/components/ui";
+import { PRIMARY_LINK_CLASSES } from "./link-classes";
 
 /** Estado 404 del detalle: la ruta no existe, el id no es válido o es de otro usuario. */
 export function RoadmapNotFound() {
@@ -13,10 +14,7 @@ export function RoadmapNotFound() {
           Puede que se haya eliminado o que el enlace no sea correcto.
         </p>
       </div>
-      <Link
-        to="/dashboard/roadmaps"
-        className="mt-8 flex h-12 w-fit items-center justify-center rounded-xl border border-transparent bg-accent px-6 font-body font-bold text-white shadow-primary outline-none transition-[filter,box-shadow,border-color] duration-150 ease-out hover:brightness-110 focus-visible:border-accent-hover focus-visible:shadow-ring-focus"
-      >
+      <Link to="/dashboard/roadmaps" className={`${PRIMARY_LINK_CLASSES} mt-8 h-12 px-6`}>
         Volver a Mis Rutas
       </Link>
     </NebulaSurface>

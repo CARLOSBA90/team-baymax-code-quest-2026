@@ -168,6 +168,16 @@ export function getRoadmapProgressSummary({
   return parts.join(" · ");
 }
 
+/**
+ * Texto del panel de ruta completada: «5 de 5 pasos · 77 h de estudio. Ya puedes crear otra ruta
+ * para seguir avanzando.». Sin minutos se omiten las horas.
+ */
+export function getCompletedSummary(total: number, totalMinutes: number): string {
+  const steps = getRoadmapStepsProgressLabel(total, total);
+  const study = totalMinutes > 0 ? ` · ${formatHours(totalMinutes)} de estudio` : "";
+  return `${steps}${study}. Ya puedes crear otra ruta para seguir avanzando.`;
+}
+
 /** «Paso 3 de 5»; `stepNumber` es la posición 1-based en la lista, no el `order` del ítem. */
 export function getStepLabel(stepNumber: number, total: number): string {
   return `Paso ${stepNumber} de ${total}`;

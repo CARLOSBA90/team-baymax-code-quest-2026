@@ -6,6 +6,7 @@ import {
   formatRelative,
   formatShortDate,
   getCompletedCount,
+  getCompletedSummary,
   getItemMeta,
   getItemState,
   getItemTypeLabel,
@@ -330,6 +331,26 @@ describe("formatLongDate", () => {
   it("un ISO inválido devuelve cadena vacía sin lanzar", () => {
     expect(() => formatLongDate("no-es-fecha")).not.toThrow();
     expect(formatLongDate("no-es-fecha")).toBe("");
+  });
+});
+
+describe("getCompletedSummary", () => {
+  it("pasos y horas de estudio con la invitación a crear otra ruta", () => {
+    expect(getCompletedSummary(5, 4620)).toBe(
+      "5 de 5 pasos · 77 h de estudio. Ya puedes crear otra ruta para seguir avanzando.",
+    );
+  });
+
+  it("usa el singular con un único paso", () => {
+    expect(getCompletedSummary(1, 45)).toBe(
+      "1 de 1 paso · 45 min de estudio. Ya puedes crear otra ruta para seguir avanzando.",
+    );
+  });
+
+  it("sin minutos omite las horas", () => {
+    expect(getCompletedSummary(3, 0)).toBe(
+      "3 de 3 pasos. Ya puedes crear otra ruta para seguir avanzando.",
+    );
   });
 });
 

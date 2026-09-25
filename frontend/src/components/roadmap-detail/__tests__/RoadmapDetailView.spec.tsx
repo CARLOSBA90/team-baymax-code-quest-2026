@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import {
+  buildCompletedRoadmapDetail,
   buildNotStartedRoadmapDetail,
   buildPausedRoadmapDetail,
   buildRoadmapDetail,
@@ -193,5 +194,46 @@ describe("RoadmapDetailView", () => {
     for (const button of screen.getAllByRole("button", { name: /^Marcar como completado/ })) {
       expect(button).not.toHaveAttribute("aria-describedby");
     }
+  });
+
+  it("completada muestra el panel en vez de «Continúa aquí» y todos los pasos completados", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={buildCompletedRoadmapDetail()} />);
+
+    expect(screen.getByText("Completada")).toBeInTheDocument();
+    const panel = screen.getByRole("region", { name: "Completaste la ruta" });
+    // 4 ítems, 390 min.
+    expect(
+      within(panel).getByText(
+        "4 de 4 pasos · 7 h de estudio. Ya puedes crear otra ruta para seguir avanzando.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(panel).getByRole("link", { name: "Crear otra ruta" })).toHaveAttribute(
+      "href",
+      "/dashboard/roadmaps/new",
+    );
+    expect(within(panel).getByRole("link", { name: "Volver a Mis Rutas" })).toHaveAttribute(
+      "href",
+      "/dashboard/roadmaps",
+    );
+    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Esta ruta está en pausa")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+    ).not.toBeInTheDocument();
+
+    const items = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
+      "listitem",
+    );
+    for (const item of items) expect(within(item).getByText("Completado")).toBeInTheDocument();
+
+    expect(screen.getByText("4 de 4 pasos · 7 h en total")).toBeInTheDocument();
+    expect(screen.queryByText(/quedan/)).not.toBeInTheDocument();
+    expect(screen.getByText("100%")).toHaveClass("text-status-completed-text");
+  });
+
+  it("fuera de completada no muestra el panel", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+    expect(screen.queryByText("Completaste la ruta")).not.toBeInTheDocument();
   });
 });

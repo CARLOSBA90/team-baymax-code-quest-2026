@@ -4,6 +4,7 @@ import { getCompletedCount, getNextStepItem, getRemainingMinutes, getTotalMinute
 import type { RoadmapDetail } from "@/types";
 import { NextStepCard } from "./NextStepCard";
 import { PausedBanner } from "./PausedBanner";
+import { RoadmapCompletedPanel } from "./RoadmapCompletedPanel";
 import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
 import { RoadmapTimeline } from "./RoadmapTimeline";
@@ -56,6 +57,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
       />
       {isPaused ? (
         <PausedBanner pausedAt={roadmap.pausedAt} descriptionId={pausedDescriptionId} />
+      ) : null}
+      {roadmap.status === "COMPLETED" ? (
+        <RoadmapCompletedPanel total={total} totalMinutes={totalMinutes} />
       ) : null}
       {nextStepItem ? (
         <NextStepCard item={nextStepItem.item} stepNumber={nextStepItem.stepNumber} total={total} />

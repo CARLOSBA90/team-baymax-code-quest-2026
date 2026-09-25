@@ -233,3 +233,23 @@ export function buildNotStartedRoadmapDetail(): RoadmapDetail {
 export function buildPausedRoadmapDetail(): RoadmapDetail {
   return buildRoadmapDetail({ status: "PAUSED", pausedAt: "2026-09-03T12:00:00.000Z" });
 }
+
+/**
+ * `ROADMAP_DETAIL` completada: COMPLETED, progreso 100, todos los ítems al 100 % con
+ * `startedAt`/`completedAt` y sin siguiente paso.
+ */
+export function buildCompletedRoadmapDetail(): RoadmapDetail {
+  const base = buildRoadmapDetail();
+  return {
+    ...base,
+    status: "COMPLETED",
+    progress: 100,
+    items: base.items.map((item) => ({
+      ...item,
+      progress: 100,
+      startedAt: item.startedAt ?? "2026-09-12T09:00:00.000Z",
+      completedAt: item.completedAt ?? "2026-09-20T17:00:00.000Z",
+    })),
+    nextStep: null,
+  };
+}
