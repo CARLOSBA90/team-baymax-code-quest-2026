@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { SkillCategory } from '../../generated/prisma/enums.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
+import type { RoadmapGenerationService } from '../roadmaps/roadmap-generation.service.js';
 import { AssessmentsService } from './assessments.service.js';
 
 describe('AssessmentsService', () => {
@@ -12,6 +13,7 @@ describe('AssessmentsService', () => {
       findFirst: ReturnType<typeof vi.fn>;
     };
   };
+  let roadmapGenerationMock: { generate: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     prismaMock = {
@@ -23,7 +25,11 @@ describe('AssessmentsService', () => {
         findFirst: vi.fn(),
       },
     };
-    service = new AssessmentsService(prismaMock as unknown as PrismaService);
+    roadmapGenerationMock = { generate: vi.fn().mockResolvedValue(undefined) };
+    service = new AssessmentsService(
+      prismaMock as unknown as PrismaService,
+      roadmapGenerationMock as unknown as RoadmapGenerationService,
+    );
   });
 
   describe('getQuestions', () => {
@@ -207,6 +213,61 @@ describe('AssessmentsService', () => {
       expect(createCall.data.profileScores).toMatchObject({
         BACKEND: 20,
       });
+      expect(result).toEqual({ data: mockSavedAssessment });
+    });
+
+    it('calls roadmapGenerationService.generate once with the persisted assessmentId', async () => {
+      prismaMock.question.findMany.mockResolvedValue(mockActiveQuestions);
+
+      const mockSavedAssessment = {
+        id: 'assm-1',
+        userId: 'user-1',
+        version: 1,
+        goalCategory: SkillCategory.BACKEND,
+        profileScores: { BACKEND: 20 },
+        completedAt: new Date('2026-09-20T00:00:00.000Z'),
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+      };
+      prismaMock.assessment.create.mockResolvedValue(mockSavedAssessment);
+
+      await service.submit('user-1', {
+        answers: [
+          { questionId: 'q-1', optionId: 'opt-1-back' },
+          { questionId: 'q-2', optionId: 'opt-2-lvl4' },
+        ],
+      });
+
+      expect(roadmapGenerationMock.generate).toHaveBeenCalledExactlyOnceWith(
+        'user-1',
+        { assessmentId: 'assm-1' },
+      );
+    });
+
+    it('does not throw and still returns the assessment if roadmap generation fails', async () => {
+      prismaMock.question.findMany.mockResolvedValue(mockActiveQuestions);
+
+      const mockSavedAssessment = {
+        id: 'assm-1',
+        userId: 'user-1',
+        version: 1,
+        goalCategory: SkillCategory.BACKEND,
+        profileScores: { BACKEND: 20 },
+        completedAt: new Date('2026-09-20T00:00:00.000Z'),
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+      };
+      prismaMock.assessment.create.mockResolvedValue(mockSavedAssessment);
+      roadmapGenerationMock.generate.mockRejectedValue(
+        new Error('Catalog is empty — no courses available'),
+      );
+
+      const result = await service.submit('user-1', {
+        answers: [
+          { questionId: 'q-1', optionId: 'opt-1-back' },
+          { questionId: 'q-2', optionId: 'opt-2-lvl4' },
+        ],
+      });
+
+      // El submit no explota: el assessment fue persistido y se retorna correctamente
       expect(result).toEqual({ data: mockSavedAssessment });
     });
   });
