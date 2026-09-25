@@ -1,4 +1,10 @@
-import type { RoadmapItem, RoadmapItemState, RoadmapItemTracking, RoadmapItemType } from "@/types";
+import type {
+  RoadmapItem,
+  RoadmapItemState,
+  RoadmapItemTracking,
+  RoadmapItemType,
+  RoadmapNextStep,
+} from "@/types";
 import { ROADMAP_LEVEL_LABELS } from "./roadmap-labels";
 import { clampProgress } from "./roadmap-presentation";
 
@@ -214,4 +220,20 @@ export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): st
   }
   if (tracking.type === "CHALLENGE") return TRACKING_CHALLENGE_MESSAGE;
   return TRACKING_GENERIC_MESSAGE;
+}
+
+export interface NextStepItem {
+  item: RoadmapItem;
+  /** Posición 1-based en la lista. */
+  stepNumber: number;
+}
+
+/** Ítem de «Continúa aquí» por `nextStep.roadmapItemId`; `null` sin siguiente paso o id huérfano. */
+export function getNextStepItem(
+  items: RoadmapItem[],
+  nextStep: RoadmapNextStep | null,
+): NextStepItem | null {
+  if (!nextStep) return null;
+  const index = items.findIndex((item) => item.roadmapItemId === nextStep.roadmapItemId);
+  return index === -1 ? null : { item: items[index], stepNumber: index + 1 };
 }

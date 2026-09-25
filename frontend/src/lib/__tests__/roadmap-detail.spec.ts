@@ -8,6 +8,7 @@ import {
   getItemMeta,
   getItemState,
   getItemTypeLabel,
+  getNextStepItem,
   getRemainingMinutes,
   getRoadmapProgressSummary,
   getRoadmapProgressValueText,
@@ -452,5 +453,26 @@ describe("getTrackingUnavailableMessage", () => {
       TRACKING_METADATA_MISSING: METADATA,
       SYLLABUS_MISSING: METADATA,
     });
+  });
+});
+
+describe("getNextStepItem", () => {
+  const items = ["a", "b", "c", "d"].map((id, i) =>
+    buildRoadmapItem({ roadmapItemId: id, order: (i + 1) * 10, name: `Paso ${id}` }),
+  );
+
+  it("resuelve el ítem del siguiente paso con su posición 1-based", () => {
+    expect(getNextStepItem(items, { roadmapItemId: "c", name: "Paso c", url: null })).toEqual({
+      item: items[2],
+      stepNumber: 3,
+    });
+  });
+
+  it("sin nextStep → null", () => {
+    expect(getNextStepItem(items, null)).toBeNull();
+  });
+
+  it("id huérfano (no está en los ítems) → null", () => {
+    expect(getNextStepItem(items, { roadmapItemId: "zz", name: "X", url: null })).toBeNull();
   });
 });

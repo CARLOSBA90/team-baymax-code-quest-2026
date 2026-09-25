@@ -212,3 +212,19 @@ export function buildRoadmapItem(overrides: Partial<RoadmapItem> = {}): RoadmapI
     ...overrides,
   };
 }
+
+/**
+ * `ROADMAP_DETAIL` sin empezar: NOT_STARTED, progreso 0, ningún ítem empezado ni completado y el
+ * siguiente paso apunta al ítem 1.
+ */
+export function buildNotStartedRoadmapDetail(): RoadmapDetail {
+  const base = buildRoadmapDetail();
+  const [first] = base.items;
+  return {
+    ...base,
+    status: "NOT_STARTED",
+    progress: 0,
+    items: base.items.map((item) => ({ ...item, progress: 0, startedAt: null, completedAt: null })),
+    nextStep: { roadmapItemId: first.roadmapItemId, name: first.name, url: first.url },
+  };
+}

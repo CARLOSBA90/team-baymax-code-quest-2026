@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import {
+  buildNotStartedRoadmapDetail,
   buildRoadmapDetail,
   buildRoadmapItem,
   ROADMAP_DETAIL,
@@ -104,5 +105,53 @@ describe("RoadmapDetailView", () => {
     for (const button of buttons) expect(button).toBeDisabled();
     expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
     expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
+  });
+
+  it("en curso muestra «Continúa aquí» con el siguiente paso", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+    const region = screen.getByRole("region", { name: "Continúa aquí" });
+    expect(
+      within(region).getByRole("heading", { level: 2, name: "Introducción a React" }),
+    ).toBeInTheDocument();
+    expect(within(region).getByText("Paso 2 de 4 · Intermedio · 3 h")).toBeInTheDocument();
+  });
+
+  it("sin empezar se trata como en curso: «Continúa aquí» en el paso 1, chip «Siguiente» y 0 % violeta", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={buildNotStartedRoadmapDetail()} />);
+
+    expect(screen.getByText("Sin empezar")).toBeInTheDocument();
+    const region = screen.getByRole("region", { name: "Continúa aquí" });
+    expect(
+      within(region).getByRole("heading", { level: 2, name: "Fundamentos de JavaScript" }),
+    ).toBeInTheDocument();
+    expect(within(region).getByText(/^Paso 1 de 4/)).toBeInTheDocument();
+
+    const [first] = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
+      "listitem",
+    );
+    expect(first).toHaveAttribute("data-state", "next");
+    expect(within(first).getByText("Siguiente")).toBeInTheDocument();
+    expect(screen.getByText("0%")).toHaveClass("text-accent-soft");
+    expect(screen.getByTestId("roadmap-detail-progress-fill")).toHaveClass("bg-status-started-bar");
+  });
+
+  it("sin siguiente paso no muestra «Continúa aquí»", () => {
+    renderWithProviders(<RoadmapDetailView roadmap={buildRoadmapDetail({ nextStep: null })} />);
+
+    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
+  });
+
+  it("con un siguiente paso huérfano no muestra «Continúa aquí» y no falla", () => {
+    renderWithProviders(
+      <RoadmapDetailView
+        roadmap={buildRoadmapDetail({
+          nextStep: { roadmapItemId: "item-x", name: "Fantasma", url: null },
+        })}
+      />,
+    );
+
+    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeInTheDocument();
   });
 });

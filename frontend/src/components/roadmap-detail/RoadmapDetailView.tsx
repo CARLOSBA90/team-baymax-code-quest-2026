@@ -1,7 +1,8 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
-import { getCompletedCount, getRemainingMinutes, getTotalMinutes } from "@/lib";
+import { getCompletedCount, getNextStepItem, getRemainingMinutes, getTotalMinutes } from "@/lib";
 import type { RoadmapDetail } from "@/types";
+import { NextStepCard } from "./NextStepCard";
 import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
 import { RoadmapTimeline } from "./RoadmapTimeline";
@@ -21,6 +22,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const total = items.length;
   const totalMinutes = getTotalMinutes(items);
   const remainingMinutes = getRemainingMinutes(items);
+  // NOT_STARTED se trata como en curso (#224 Q2); PAUSED y COMPLETED no muestran la tarjeta.
+  const showsNextStep = roadmap.status === "IN_PROGRESS" || roadmap.status === "NOT_STARTED";
+  const nextStepItem = showsNextStep ? getNextStepItem(items, roadmap.nextStep) : null;
 
   return (
     <div className="flex w-full max-w-detail flex-col gap-5.5">
@@ -47,6 +51,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         remainingMinutes={remainingMinutes}
         labelledBy={headingId}
       />
+      {nextStepItem ? (
+        <NextStepCard item={nextStepItem.item} stepNumber={nextStepItem.stepNumber} total={total} />
+      ) : null}
       <RoadmapTimeline
         items={items}
         nextStepId={roadmap.nextStep?.roadmapItemId ?? null}
