@@ -51,6 +51,7 @@ vi.mock("@/api/services", async (importOriginal) => ({
   getRoadmap: vi.fn(),
   getRoadmaps: vi.fn(),
   submitAssessment: vi.fn(),
+  trackItemCompletion: vi.fn(),
 }));
 
 const USER = { name: "Ada Lovelace", email: "ada@example.com" };
