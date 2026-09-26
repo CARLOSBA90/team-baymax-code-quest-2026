@@ -83,4 +83,27 @@ describe("PausedBanner", () => {
     expect(icons.length).toBeGreaterThanOrEqual(2);
     for (const icon of icons) expect(icon).toHaveAttribute("aria-hidden", "true");
   });
+
+  describe("móvil (base) / tablet (sm:)", () => {
+    it("la sección usa padding compacto en móvil y el de slice 2 desde sm:", () => {
+      renderWithProviders(
+        <PausedBanner pausedAt="2026-09-03T12:00:00.000Z" descriptionId={DESCRIPTION_ID} />,
+      );
+
+      const region = screen.getByRole("region", { name: "Esta ruta está en pausa" });
+      expect(region).toHaveClass("p-4", "sm:px-5", "sm:py-4.5");
+      for (const cls of ["px-5", "py-4.5"]) expect(region).not.toHaveClass(cls);
+    });
+
+    it("«Reanudar ruta» mide 48px, ocupa el ancho completo en móvil y se ajusta desde sm:", () => {
+      renderWithProviders(
+        <PausedBanner pausedAt="2026-09-03T12:00:00.000Z" descriptionId={DESCRIPTION_ID} />,
+      );
+
+      const button = screen.getByRole("button", { name: "Reanudar ruta" });
+      expect(button).toBeDisabled();
+      expect(button).toHaveClass("h-12", "w-full", "ml-auto", "sm:w-fit", "sm:px-6");
+      for (const cls of ["w-fit", "px-6"]) expect(button).not.toHaveClass(cls);
+    });
+  });
 });
