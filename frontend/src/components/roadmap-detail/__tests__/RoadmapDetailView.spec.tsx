@@ -1,6 +1,15 @@
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { trackItemCompletion } from "@/api/services";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
+import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
+import {
+  buildRoadmapItemNotFoundError,
+  buildRoadmapPausedError,
+  buildTrackingMismatchError,
+  buildTrackProgressResult,
+} from "@/test/fixtures/progress";
 import {
   buildCompletedRoadmapDetail,
   buildNotStartedRoadmapDetail,
@@ -11,7 +20,9 @@ import {
 } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { byTextContent } from "@/test/textContent";
-import type { RoadmapDetail } from "@/types";
+import type { RoadmapDetail, TrackProgressResult } from "@/types";
+
+vi.mock("@/api/services", () => ({ trackItemCompletion: vi.fn(), getRoadmap: vi.fn() }));
 
 const CONTEXTUAL_BLOCKS = [
   "Continúa aquí",
@@ -324,37 +335,43 @@ describe("RoadmapDetailView", () => {
         expect(screen.getByText(percent)).toHaveClass(percentClass);
       });
 
-      it("el resto de botones (p. ej. «Reanudar ruta») siguen deshabilitados y no hay menú ⋯", () => {
+      it("sin menú ⋯ y con una única live region polite, vacía", () => {
         renderWithProviders(<RoadmapDetailView roadmap={build()} />);
 
-        for (const button of screen.queryAllByRole("button")) {
-          if (/^Marcar como completado/.test(button.textContent ?? "")) continue;
-          expect(button).toBeDisabled();
-        }
         expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
         expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
+        const regions = document.querySelectorAll('[aria-live="polite"]');
+        expect(regions).toHaveLength(1);
+        expect(regions[0]).toBe(screen.getByTestId("roadmap-detail-announcer"));
+        expect(regions[0]).toHaveAttribute("aria-atomic", "true");
+        expect(regions[0]).not.toHaveAttribute("role");
+        expect(regions[0]).toBeEmptyDOMElement();
       });
 
       it(`botones «Marcar como completado»: ${completeButtons}`, () => {
         renderWithProviders(<RoadmapDetailView roadmap={build()} />);
 
         const buttons = screen.queryAllByRole("button", { name: /^Marcar como completado/ });
+        const resume = screen.queryByRole("button", { name: "Reanudar ruta" });
         if (completeButtons === "none") {
           expect(buttons).toHaveLength(0);
+          expect(resume).not.toBeInTheDocument();
           return;
         }
         expect(buttons.length).toBeGreaterThan(0);
         for (const button of buttons) {
           if (completeButtons === "described") {
-            // PAUSED: deshabilitados y descritos por el banner.
+            // PAUSED: deshabilitados y descritos por el banner; «Reanudar ruta» también disabled.
             expect(button).toBeDisabled();
             expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
           } else {
-            // IN_PROGRESS / NOT_STARTED: habilitados (slice 4) y sin descripción.
+            // IN_PROGRESS / NOT_STARTED: habilitados y sin descripción.
             expect(button).toBeEnabled();
             expect(button).not.toHaveAttribute("aria-describedby");
           }
         }
+        if (completeButtons === "described") expect(resume).toBeDisabled();
+        else expect(resume).not.toBeInTheDocument();
       });
     },
   );
@@ -447,5 +464,315 @@ describe("RoadmapDetailView", () => {
 
     expect(screen.getByText(byTextContent("4 de 4 pasos · 7 h en total"))).toBeInTheDocument();
     expect(screen.queryByText(/quedan/)).not.toBeInTheDocument();
+  });
+});
+
+describe("RoadmapDetailView — «Marcar como completado»", () => {
+  const ITEM_NAME = "Guía de hooks de React";
+  const OTHER_NAME = "Reto: lista de tareas con React";
+  const DIALOG_NAME = "¿Marcar este paso como completado?";
+
+  /** item-3 (READING) es el siguiente paso e item-4 pasa a ser rastreable (COMPLETION). */
+  function buildFlowRoadmap(): RoadmapDetail {
+    const base = buildRoadmapDetail();
+    return {
+      ...base,
+      items: base.items.map((item) =>
+        item.roadmapItemId === "item-4"
+          ? { ...item, tracking: { type: "COMPLETION", enabled: true, disabledReason: null } }
+          : item,
+      ),
+      nextStep: {
+        roadmapItemId: "item-3",
+        name: ITEM_NAME,
+        url: "https://react.dev/reference/react/hooks",
+      },
+    };
+  }
+
+  function timeline() {
+    return screen.getByRole("list", { name: "Pasos de la ruta" });
+  }
+
+  function timelineButton(name = ITEM_NAME) {
+    return within(timeline()).getByRole("button", { name: `Marcar como completado ${name}` });
+  }
+
+  function nextStepButton() {
+    return within(screen.getByRole("region", { name: "Continúa aquí" })).getByRole("button", {
+      name: `Marcar como completado ${ITEM_NAME}`,
+    });
+  }
+
+  function itemHeading(step = 3, name = ITEM_NAME) {
+    return within(timeline()).getByRole("heading", {
+      level: 3,
+      name: `Paso ${step} de 4: ${name}`,
+    });
+  }
+
+  function mainHeading() {
+    return screen.getByRole("heading", { level: 1, name: ROADMAP_DETAIL.name });
+  }
+
+  function announcer() {
+    return screen.getByTestId("roadmap-detail-announcer");
+  }
+
+  function dialogElement() {
+    const dialog = document.querySelector("dialog");
+    if (!dialog) throw new Error("dialog no encontrado");
+    return dialog;
+  }
+
+  function renderFlow(roadmap: RoadmapDetail = buildFlowRoadmap()) {
+    const user = userEvent.setup();
+    renderWithProviders(<RoadmapDetailView roadmap={roadmap} />);
+    return user;
+  }
+
+  async function confirm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      within(screen.getByRole("dialog", { name: DIALOG_NAME })).getByRole("button", {
+        name: "Sí, completar",
+      }),
+    );
+  }
+
+  afterEach(() => {
+    document.documentElement.classList.remove("overflow-hidden");
+  });
+
+  it.each([
+    ["el timeline", () => timelineButton()],
+    ["«Continúa aquí»", () => nextStepButton()],
+  ])("abre el diálogo con el nombre del paso desde %s", async (_, getButton) => {
+    const user = renderFlow();
+
+    await user.click(getButton());
+
+    const dialog = screen.getByRole("dialog", { name: DIALOG_NAME });
+    expect(within(dialog).getByText(ITEM_NAME)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toHaveFocus();
+  });
+
+  it.each([
+    ["Cancelar", () => within(dialogElement()).getByRole("button", { name: "Cancelar" })],
+    ["Esc", null],
+  ] as const)(
+    "con %s cierra sin llamar al servicio y devuelve el foco al botón",
+    async (_, get) => {
+      const user = renderFlow();
+      const opener = nextStepButton();
+      await user.click(opener);
+
+      if (get) await user.click(get());
+      else fireEvent(dialogElement(), new Event("cancel", { cancelable: true }));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(trackItemCompletion).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(opener);
+      expect(announcer()).toBeEmptyDOMElement();
+    },
+  );
+
+  it.each([
+    ["el timeline", () => timelineButton()],
+    ["«Continúa aquí»", () => nextStepButton()],
+  ])(
+    "200 (abierto desde %s): cierra, anuncia y enfoca el h3 del timeline",
+    async (_, getButton) => {
+      vi.mocked(trackItemCompletion).mockResolvedValue(buildTrackProgressResult());
+      const user = renderFlow();
+      const region = announcer();
+
+      await user.click(getButton());
+      await confirm(user);
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(vi.mocked(trackItemCompletion).mock.calls[0][0]).toBe("item-3");
+      expect(trackItemCompletion).toHaveBeenCalledTimes(1);
+      // Sin detalle en caché: se reconstruye desde la respuesta (item-3 al 100 → 2 de 4).
+      expect(announcer()).toHaveTextContent(
+        `${ITEM_NAME} marcado como completado. Progreso de la ruta: 60 por ciento, 2 de 4 pasos.`,
+      );
+      expect(announcer()).toBe(region);
+      expect(document.activeElement).toBe(itemHeading());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
+  it("200 que completa la ruta: el anuncio acaba en «Completaste la ruta.»", async () => {
+    const completed = buildCompletedRoadmapDetail();
+    const roadmap: RoadmapDetail = {
+      ...completed,
+      status: "IN_PROGRESS",
+      progress: 75,
+      items: completed.items.map((item) =>
+        item.roadmapItemId === "item-3" ? { ...item, progress: 0, completedAt: null } : item,
+      ),
+      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null },
+    };
+    vi.mocked(trackItemCompletion).mockResolvedValue(
+      buildTrackProgressResult({
+        roadmap: {
+          id: roadmap.id,
+          progress: 100,
+          status: "COMPLETED",
+          lastActivity: "2026-09-25T11:00:00.000Z",
+          activityVersion: 13,
+        },
+      }),
+    );
+    const user = renderFlow(roadmap);
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    await waitFor(() =>
+      expect(announcer()).toHaveTextContent(
+        `${ITEM_NAME} marcado como completado. Progreso de la ruta: 100 por ciento, 4 de 4 pasos. Completaste la ruta.`,
+      ),
+    );
+    // Con la prop fija no hay panel «Completaste la ruta»: el foco cae al h1.
+    expect(document.activeElement).toBe(mainHeading());
+  });
+
+  it("sin conexión: alerta dentro del diálogo, sin anuncio, y el reintento completa", async () => {
+    vi.mocked(trackItemCompletion)
+      .mockRejectedValueOnce(buildNetworkError())
+      .mockResolvedValueOnce(buildTrackProgressResult());
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    const dialog = screen.getByRole("dialog", { name: DIALOG_NAME });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+    );
+    expect(announcer()).toBeEmptyDOMElement();
+
+    await confirm(user);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(trackItemCompletion).toHaveBeenCalledTimes(2);
+    expect(announcer()).toHaveTextContent(`${ITEM_NAME} marcado como completado.`);
+  });
+
+  it.each([500, 401])("%s: mensaje genérico, nunca el `message` del back", async (status) => {
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildAxiosError(status, "Backend says no"));
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    const dialog = screen.getByRole("dialog", { name: DIALOG_NAME });
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "No se pudo marcar como completado. Inténtalo de nuevo.",
+    );
+    expect(screen.queryByText(/Backend says no/)).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it("mientras está pendiente: «Completando…», Cancelar deshabilitado y Esc no cierra", async () => {
+    let resolve: (value: TrackProgressResult) => void = () => {};
+    vi.mocked(trackItemCompletion).mockReturnValue(
+      new Promise<TrackProgressResult>((r) => {
+        resolve = r;
+      }),
+    );
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    const dialog = screen.getByRole("dialog", { name: DIALOG_NAME });
+    expect(await within(dialog).findByText("Completando…")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+    fireEvent(dialogElement(), new Event("cancel", { cancelable: true }));
+    expect(screen.getByRole("dialog", { name: DIALOG_NAME })).toBeInTheDocument();
+
+    resolve(buildTrackProgressResult());
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("409 pausada: cierra, anuncia la pausa sin alerta y enfoca el h1 (sin banner)", async () => {
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildRoadmapPausedError());
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(announcer()).toHaveTextContent(
+      "Esta ruta está pausada. Reanúdala para registrar tu avance.",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(mainHeading());
+  });
+
+  it("404: aviso neutro (status, no alerta), sin anuncio, y foco en el h1", async () => {
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildRoadmapItemNotFoundError());
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const notice = screen.getByText("Este paso ya no existe. Hemos actualizado la ruta.");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(document.activeElement).toBe(mainHeading());
+    // El aviso encabeza la columna.
+    expect(notice.parentElement?.firstElementChild).toBe(notice);
+  });
+
+  it("422: cierra, anuncia que ya no se puede marcar y enfoca el h3 del paso", async () => {
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildTrackingMismatchError());
+    const user = renderFlow();
+
+    await user.click(nextStepButton());
+    await confirm(user);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(announcer()).toHaveTextContent(
+      "Este paso ya no se puede marcar como completado desde aquí.",
+    );
+    expect(document.activeElement).toBe(itemHeading());
+  });
+
+  it.each([
+    ["un error de red", buildNetworkError],
+    ["un 404", buildRoadmapItemNotFoundError],
+  ])("tras %s, abrir otro paso limpia alerta, aviso y anuncio", async (_, buildError) => {
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildError());
+    const user = renderFlow();
+
+    await user.click(timelineButton());
+    await confirm(user);
+    await waitFor(() => expect(trackItemCompletion).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("alert") ??
+          screen.queryByText("Este paso ya no existe. Hemos actualizado la ruta."),
+      ).toBeInTheDocument(),
+    );
+    if (screen.queryByRole("dialog")) {
+      await user.click(within(dialogElement()).getByRole("button", { name: "Cancelar" }));
+    }
+
+    await user.click(timelineButton(OTHER_NAME));
+
+    const dialog = screen.getByRole("dialog", { name: DIALOG_NAME });
+    expect(within(dialog).getByText(OTHER_NAME)).toBeInTheDocument();
+    expect(within(dialog).queryByText(ITEM_NAME)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Este paso ya no existe. Hemos actualizado la ruta."),
+    ).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
   });
 });
