@@ -54,6 +54,35 @@ describe("NextStepCard", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("tracking por lecciones (LESSONS) → mensaje por lección y sin botón", () => {
+    const item = buildRoadmapItem({
+      name: "Curso por lecciones",
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+    });
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+
+    expect(
+      screen.getByText("El avance de este curso se registra por lección."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("defensivo: ítem completado sin url → sin acciones, botón ni mensaje de tracking", () => {
+    const item = buildRoadmapItem({
+      name: "Curso terminado",
+      progress: 100,
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+    });
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+
+    const region = screen.getByRole("region", { name: "Continúa aquí" });
+    expect(within(region).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(region).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(region).queryByText(/registra|registrar/)).not.toBeInTheDocument();
+  });
+
   it("descripción en una línea; sin descripción no hay párrafo", () => {
     const { unmount } = renderWithProviders(
       <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />,

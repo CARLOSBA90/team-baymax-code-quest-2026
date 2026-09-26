@@ -103,6 +103,21 @@ describe("RoadmapItem", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("pendiente con tracking por lecciones (LESSONS) → mensaje por lección y sin botón", () => {
+    const item = buildRoadmapItem({
+      name: "Curso por lecciones",
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+    });
+    renderItem({ item, stepNumber: 3, state: "pending" });
+
+    expect(
+      screen.getByText("El avance de este curso se registra por lección."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("en curso con 40 % → chip «En curso, 40 %», nodo con punto interior y tarjeta activa", () => {
     const item = buildRoadmapItem({
       name: "Node.js",
