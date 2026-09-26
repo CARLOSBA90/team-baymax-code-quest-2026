@@ -11,6 +11,12 @@ import {
 } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
+const CONTEXTUAL_BLOCKS = [
+  "Continúa aquí",
+  "Esta ruta está en pausa",
+  "Completaste la ruta",
+] as const;
+
 describe("RoadmapDetailView", () => {
   beforeEach(() => {
     // Solo Date: «Última actividad» depende del reloj (fixture: 2026-09-21T18:30Z).
@@ -99,17 +105,105 @@ describe("RoadmapDetailView", () => {
     expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
   });
 
-  it("todos los botones están deshabilitados y no hay menú ⋯", () => {
-    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+  describe.each([
+    {
+      status: "IN_PROGRESS",
+      build: () => ROADMAP_DETAIL,
+      badge: "Empezada",
+      block: "Continúa aquí",
+      fill: "bg-status-started-bar",
+      percent: "33%",
+      percentClass: "text-accent-soft",
+      completeButtons: "plain",
+    },
+    {
+      status: "NOT_STARTED",
+      build: buildNotStartedRoadmapDetail,
+      badge: "Sin empezar",
+      block: "Continúa aquí",
+      fill: "bg-status-started-bar",
+      percent: "0%",
+      percentClass: "text-accent-soft",
+      completeButtons: "plain",
+    },
+    {
+      status: "PAUSED",
+      build: buildPausedRoadmapDetail,
+      badge: "En pausa",
+      block: "Esta ruta está en pausa",
+      fill: "bg-status-paused-bar",
+      percent: "33%",
+      percentClass: "text-status-paused-text",
+      completeButtons: "described",
+    },
+    {
+      status: "COMPLETED",
+      build: buildCompletedRoadmapDetail,
+      badge: "Completada",
+      block: "Completaste la ruta",
+      fill: "bg-status-completed",
+      percent: "100%",
+      percentClass: "text-status-completed-text",
+      completeButtons: "none",
+    },
+  ] as const)(
+    "estado $status (tabla «Comportamiento por estado»)",
+    ({ build, badge, block, fill, percent, percentClass, completeButtons }) => {
+      it(`muestra el badge «${badge}» y solo el bloque contextual «${block}»`, () => {
+        renderWithProviders(<RoadmapDetailView roadmap={build()} />);
 
-    const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const button of buttons) expect(button).toBeDisabled();
-    expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
-    expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
-  });
+        expect(screen.getByText(badge)).toBeInTheDocument();
+        for (const name of CONTEXTUAL_BLOCKS) {
+          if (name === block) {
+            expect(screen.getByRole("region", { name })).toBeInTheDocument();
+          } else {
+            expect(screen.queryByRole("region", { name })).not.toBeInTheDocument();
+            expect(screen.queryByText(name)).not.toBeInTheDocument();
+          }
+        }
+        // «Reanudar ruta» solo acompaña al banner de pausa.
+        expect(Boolean(screen.queryByRole("button", { name: "Reanudar ruta" }))).toBe(
+          block === "Esta ruta está en pausa",
+        );
+      });
 
-  it("en curso muestra «Continúa aquí» con el siguiente paso", () => {
+      it(`tiñe la barra global con ${fill} y el ${percent} con ${percentClass}`, () => {
+        renderWithProviders(<RoadmapDetailView roadmap={build()} />);
+
+        expect(screen.getByTestId("roadmap-detail-progress-fill")).toHaveClass(fill);
+        expect(screen.getByText(percent)).toHaveClass(percentClass);
+      });
+
+      it("todos los botones están deshabilitados y no hay menú ⋯", () => {
+        renderWithProviders(<RoadmapDetailView roadmap={build()} />);
+
+        for (const button of screen.queryAllByRole("button")) expect(button).toBeDisabled();
+        expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
+        expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
+      });
+
+      it(`botones «Marcar como completado»: ${completeButtons}`, () => {
+        renderWithProviders(<RoadmapDetailView roadmap={build()} />);
+
+        const buttons = screen.queryAllByRole("button", { name: /^Marcar como completado/ });
+        if (completeButtons === "none") {
+          expect(buttons).toHaveLength(0);
+          return;
+        }
+        expect(buttons.length).toBeGreaterThan(0);
+        for (const button of buttons) {
+          expect(button).toBeDisabled();
+          if (completeButtons === "described") {
+            expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
+          } else {
+            expect(button).not.toHaveAttribute("aria-describedby");
+          }
+        }
+      });
+    },
+  );
+
+  it("en curso: «Continúa aquí» presenta el siguiente paso con su meta", () => {
     renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
     const region = screen.getByRole("region", { name: "Continúa aquí" });
@@ -119,10 +213,9 @@ describe("RoadmapDetailView", () => {
     expect(within(region).getByText("Paso 2 de 4 · Intermedio · 3 h")).toBeInTheDocument();
   });
 
-  it("sin empezar se trata como en curso: «Continúa aquí» en el paso 1, chip «Siguiente» y 0 % violeta", () => {
+  it("sin empezar se trata como en curso: «Continúa aquí» en el paso 1 y chip «Siguiente»", () => {
     renderWithProviders(<RoadmapDetailView roadmap={buildNotStartedRoadmapDetail()} />);
 
-    expect(screen.getByText("Sin empezar")).toBeInTheDocument();
     const region = screen.getByRole("region", { name: "Continúa aquí" });
     expect(
       within(region).getByRole("heading", { level: 2, name: "Fundamentos de JavaScript" }),
@@ -134,8 +227,6 @@ describe("RoadmapDetailView", () => {
     );
     expect(first).toHaveAttribute("data-state", "next");
     expect(within(first).getByText("Siguiente")).toBeInTheDocument();
-    expect(screen.getByText("0%")).toHaveClass("text-accent-soft");
-    expect(screen.getByTestId("roadmap-detail-progress-fill")).toHaveClass("bg-status-started-bar");
   });
 
   it("sin siguiente paso no muestra «Continúa aquí»", () => {
@@ -157,16 +248,14 @@ describe("RoadmapDetailView", () => {
     expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeInTheDocument();
   });
 
-  it("en pausa muestra el banner en vez de «Continúa aquí» y describe los botones de completar", () => {
+  it("en pausa: el banner fecha la pausa y el siguiente paso conserva su chip", () => {
     renderWithProviders(<RoadmapDetailView roadmap={buildPausedRoadmapDetail()} />);
 
-    expect(screen.getByText("En pausa")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 2, name: "Esta ruta está en pausa" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/^La pausaste el 3 de septiembre\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeDisabled();
-    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
 
     // Sin atenuar: el siguiente paso conserva su chip (#224 Q1).
     const items = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
@@ -174,32 +263,11 @@ describe("RoadmapDetailView", () => {
     );
     expect(items[1]).toHaveAttribute("data-state", "next");
     expect(within(items[1]).getByText("Siguiente")).toBeInTheDocument();
-
-    const completeButtons = screen.getAllByRole("button", { name: /^Marcar como completado/ });
-    expect(completeButtons.length).toBeGreaterThan(0);
-    for (const button of completeButtons) {
-      expect(button).toBeDisabled();
-      expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
-    }
-
-    expect(screen.getByTestId("roadmap-detail-progress-fill")).toHaveClass("bg-status-paused-bar");
-    expect(screen.getByText("33%")).toHaveClass("text-status-paused-text");
   });
 
-  it("fuera de pausa no hay banner ni descripción en los botones de completar", () => {
-    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
-
-    expect(screen.queryByText("Esta ruta está en pausa")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reanudar ruta" })).not.toBeInTheDocument();
-    for (const button of screen.getAllByRole("button", { name: /^Marcar como completado/ })) {
-      expect(button).not.toHaveAttribute("aria-describedby");
-    }
-  });
-
-  it("completada muestra el panel en vez de «Continúa aquí» y todos los pasos completados", () => {
+  it("completada: el panel resume la ruta, enlaza y todos los pasos quedan completados", () => {
     renderWithProviders(<RoadmapDetailView roadmap={buildCompletedRoadmapDetail()} />);
 
-    expect(screen.getByText("Completada")).toBeInTheDocument();
     const panel = screen.getByRole("region", { name: "Completaste la ruta" });
     // 4 ítems, 390 min.
     expect(
@@ -215,11 +283,6 @@ describe("RoadmapDetailView", () => {
       "href",
       "/dashboard/roadmaps",
     );
-    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Esta ruta está en pausa")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^Marcar como completado/ }),
-    ).not.toBeInTheDocument();
 
     const items = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
       "listitem",
@@ -228,12 +291,5 @@ describe("RoadmapDetailView", () => {
 
     expect(screen.getByText("4 de 4 pasos · 7 h en total")).toBeInTheDocument();
     expect(screen.queryByText(/quedan/)).not.toBeInTheDocument();
-    expect(screen.getByText("100%")).toHaveClass("text-status-completed-text");
-  });
-
-  it("fuera de completada no muestra el panel", () => {
-    renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
-
-    expect(screen.queryByText("Completaste la ruta")).not.toBeInTheDocument();
   });
 });
