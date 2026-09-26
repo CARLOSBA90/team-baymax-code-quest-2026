@@ -212,3 +212,44 @@ export function buildRoadmapItem(overrides: Partial<RoadmapItem> = {}): RoadmapI
     ...overrides,
   };
 }
+
+/**
+ * `ROADMAP_DETAIL` sin empezar: NOT_STARTED, progreso 0, ningún ítem empezado ni completado y el
+ * siguiente paso apunta al ítem 1.
+ */
+export function buildNotStartedRoadmapDetail(): RoadmapDetail {
+  const base = buildRoadmapDetail();
+  const [first] = base.items;
+  return {
+    ...base,
+    status: "NOT_STARTED",
+    progress: 0,
+    items: base.items.map((item) => ({ ...item, progress: 0, startedAt: null, completedAt: null })),
+    nextStep: { roadmapItemId: first.roadmapItemId, name: first.name, url: first.url },
+  };
+}
+
+/** `ROADMAP_DETAIL` en pausa desde el 3 de septiembre de 2026; ítems y siguiente paso intactos. */
+export function buildPausedRoadmapDetail(): RoadmapDetail {
+  return buildRoadmapDetail({ status: "PAUSED", pausedAt: "2026-09-03T12:00:00.000Z" });
+}
+
+/**
+ * `ROADMAP_DETAIL` completada: COMPLETED, progreso 100, todos los ítems al 100 % con
+ * `startedAt`/`completedAt` y sin siguiente paso.
+ */
+export function buildCompletedRoadmapDetail(): RoadmapDetail {
+  const base = buildRoadmapDetail();
+  return {
+    ...base,
+    status: "COMPLETED",
+    progress: 100,
+    items: base.items.map((item) => ({
+      ...item,
+      progress: 100,
+      startedAt: item.startedAt ?? "2026-09-12T09:00:00.000Z",
+      completedAt: item.completedAt ?? "2026-09-20T17:00:00.000Z",
+    })),
+    nextStep: null,
+  };
+}

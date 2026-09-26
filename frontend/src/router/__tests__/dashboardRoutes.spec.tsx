@@ -9,7 +9,7 @@ import { getAssessmentQuestions, getRoadmap, getRoadmaps } from "@/api/services"
 import { routes } from "@/router/router";
 import { buildAxiosError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK } from "@/test/fixtures/assessments";
-import { ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
+import { buildCompletedRoadmapDetail, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { EMPTY_ROADMAPS_RESULT, ROADMAPS_LIST_RESULT } from "@/test/fixtures/roadmaps";
 import { preloadLazyRoutes } from "@/test/renderRoutes";
 
@@ -251,6 +251,30 @@ describe("rutas del dashboard", () => {
     const router = renderRoutes(["/dashboard/roadmaps/nope"]);
 
     await userEvent.setup().click(await screen.findByRole("link", { name: "Volver a Mis Rutas" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
+    expect(await screen.findByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
+  });
+
+  it("en una ruta completada «Crear otra ruta» abre el cuestionario", async () => {
+    vi.mocked(getRoadmap).mockResolvedValue(buildCompletedRoadmapDetail());
+    const router = renderRoutes([`/dashboard/roadmaps/${ROADMAP_DETAIL.id}`]);
+
+    const panel = await screen.findByRole("region", { name: "Completaste la ruta" });
+    await userEvent.setup().click(within(panel).getByRole("link", { name: "Crear otra ruta" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Descubre tu ruta" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/dashboard/roadmaps/new");
+  });
+
+  it("en una ruta completada «Volver a Mis Rutas» navega a /dashboard/roadmaps", async () => {
+    vi.mocked(getRoadmap).mockResolvedValue(buildCompletedRoadmapDetail());
+    const router = renderRoutes([`/dashboard/roadmaps/${ROADMAP_DETAIL.id}`]);
+
+    const panel = await screen.findByRole("region", { name: "Completaste la ruta" });
+    await userEvent.setup().click(within(panel).getByRole("link", { name: "Volver a Mis Rutas" }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/dashboard/roadmaps"));
     expect(await screen.findByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
