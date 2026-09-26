@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapItem, type RoadmapItemProps } from "@/components/roadmap-detail";
 import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
@@ -17,6 +18,8 @@ function renderItem(props: Partial<RoadmapItemProps> = {}) {
         state="completed"
         isLast={false}
         isPaused={false}
+        onComplete={vi.fn()}
+        headingId="item-heading"
         {...props}
       />
     </ol>,
@@ -137,7 +140,7 @@ describe("RoadmapItem", () => {
     );
   });
 
-  it("pendiente completable → sin chip, enlace ghost y botón disabled", () => {
+  it("pendiente completable → sin chip, enlace ghost y botón habilitado", () => {
     renderItem({ item: MEDIA_ITEM, stepNumber: 3, state: "pending" });
 
     expect(screen.getByRole("listitem")).toHaveAttribute("data-state", "pending");
@@ -151,7 +154,7 @@ describe("RoadmapItem", () => {
     const button = screen.getByRole("button", {
       name: "Marcar como completado Guía de hooks de React",
     });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
     expect(button).not.toHaveAttribute("aria-describedby");
   });
 
@@ -186,8 +189,36 @@ describe("RoadmapItem", () => {
     expect(container.querySelector("p.line-clamp-1")).not.toBeInTheDocument();
   });
 
-  it("en pausa: botón disabled con aria-describedby y sin atenuación", () => {
+  it("el h3 lleva el headingId y tabIndex=-1 como destino de foco, con el mismo nombre", () => {
+    renderItem({ item: MEDIA_ITEM, stepNumber: 3, state: "pending", headingId: "tl-step-item-3" });
+
+    const heading = screen.getByRole("heading", {
+      level: 3,
+      name: "Paso 3 de 4: Guía de hooks de React",
+    });
+    expect(heading).toHaveAttribute("id", "tl-step-item-3");
+    expect(heading).toHaveAttribute("tabindex", "-1");
+    expect(heading).toHaveClass("outline-none");
+  });
+
+  it("clic en «Marcar como completado» llama a onComplete con el ítem", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    renderItem({ item: MEDIA_ITEM, stepNumber: 3, state: "pending", onComplete });
+
+    await user.click(
+      screen.getByRole("button", { name: "Marcar como completado Guía de hooks de React" }),
+    );
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith(MEDIA_ITEM);
+  });
+
+  it("en pausa: botón disabled con aria-describedby, el clic no llama y sin atenuación", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
     renderItem({
+      onComplete,
       item: MEDIA_ITEM,
       stepNumber: 3,
       state: "next",
@@ -198,6 +229,8 @@ describe("RoadmapItem", () => {
     const button = screen.getByRole("button", { name: /^Marcar como completado/ });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-describedby", "paused-desc");
+    await user.click(button);
+    expect(onComplete).not.toHaveBeenCalled();
     expect(screen.getByText("Siguiente")).toBeInTheDocument();
     const li = screen.getByRole("listitem");
     expect(li.className).not.toMatch(/opacity-/);

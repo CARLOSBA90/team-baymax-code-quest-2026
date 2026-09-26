@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { Link } from "react-router-dom";
 import { getCompletedCount, getNextStepItem, getRemainingMinutes, getTotalMinutes } from "@/lib";
-import type { RoadmapDetail } from "@/types";
+import type { RoadmapDetail, RoadmapItem } from "@/types";
 import { NextStepCard } from "./NextStepCard";
 import { PausedBanner } from "./PausedBanner";
 import { RoadmapCompletedPanel } from "./RoadmapCompletedPanel";
@@ -13,6 +13,9 @@ export interface RoadmapDetailViewProps {
   roadmap: RoadmapDetail;
 }
 
+// Temporal hasta cablear el flujo de confirmación en el compositor (fase 5).
+function handleCompleteRequest(_item: RoadmapItem) {}
+
 /**
  * Compositor del detalle: calcula una vez los derivados (pasos, minutos, ids de a11y) y los baja
  * a piezas presentacionales dentro de la columna de 920px.
@@ -21,6 +24,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const { items } = roadmap;
   const headingId = useId();
   const pausedDescriptionId = useId();
+  const pausedHeadingId = useId();
+  const completedHeadingId = useId();
+  const itemHeadingIdPrefix = useId();
   const isPaused = roadmap.status === "PAUSED";
   const completed = getCompletedCount(items);
   const total = items.length;
@@ -59,13 +65,26 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         labelledBy={headingId}
       />
       {isPaused ? (
-        <PausedBanner pausedAt={roadmap.pausedAt} descriptionId={pausedDescriptionId} />
+        <PausedBanner
+          pausedAt={roadmap.pausedAt}
+          descriptionId={pausedDescriptionId}
+          headingId={pausedHeadingId}
+        />
       ) : null}
       {roadmap.status === "COMPLETED" ? (
-        <RoadmapCompletedPanel total={total} totalMinutes={totalMinutes} />
+        <RoadmapCompletedPanel
+          total={total}
+          totalMinutes={totalMinutes}
+          headingId={completedHeadingId}
+        />
       ) : null}
       {nextStepItem ? (
-        <NextStepCard item={nextStepItem.item} stepNumber={nextStepItem.stepNumber} total={total} />
+        <NextStepCard
+          item={nextStepItem.item}
+          stepNumber={nextStepItem.stepNumber}
+          total={total}
+          onComplete={handleCompleteRequest}
+        />
       ) : null}
       <RoadmapTimeline
         items={items}
@@ -73,6 +92,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         completed={completed}
         isPaused={isPaused}
         pausedDescriptionId={isPaused ? pausedDescriptionId : undefined}
+        onComplete={handleCompleteRequest}
+        itemHeadingIdPrefix={itemHeadingIdPrefix}
       />
     </div>
   );

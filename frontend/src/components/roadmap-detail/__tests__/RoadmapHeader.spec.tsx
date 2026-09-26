@@ -38,6 +38,15 @@ describe("RoadmapHeader", () => {
     expect(heading.closest("header")).toBeInTheDocument();
   });
 
+  it("el h1 es destino de foco programático (tabIndex=-1, sin outline) y no entra en el Tab", () => {
+    const { container } = renderHeader();
+
+    const heading = screen.getByRole("heading", { level: 1, name: BASE_PROPS.name });
+    expect(heading).toHaveAttribute("tabindex", "-1");
+    expect(heading).toHaveClass("outline-none");
+    expect(container.querySelector('[tabindex="0"]')).not.toBeInTheDocument();
+  });
+
   it("muestra el resumen cuando existe", () => {
     renderHeader();
 

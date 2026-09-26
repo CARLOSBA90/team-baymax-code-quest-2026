@@ -324,10 +324,13 @@ describe("RoadmapDetailView", () => {
         expect(screen.getByText(percent)).toHaveClass(percentClass);
       });
 
-      it("todos los botones están deshabilitados y no hay menú ⋯", () => {
+      it("el resto de botones (p. ej. «Reanudar ruta») siguen deshabilitados y no hay menú ⋯", () => {
         renderWithProviders(<RoadmapDetailView roadmap={build()} />);
 
-        for (const button of screen.queryAllByRole("button")) expect(button).toBeDisabled();
+        for (const button of screen.queryAllByRole("button")) {
+          if (/^Marcar como completado/.test(button.textContent ?? "")) continue;
+          expect(button).toBeDisabled();
+        }
         expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
         expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
       });
@@ -342,10 +345,13 @@ describe("RoadmapDetailView", () => {
         }
         expect(buttons.length).toBeGreaterThan(0);
         for (const button of buttons) {
-          expect(button).toBeDisabled();
           if (completeButtons === "described") {
+            // PAUSED: deshabilitados y descritos por el banner.
+            expect(button).toBeDisabled();
             expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
           } else {
+            // IN_PROGRESS / NOT_STARTED: habilitados (slice 4) y sin descripción.
+            expect(button).toBeEnabled();
             expect(button).not.toHaveAttribute("aria-describedby");
           }
         }
