@@ -256,7 +256,7 @@ describe("RoadmapItem", () => {
       const [dot] = dots;
       expect(dot).toHaveAttribute("aria-hidden", "true");
       expect(dot).toHaveClass("inline-flex", "size-3.75", "sm:hidden");
-      expect(dot).not.toHaveClass("flex", "hidden");
+      for (const cls of ["flex", "hidden"]) expect(dot).not.toHaveClass(cls);
       expect(li).toHaveAttribute("data-state", state);
       const node = screen.getByTestId("timeline-node");
       const stateClasses = [...node.classList].filter((c) =>
@@ -290,7 +290,7 @@ describe("RoadmapItem", () => {
       expect(screen.getByTestId("timeline-card")).toHaveClass("grid");
       const heading = screen.getByRole("heading", { level: 3 });
       expect(heading).toHaveClass("line-clamp-2");
-      expect(heading).not.toHaveClass("truncate", "line-clamp-1");
+      for (const cls of ["truncate", "line-clamp-1"]) expect(heading).not.toHaveClass(cls);
     });
 
     it("chip bajo la meta solo en móvil (order) y descripción al final", () => {

@@ -75,7 +75,7 @@ describe("ItemThumbnail", () => {
       "lg:h-16",
       "lg:w-24",
     );
-    expect(container.firstElementChild).not.toHaveClass("h-14", "w-20");
+    for (const cls of ["h-14", "w-20"]) expect(container.firstElementChild).not.toHaveClass(cls);
     expect(container.querySelector("svg")).toHaveClass("size-5", "sm:size-6");
   });
 
@@ -89,7 +89,9 @@ describe("ItemThumbnail", () => {
       "sm:w-[116px]",
       "sm:rounded-xl",
     );
-    expect(container.firstElementChild).not.toHaveClass("h-[78px]", "w-[116px]");
+    for (const cls of ["h-[78px]", "w-[116px]"]) {
+      expect(container.firstElementChild).not.toHaveClass(cls);
+    }
     expect(container.querySelector("svg")).toHaveClass("size-5", "sm:size-7");
   });
 

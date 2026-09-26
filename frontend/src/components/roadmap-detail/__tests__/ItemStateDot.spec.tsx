@@ -53,7 +53,7 @@ describe("ItemStateDot", () => {
     const dot = renderDot("next", "absolute top-[22px] size-3.5");
 
     expect(dot).toHaveClass("absolute", "top-[22px]", "size-3.5");
-    expect(dot).not.toHaveClass("flex", "hidden", "inline-flex");
+    for (const cls of ["flex", "hidden", "inline-flex"]) expect(dot).not.toHaveClass(cls);
   });
 
   it("el display lo decide el consumidor", () => {

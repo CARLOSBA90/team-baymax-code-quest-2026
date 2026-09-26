@@ -59,7 +59,7 @@ describe("ExternalCourseLink", () => {
 
       const link = screen.getByRole("link");
       expect(link).toHaveClass(...classes);
-      expect(link).not.toHaveClass("w-fit", ...absent);
+      for (const cls of ["w-fit", ...absent]) expect(link).not.toHaveClass(cls);
     },
   );
 });
