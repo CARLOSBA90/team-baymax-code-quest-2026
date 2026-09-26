@@ -450,6 +450,7 @@ describe("getItemMeta", () => {
 describe("getTrackingUnavailableMessage", () => {
   const METADATA = "Aún no podemos registrar el avance de este curso.";
   const AUTOMATIC = "El avance de este curso se registra automáticamente.";
+  const LESSONS = "El avance de este curso se registra por lección.";
   const CHALLENGE = "El avance se registra al enviar el reto.";
   const GENERIC = "No se puede marcar como completado desde aquí.";
   const tracking = (
@@ -468,7 +469,7 @@ describe("getTrackingUnavailableMessage", () => {
     ],
     ["SYLLABUS_MISSING", tracking("LESSONS", false, "SYLLABUS_MISSING"), METADATA],
     ["VIDEO habilitado", tracking("VIDEO", true), AUTOMATIC],
-    ["LESSONS habilitado", tracking("LESSONS", true), AUTOMATIC],
+    ["LESSONS habilitado", tracking("LESSONS", true), LESSONS],
     ["CHALLENGE habilitado", tracking("CHALLENGE", true), CHALLENGE],
     [
       "CHALLENGE con disabledReason (tiene precedencia)",

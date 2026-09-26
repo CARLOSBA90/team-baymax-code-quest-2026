@@ -222,6 +222,7 @@ export function getItemMeta(
 const TRACKING_METADATA_MESSAGE = "Aún no podemos registrar el avance de este curso.";
 const TRACKING_GENERIC_MESSAGE = "No se puede marcar como completado desde aquí.";
 const TRACKING_AUTOMATIC_MESSAGE = "El avance de este curso se registra automáticamente.";
+const TRACKING_LESSONS_MESSAGE = "El avance de este curso se registra por lección.";
 const TRACKING_CHALLENGE_MESSAGE = "El avance se registra al enviar el reto.";
 
 /** Texto por `disabledReason` (códigos de `backend/src/modules/progress/progress.constants.ts`). */
@@ -230,11 +231,10 @@ export const TRACKING_UNAVAILABLE_MESSAGES: Readonly<Record<string, string>> = {
   SYLLABUS_MISSING: TRACKING_METADATA_MESSAGE,
 };
 
-const AUTOMATIC_TRACKING_TYPES: ReadonlySet<string> = new Set(["VIDEO", "LESSONS"]);
-
 /**
  * Por qué un ítem no se marca a mano (`null` si `canTrack`). Precedencia: `disabledReason` (código
- * conocido → su texto, desconocido → genérico) > VIDEO/LESSONS automáticos > CHALLENGE > genérico.
+ * conocido → su texto, desconocido → genérico) > VIDEO automático > LESSONS por lección > CHALLENGE >
+ * genérico.
  * Nunca devuelve el código crudo.
  */
 export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): string | null {
@@ -244,9 +244,8 @@ export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): st
       ? TRACKING_UNAVAILABLE_MESSAGES[tracking.disabledReason]
       : TRACKING_GENERIC_MESSAGE;
   }
-  if (tracking.enabled && AUTOMATIC_TRACKING_TYPES.has(tracking.type)) {
-    return TRACKING_AUTOMATIC_MESSAGE;
-  }
+  if (tracking.enabled && tracking.type === "VIDEO") return TRACKING_AUTOMATIC_MESSAGE;
+  if (tracking.enabled && tracking.type === "LESSONS") return TRACKING_LESSONS_MESSAGE;
   if (tracking.type === "CHALLENGE") return TRACKING_CHALLENGE_MESSAGE;
   return TRACKING_GENERIC_MESSAGE;
 }
