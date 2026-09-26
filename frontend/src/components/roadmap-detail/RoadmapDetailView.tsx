@@ -32,13 +32,16 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
 
   return (
     <div className="flex w-full max-w-detail flex-col gap-5.5">
-      <Link
-        to="/dashboard/roadmaps"
-        className="flex w-fit items-center gap-1.5 rounded-md font-body font-semibold text-sm text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-ring-focus"
-      >
-        <span aria-hidden="true">‹</span>
-        Mis Rutas
-      </Link>
+      {/* Fila de la miga: `justify-between` deja sitio al menú ⋯ de móvil (slice 5). */}
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          to="/dashboard/roadmaps"
+          className="flex w-fit items-center gap-1.5 rounded-md font-body font-semibold text-sm text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-ring-focus"
+        >
+          <span aria-hidden="true">‹</span>
+          Mis Rutas
+        </Link>
+      </div>
       <RoadmapHeader
         name={roadmap.name}
         summary={roadmap.summary}

@@ -45,6 +45,42 @@ describe("RoadmapDetailView", () => {
     expect(screen.getByText("Última actividad: hace 3 días")).toBeInTheDocument();
   });
 
+  describe("móvil (base) / tablet (sm:)", () => {
+    it("la miga «Mis Rutas» va en una fila `justify-between` lista para el ⋯, sin botón aún", () => {
+      renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+      const link = screen.getByRole("link", { name: "Mis Rutas" });
+      const row = link.parentElement;
+      expect(row?.tagName).toBe("DIV");
+      expect(row).toHaveClass("flex", "items-center", "justify-between");
+      expect(
+        screen.queryByRole("button", { name: /^(Más opciones|Opciones de la ruta)/ }),
+      ).not.toBeInTheDocument();
+      expect(document.querySelector("[aria-haspopup]")).toBeNull();
+    });
+
+    it("orden de lectura: miga → h1 → resumen → badge → actividad → barra → bloque → pasos", () => {
+      renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
+
+      const sequence = [
+        screen.getByRole("link", { name: "Mis Rutas" }),
+        screen.getByRole("heading", { level: 1, name: ROADMAP_DETAIL.name }),
+        screen.getByText(ROADMAP_DETAIL.summary),
+        screen.getByText("Empezada"),
+        screen.getByText("Última actividad: hace 3 días"),
+        screen.getByRole("progressbar", { name: ROADMAP_DETAIL.name }),
+        screen.getByRole("region", { name: "Continúa aquí" }),
+        screen.getByRole("heading", { level: 2, name: "Pasos de la ruta" }),
+        screen.getByRole("list", { name: "Pasos de la ruta" }),
+      ];
+      for (let i = 1; i < sequence.length; i++) {
+        expect(
+          sequence[i - 1].compareDocumentPosition(sequence[i]) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+    });
+  });
+
   it("coloca el contenido en la columna de detalle de 920px", () => {
     renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
