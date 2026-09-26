@@ -60,11 +60,17 @@ export function RoadmapCompletedPanel({ total, totalMinutes }: RoadmapCompletedP
         </h2>
         <p className="font-body text-text-secondary">{getCompletedSummary(total, totalMinutes)}</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Link to="/dashboard/roadmaps/new" className={`${PRIMARY_LINK_CLASSES} h-11 px-5`}>
+          <Link
+            to="/dashboard/roadmaps/new"
+            className={`${PRIMARY_LINK_CLASSES} h-11 w-full px-5 sm:w-fit`}
+          >
             <PlusIcon className="size-4" />
             Crear otra ruta
           </Link>
-          <Link to="/dashboard/roadmaps" className={`${GHOST_LINK_CLASSES} h-11 px-5`}>
+          <Link
+            to="/dashboard/roadmaps"
+            className={`${GHOST_LINK_CLASSES} h-11 w-full px-5 sm:w-fit`}
+          >
             Volver a Mis Rutas
           </Link>
         </div>

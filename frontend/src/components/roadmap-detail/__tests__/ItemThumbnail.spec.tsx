@@ -53,12 +53,51 @@ describe("ItemThumbnail", () => {
     );
   });
 
-  it("aplica el tamaño md (80×56 base) o lg (116×78)", () => {
+  it("aplica el tamaño md (64×44 móvil, 80×56 desde sm:) o lg (64×44 móvil, 116×78 desde sm:)", () => {
     const md = renderWithProviders(<ItemThumbnail src={null} type="COURSE" size="md" />);
-    expect(md.container.firstElementChild).toHaveClass("h-14", "w-20");
+    expect(md.container.firstElementChild).toHaveClass("sm:h-14", "sm:w-20");
     md.unmount();
 
     const lg = renderWithProviders(<ItemThumbnail src={null} type="COURSE" size="lg" />);
-    expect(lg.container.firstElementChild).toHaveClass("h-[78px]", "w-[116px]");
+    expect(lg.container.firstElementChild).toHaveClass("sm:h-[78px]", "sm:w-[116px]");
+  });
+
+  it("md: clases mobile-first de caja e icono", () => {
+    const { container } = renderWithProviders(<ItemThumbnail src={null} type="COURSE" size="md" />);
+
+    expect(container.firstElementChild).toHaveClass(
+      "h-11",
+      "w-16",
+      "rounded-[9px]",
+      "sm:h-14",
+      "sm:w-20",
+      "sm:rounded-[10px]",
+      "lg:h-16",
+      "lg:w-24",
+    );
+    expect(container.firstElementChild).not.toHaveClass("h-14", "w-20");
+    expect(container.querySelector("svg")).toHaveClass("size-5", "sm:size-6");
+  });
+
+  it("lg: clases mobile-first de caja e icono", () => {
+    const { container } = renderWithProviders(<ItemThumbnail src={null} type="COURSE" size="lg" />);
+
+    expect(container.firstElementChild).toHaveClass(
+      "h-11",
+      "w-16",
+      "sm:h-[78px]",
+      "sm:w-[116px]",
+      "sm:rounded-xl",
+    );
+    expect(container.firstElementChild).not.toHaveClass("h-[78px]", "w-[116px]");
+    expect(container.querySelector("svg")).toHaveClass("size-5", "sm:size-7");
+  });
+
+  it.each([SRC, null])("añade className a la raíz (src %s)", (src) => {
+    const { container } = renderWithProviders(
+      <ItemThumbnail src={src} type="COURSE" size="md" className="[grid-area:thumb] self-start" />,
+    );
+
+    expect(container.firstElementChild).toHaveClass("[grid-area:thumb]", "self-start", "h-11");
   });
 });

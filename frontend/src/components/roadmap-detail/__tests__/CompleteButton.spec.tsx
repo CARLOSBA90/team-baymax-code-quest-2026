@@ -29,6 +29,23 @@ describe("CompleteButton", () => {
     );
   });
 
+  it("sm (timeline, por defecto): 44px a ancho completo en móvil, 40px ajustado desde sm:", () => {
+    renderWithProviders(<CompleteButton itemName={NAME} />);
+
+    const button = screen.getByRole("button", { name: `Marcar como completado ${NAME}` });
+    expect(button).toHaveClass("text-sm", "h-11", "w-full", "sm:h-10", "sm:w-fit", "sm:px-4");
+    expect(button).not.toHaveClass("h-10", "w-fit");
+  });
+
+  it("md («Continúa aquí»): 48px a ancho completo en móvil, 44px ajustado desde sm:", () => {
+    renderWithProviders(<CompleteButton itemName={NAME} size="md" />);
+
+    const button = screen.getByRole("button", { name: `Marcar como completado ${NAME}` });
+    expect(button).toBeDisabled();
+    expect(button).toHaveClass("text-sm", "h-12", "w-full", "sm:h-11", "sm:w-fit");
+    expect(button).not.toHaveClass("h-11", "w-fit");
+  });
+
   it("al hacer clic no pasa nada", async () => {
     const user = userEvent.setup();
     renderWithProviders(<CompleteButton itemName={NAME} />);

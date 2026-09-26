@@ -41,12 +41,25 @@ describe("ExternalCourseLink", () => {
   });
 
   it.each([
-    ["primary", ["bg-accent", "h-11"]],
-    ["ghost", ["bg-bg-ghost", "border-border-ghost", "h-10"]],
-    ["next", ["bg-accent/15", "border-border-item-next", "h-10"]],
-  ] as const)("variante %s", (variant, classes) => {
-    renderWithProviders(<ExternalCourseLink url={URL} itemName={NAME} variant={variant} />);
+    ["primary", ["bg-accent", "h-12", "w-full", "px-5", "sm:h-11", "sm:w-fit"], ["h-11", "h-10"]],
+    [
+      "ghost",
+      ["bg-bg-ghost", "border-border-ghost", "h-11", "w-full", "px-4", "sm:h-10", "sm:w-fit"],
+      ["h-10", "h-12"],
+    ],
+    [
+      "next",
+      ["bg-accent/15", "border-border-item-next", "h-11", "w-full", "px-4", "sm:h-10", "sm:w-fit"],
+      ["h-10", "h-12"],
+    ],
+  ] as const)(
+    "variante %s: mobile-first (alto y ancho base de móvil, sm: de tablet)",
+    (variant, classes, absent) => {
+      renderWithProviders(<ExternalCourseLink url={URL} itemName={NAME} variant={variant} />);
 
-    expect(screen.getByRole("link")).toHaveClass(...classes);
-  });
+      const link = screen.getByRole("link");
+      expect(link).toHaveClass(...classes);
+      expect(link).not.toHaveClass("w-fit", ...absent);
+    },
+  );
 });

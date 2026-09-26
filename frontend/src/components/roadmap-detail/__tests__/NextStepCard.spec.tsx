@@ -17,7 +17,7 @@ describe("NextStepCard", () => {
     expect(within(region).getByText("Paso 2 de 4 · Intermedio · 3 h")).toBeInTheDocument();
   });
 
-  it("enlace primario de 44px a la url en pestaña nueva", () => {
+  it("enlace primario de 48px en móvil (44px desde sm:) a la url en pestaña nueva", () => {
     renderWithProviders(<NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />);
 
     const link = screen.getByRole("link", {
@@ -25,7 +25,7 @@ describe("NextStepCard", () => {
     });
     expect(link).toHaveAttribute("href", NEXT_ITEM.url);
     expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveClass("h-11");
+    expect(link).toHaveClass("h-12", "sm:h-11");
   });
 
   it("sin url no pinta enlace", () => {
@@ -36,13 +36,13 @@ describe("NextStepCard", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("completable → «Marcar como completado» deshabilitado de 44px", () => {
+  it("completable → «Marcar como completado» deshabilitado de 48px en móvil (44px desde sm:)", () => {
     const item = buildRoadmapItem({ name: "Node.js", url: "https://example.com/node" });
     renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
 
     const button = screen.getByRole("button", { name: "Marcar como completado Node.js" });
     expect(button).toBeDisabled();
-    expect(button).toHaveClass("h-11");
+    expect(button).toHaveClass("h-12", "sm:h-11");
   });
 
   it("tracking automático (VIDEO) → mensaje y sin botón", () => {

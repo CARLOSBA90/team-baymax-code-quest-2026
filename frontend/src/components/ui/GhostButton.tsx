@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from "react";
 
-type GhostButtonSize = "sm" | "md";
+type GhostButtonSize = "sm" | "md" | "lg";
 
 export type GhostButtonProps = {
   size?: GhostButtonSize;
@@ -9,6 +9,7 @@ export type GhostButtonProps = {
 const SIZE_CLASSES: Record<GhostButtonSize, string> = {
   sm: "h-10 px-4",
   md: "h-11 px-5",
+  lg: "h-12 px-5",
 };
 
 const BASE_CLASSES =

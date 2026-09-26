@@ -31,6 +31,17 @@ describe("RoadmapCompletedPanel", () => {
     );
   });
 
+  it.each(["Crear otra ruta", "Volver a Mis Rutas"])(
+    "«%s» ocupa el ancho completo en móvil y se ajusta desde sm:",
+    (name) => {
+      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveClass("h-11", "w-full", "px-5", "sm:w-fit");
+      expect(link).not.toHaveClass("w-fit");
+    },
+  );
+
   it("usa la superficie Nebula en su variante verde", () => {
     renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
 

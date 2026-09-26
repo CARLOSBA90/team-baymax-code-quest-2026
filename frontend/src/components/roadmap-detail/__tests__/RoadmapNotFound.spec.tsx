@@ -16,6 +16,16 @@ describe("RoadmapNotFound", () => {
     );
   });
 
+  it("el enlace se ajusta a su contenido (w-fit explícito)", () => {
+    renderWithProviders(<RoadmapNotFound />);
+
+    expect(screen.getByRole("link", { name: "Volver a Mis Rutas" })).toHaveClass(
+      "w-fit",
+      "h-12",
+      "px-6",
+    );
+  });
+
   it("no ofrece «Reintentar»", () => {
     renderWithProviders(<RoadmapNotFound />);
 

@@ -10,17 +10,22 @@ export interface ItemThumbnailProps {
   type: RoadmapItemType;
   size: ItemThumbnailSize;
   tone?: ItemThumbnailTone;
+  /** Clases de layout del padre (`[grid-area:*]`, `self-*`, `mt-*`); nunca alto/ancho base. */
+  className?: string;
 }
 
-/** md: 80×56 por debajo de `lg`, 96×64 en escritorio (timeline). lg: «Continúa aquí». */
+/**
+ * Ambos 64×44 en móvil. md (timeline): 80×56 desde `sm:`, 96×64 en escritorio. lg («Continúa
+ * aquí»): 116×78 desde `sm:`.
+ */
 const SIZE_CLASSES: Record<ItemThumbnailSize, string> = {
-  md: "h-14 w-20 rounded-[10px] lg:h-16 lg:w-24",
-  lg: "h-[78px] w-[116px] rounded-xl",
+  md: "h-11 w-16 rounded-[9px] sm:h-14 sm:w-20 sm:rounded-[10px] lg:h-16 lg:w-24",
+  lg: "h-11 w-16 rounded-[9px] sm:h-[78px] sm:w-[116px] sm:rounded-xl",
 };
 
 const ICON_SIZE_CLASSES: Record<ItemThumbnailSize, string> = {
-  md: "size-6",
-  lg: "size-7",
+  md: "size-5 sm:size-6",
+  lg: "size-5 sm:size-7",
 };
 
 const TONE_CLASSES: Record<ItemThumbnailTone, string> = {
@@ -33,12 +38,18 @@ const TONE_CLASSES: Record<ItemThumbnailTone, string> = {
  * imagen encima si existe. Si la imagen falla se retira; el padre la monta con `key` por URL para
  * reiniciar el fallo cuando cambia.
  */
-export function ItemThumbnail({ src, type, size, tone = "default" }: ItemThumbnailProps) {
+export function ItemThumbnail({
+  src,
+  type,
+  size,
+  tone = "default",
+  className,
+}: ItemThumbnailProps) {
   const [failed, setFailed] = useState(false);
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-linear-to-br ${SIZE_CLASSES[size]} ${TONE_CLASSES[tone]}`}
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-linear-to-br ${SIZE_CLASSES[size]} ${TONE_CLASSES[tone]} ${className ?? ""}`}
     >
       <ItemTypeIcon type={type} className={ICON_SIZE_CLASSES[size]} />
       {src && !failed ? (

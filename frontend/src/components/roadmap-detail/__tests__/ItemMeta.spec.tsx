@@ -28,6 +28,19 @@ describe("ItemMeta", () => {
     expect(screen.getByText("Recurso")).toBeInTheDocument();
   });
 
+  it("añade className a la raíz", () => {
+    renderWithProviders(
+      <ItemMeta item={ROADMAP_DETAIL.items[2]} now={NOW} className="order-1 sm:order-none" />,
+    );
+
+    expect(screen.getByText("Recurso")).toHaveClass(
+      "order-1",
+      "sm:order-none",
+      "font-body",
+      "text-text-muted",
+    );
+  });
+
   it("sin partes no pinta nada", () => {
     const { container } = renderWithProviders(
       <ItemMeta item={buildRoadmapItem({ level: null, estimatedMinutes: null })} now={NOW} />,

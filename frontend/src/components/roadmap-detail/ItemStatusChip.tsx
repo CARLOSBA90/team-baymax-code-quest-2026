@@ -5,6 +5,8 @@ export interface ItemStatusChipProps {
   state: RoadmapItemState;
   /** Progreso del ítem (0-100); solo se muestra en «En curso» parcial. */
   progress: number;
+  /** Clases de layout del padre (`order-*`, `self-*`). */
+  className?: string;
 }
 
 const VIOLET_CHIP = "text-accent-soft bg-accent-hover/14 border-status-started/32";
@@ -22,7 +24,7 @@ const CHIPS: Record<Exclude<RoadmapItemState, "pending">, { label: string; class
  * Chip de estado del ítem (pendiente → nada). «En curso» con progreso parcial añade una mini barra
  * decorativa y el % como texto `sr-only` («En curso, 40 %»), sin `role="progressbar"`.
  */
-export function ItemStatusChip({ state, progress }: ItemStatusChipProps) {
+export function ItemStatusChip({ state, progress, className }: ItemStatusChipProps) {
   if (state === "pending") return null;
 
   const { label, classes } = CHIPS[state];
@@ -31,7 +33,7 @@ export function ItemStatusChip({ state, progress }: ItemStatusChipProps) {
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-2.5 py-0.5 font-body font-semibold text-xs ${classes}`}
+      className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-2.5 py-0.5 font-body font-semibold text-xs ${classes} ${className ?? ""}`}
     >
       {label}
       {showBar ? (
