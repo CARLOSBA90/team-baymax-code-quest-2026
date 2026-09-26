@@ -151,21 +151,38 @@ export interface RoadmapProgressSummaryInput {
   isCompleted: boolean;
 }
 
-/**
- * «2 de 5 pasos · 77 h en total · quedan ~51 h». Omite «en total» sin minutos y «quedan» si la
- * ruta está completada o no queda tiempo.
- */
-export function getRoadmapProgressSummary({
+export interface RoadmapProgressSummaryParts {
+  /** «2 de 5 pasos»; siempre presente. */
+  steps: string;
+  /** «77 h en total»; `null` sin minutos. */
+  total: string | null;
+  /** «quedan ~51 h»; `null` si la ruta está completada o no queda tiempo. */
+  remaining: string | null;
+}
+
+/** Partes del resumen de progreso por separado (para ocultar «en total» en móvil). */
+export function getRoadmapProgressSummaryParts({
   completed,
   total,
   totalMinutes,
   remainingMinutes,
   isCompleted,
-}: RoadmapProgressSummaryInput): string {
-  const parts = [getRoadmapStepsProgressLabel(completed, total)];
-  if (totalMinutes > 0) parts.push(`${formatHours(totalMinutes)} en total`);
-  if (!isCompleted && remainingMinutes > 0) parts.push(`quedan ~${formatHours(remainingMinutes)}`);
-  return parts.join(" · ");
+}: RoadmapProgressSummaryInput): RoadmapProgressSummaryParts {
+  return {
+    steps: getRoadmapStepsProgressLabel(completed, total),
+    total: totalMinutes > 0 ? `${formatHours(totalMinutes)} en total` : null,
+    remaining:
+      !isCompleted && remainingMinutes > 0 ? `quedan ~${formatHours(remainingMinutes)}` : null,
+  };
+}
+
+/**
+ * «2 de 5 pasos · 77 h en total · quedan ~51 h»: las partes de `getRoadmapProgressSummaryParts`
+ * no nulas unidas con « · ».
+ */
+export function getRoadmapProgressSummary(input: RoadmapProgressSummaryInput): string {
+  const { steps, total, remaining } = getRoadmapProgressSummaryParts(input);
+  return [steps, total, remaining].filter(Boolean).join(" · ");
 }
 
 /**

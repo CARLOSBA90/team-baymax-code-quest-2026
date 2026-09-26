@@ -91,6 +91,31 @@ describe("RoadmapHeader", () => {
     expect(screen.queryByText(/Última actividad/)).not.toBeInTheDocument();
   });
 
+  describe("móvil (base) / tablet (sm:)", () => {
+    it("h1 de 26/32px en móvil y text-3xl desde sm:", () => {
+      renderHeader();
+
+      const heading = screen.getByRole("heading", { level: 1, name: BASE_PROPS.name });
+      expect(heading).toHaveClass("text-[26px]/8", "sm:text-3xl");
+      expect(heading).not.toHaveClass("text-3xl");
+    });
+
+    it("el resumen sigue en el DOM (solo lectores de pantalla en móvil) y se lee una vez", () => {
+      renderHeader();
+
+      const summaries = screen.getAllByText(BASE_PROPS.summary as string);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0]).toHaveClass("sr-only", "text-text-secondary", "sm:not-sr-only");
+    });
+
+    it("mantiene «Última actividad» con prefijo y forma larga (sin variante corta)", () => {
+      renderHeader();
+
+      expect(screen.getAllByText(/Última actividad/)).toHaveLength(1);
+      expect(screen.getByText("Última actividad: hace 2 horas")).toBeInTheDocument();
+    });
+  });
+
   it("no tiene botones (sin menú ⋯)", () => {
     renderHeader();
 

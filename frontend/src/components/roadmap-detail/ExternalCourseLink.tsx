@@ -9,10 +9,14 @@ export interface ExternalCourseLinkProps {
   variant: ExternalCourseLinkVariant;
 }
 
+/**
+ * Mobile-first: en móvil ocupa el ancho completo (48px en «Continúa aquí», 44px en el timeline);
+ * desde `sm:` se ajusta al contenido (44px / 40px).
+ */
 const VARIANT_CLASSES: Record<ExternalCourseLinkVariant, string> = {
-  primary: `${PRIMARY_LINK_CLASSES} h-11 px-5`,
-  ghost: `${GHOST_LINK_CLASSES} h-10 px-4`,
-  next: `${NEXT_LINK_CLASSES} h-10 px-4`,
+  primary: `${PRIMARY_LINK_CLASSES} h-12 w-full px-5 sm:h-11 sm:w-fit`,
+  ghost: `${GHOST_LINK_CLASSES} h-11 w-full px-4 sm:h-10 sm:w-fit`,
+  next: `${NEXT_LINK_CLASSES} h-11 w-full px-4 sm:h-10 sm:w-fit`,
 };
 
 /**

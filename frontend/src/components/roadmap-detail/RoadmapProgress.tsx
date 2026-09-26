@@ -1,4 +1,4 @@
-import { clampProgress, getRoadmapProgressSummary, getRoadmapProgressValueText } from "@/lib";
+import { clampProgress, getRoadmapProgressSummaryParts, getRoadmapProgressValueText } from "@/lib";
 import type { RoadmapStatus } from "@/types";
 
 export interface RoadmapProgressProps {
@@ -38,7 +38,8 @@ export function RoadmapProgress({
   labelledBy,
 }: RoadmapProgressProps) {
   const value = clampProgress(progress);
-  const summary = getRoadmapProgressSummary({
+  // «{total} en total» se oculta en móvil (display none: tampoco se lee), separador incluido.
+  const summary = getRoadmapProgressSummaryParts({
     completed,
     total,
     totalMinutes,
@@ -64,7 +65,11 @@ export function RoadmapProgress({
         />
       </div>
       <div className="flex items-baseline justify-between gap-4">
-        <p className="font-body text-sm text-text-secondary">{summary}</p>
+        <p className="font-body text-sm text-text-secondary">
+          {summary.steps}
+          {summary.total ? <span className="hidden sm:inline"> · {summary.total}</span> : null}
+          {summary.remaining ? ` · ${summary.remaining}` : null}
+        </p>
         <span
           className={`shrink-0 font-body font-bold text-sm tabular-nums ${PERCENT_CLASSES[status]}`}
         >

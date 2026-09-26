@@ -14,7 +14,7 @@ export function RoadmapNotFound() {
           Puede que se haya eliminado o que el enlace no sea correcto.
         </p>
       </div>
-      <Link to="/dashboard/roadmaps" className={`${PRIMARY_LINK_CLASSES} mt-8 h-12 px-6`}>
+      <Link to="/dashboard/roadmaps" className={`${PRIMARY_LINK_CLASSES} mt-8 h-12 w-fit px-6`}>
         Volver a Mis Rutas
       </Link>
     </NebulaSurface>

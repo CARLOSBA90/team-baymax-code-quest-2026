@@ -793,14 +793,19 @@ El bloqueo es **por ítem**, nunca de pantalla: nada de overlay global. Marcar d
 
 ### 16.8 Responsive
 
-**≤640px**
+Frontera: la de Tailwind. `sm` empieza en 640, así que a 640px exactos ya se ve la versión tablet; no hay breakpoint propio. Implementación mobile-first: base = móvil, `sm:` = tablet, `lg:` = escritorio.
+
+**<640px**
 
 - **Desaparece el riel**: 40px sobre 390 es un 10% del ancho para decoración. El estado pasa a un punto de 15px junto al número del paso, dentro de la tarjeta.
 - El `summary` se oculta (`sr-only`).
-- Miniatura 64×44, descripción a una línea, botones a ancho completo y apilados (44–48px), «Ir al curso» arriba.
-- Se omiten las horas totales; queda «quedan ~51 h».
+- Miniatura 64×44, descripción a una línea (ítems y «Continúa aquí»), botones a ancho completo y apilados, «Ir al curso» arriba: 48px en «Continúa aquí» y «Reanudar ruta», 44px en los ítems. Desde 640 vuelven a 44/40px.
+- Título del ítem hasta 2 líneas, sin truncar a una. El chip «Siguiente»/«Completado» baja bajo la meta (solo en móvil).
+- Se omiten las horas totales; queda «quedan ~51 h». Ruta completada: solo «5 de 5 pasos» (el panel ya da las horas de estudio).
+- «Última actividad» conserva prefijo y forma larga («Última actividad: hace 2 horas»).
+- El menú ⋯ (slice 5) irá en la fila de la miga en móvil y junto al h1 en escritorio; de momento esa fila solo queda con `justify-between`.
 
-**641–1023px**: como escritorio con el riel a 28px, miniatura 80×56 y acciones en una sola fila.
+**640–1023px**: como escritorio con el riel a 28px, miniatura 80×56 y acciones en una sola fila.
 
 ### 16.9 Accesibilidad
 

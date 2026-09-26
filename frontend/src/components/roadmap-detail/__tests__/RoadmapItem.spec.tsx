@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapItem, type RoadmapItemProps } from "@/components/roadmap-detail";
 import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import type { RoadmapItem as RoadmapItemData, RoadmapItemState } from "@/types";
 
 const [COMPLETED_ITEM, NEXT_ITEM, MEDIA_ITEM, CHALLENGE_ITEM] = ROADMAP_DETAIL.items;
 
@@ -171,15 +172,18 @@ describe("RoadmapItem", () => {
     expect(screen.queryByTestId("timeline-rail")).not.toBeInTheDocument();
   });
 
-  it("descripción en dos líneas como máximo; sin descripción no hay párrafo", () => {
+  it("descripción en una línea en móvil y dos desde sm:; sin descripción no hay párrafo", () => {
     renderItem();
-    expect(screen.getByText(COMPLETED_ITEM.description ?? "")).toHaveClass("line-clamp-2");
+    expect(screen.getByText(COMPLETED_ITEM.description ?? "")).toHaveClass(
+      "line-clamp-1",
+      "sm:line-clamp-2",
+    );
   });
 
   it("sin descripción no pinta párrafo vacío", () => {
     const { container } = renderItem({ item: MEDIA_ITEM, stepNumber: 3, state: "pending" });
 
-    expect(container.querySelector(".line-clamp-2")).not.toBeInTheDocument();
+    expect(container.querySelector("p.line-clamp-1")).not.toBeInTheDocument();
   });
 
   it("en pausa: botón disabled con aria-describedby y sin atenuación", () => {
@@ -205,5 +209,140 @@ describe("RoadmapItem", () => {
     renderItem({ item, stepNumber: 3, state: "pending" });
 
     expect(screen.queryByText(/Recommended because/)).not.toBeInTheDocument();
+  });
+
+  describe("móvil (base) / tablet (sm:)", () => {
+    const IN_PROGRESS_ITEM = buildRoadmapItem({
+      name: "Node.js",
+      progress: 40,
+      startedAt: "2026-09-20T10:00:00.000Z",
+    });
+
+    function isBefore(a: Node, b: Node) {
+      return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }
+
+    it("li con sangría solo desde sm: (28px) y lg:; sin pl-9", () => {
+      renderItem();
+
+      const li = screen.getByRole("listitem");
+      expect(li).toHaveClass("sm:pl-7", "lg:pl-11");
+      expect(li).not.toHaveClass("pl-9");
+    });
+
+    it("riel y nodo ocultos en móvil, visibles desde sm:, ambos aria-hidden", () => {
+      renderItem();
+
+      const node = screen.getByTestId("timeline-node");
+      expect(node).toHaveClass("hidden", "sm:flex");
+      expect(node).not.toHaveClass("flex");
+      expect(node).toHaveAttribute("aria-hidden", "true");
+      const rail = screen.getByTestId("timeline-rail");
+      expect(rail).toHaveClass("hidden", "sm:block");
+      expect(rail).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it.each<[RoadmapItemState, RoadmapItemData]>([
+      ["completed", COMPLETED_ITEM],
+      ["next", NEXT_ITEM],
+      ["in_progress", IN_PROGRESS_ITEM],
+      ["pending", MEDIA_ITEM],
+    ])("%s: un punto de estado móvil dentro del h3, aria-hidden y sm:hidden", (state, item) => {
+      renderItem({ item, state });
+
+      const li = screen.getByRole("listitem");
+      const dots = within(li).getAllByTestId("item-state-dot");
+      expect(dots).toHaveLength(1);
+      const [dot] = dots;
+      expect(dot).toHaveAttribute("aria-hidden", "true");
+      expect(dot).toHaveClass("inline-flex", "size-3.75", "sm:hidden");
+      for (const cls of ["flex", "hidden"]) expect(dot).not.toHaveClass(cls);
+      expect(li).toHaveAttribute("data-state", state);
+      const node = screen.getByTestId("timeline-node");
+      const stateClasses = [...node.classList].filter((c) =>
+        /^(border-node|border-accent|bg-|shadow-node|text-node)/.test(c),
+      );
+      expect(stateClasses.length).toBeGreaterThan(0);
+      expect(dot).toHaveClass(...stateClasses);
+
+      const heading = screen.getByRole("heading", {
+        level: 3,
+        name: `Paso 1 de 4: ${item.name}`,
+      });
+      expect(heading.contains(dot)).toBe(true);
+      expect(heading.firstElementChild).toBe(dot);
+    });
+
+    it.each<[RoadmapItemState, RoadmapItemData, string]>([
+      ["next", NEXT_ITEM, "Siguiente"],
+      ["completed", COMPLETED_ITEM, "Completado"],
+    ])("%s: el chip «%s» sigue accesible fuera del h3", (state, item, label) => {
+      renderItem({ item, state });
+
+      const chip = screen.getByText(label);
+      expect(chip).toBeVisible();
+      expect(screen.getByRole("heading", { level: 3 }).contains(chip)).toBe(false);
+    });
+
+    it("tarjeta en grid; h3 hasta dos líneas", () => {
+      renderItem();
+
+      expect(screen.getByTestId("timeline-card")).toHaveClass("grid");
+      const heading = screen.getByRole("heading", { level: 3 });
+      expect(heading).toHaveClass("line-clamp-2");
+      for (const cls of ["truncate", "line-clamp-1"]) expect(heading).not.toHaveClass(cls);
+    });
+
+    it("chip bajo la meta solo en móvil (order) y descripción al final", () => {
+      renderItem();
+
+      const chips = screen.getAllByText("Completado");
+      expect(chips).toHaveLength(1);
+      expect(chips[0]).toHaveClass("order-2", "sm:order-none", "self-start");
+      expect(screen.getByText("Básico · 2 h · completado el 15 sept")).toHaveClass(
+        "order-1",
+        "sm:order-none",
+      );
+      expect(screen.getByText(COMPLETED_ITEM.description ?? "")).toHaveClass(
+        "order-3",
+        "sm:order-none",
+      );
+    });
+
+    it("acciones: enlace antes que el botón, apiladas en móvil y en fila sin wrap desde sm:", () => {
+      renderItem({ item: MEDIA_ITEM, stepNumber: 3, state: "pending" });
+
+      const link = screen.getByRole("link", { name: /^Ir al curso Guía de hooks de React/ });
+      const button = screen.getByRole("button", {
+        name: "Marcar como completado Guía de hooks de React",
+      });
+      expect(isBefore(link, button)).toBe(true);
+      const actions = link.parentElement as HTMLElement;
+      expect(actions).toBe(button.parentElement);
+      expect(actions).toHaveClass("flex", "flex-col", "sm:flex-row");
+      expect(actions).not.toHaveClass("flex-wrap");
+      expect(link).toHaveClass("h-11", "w-full", "sm:h-10", "sm:w-fit");
+      expect(button).toHaveClass("h-11", "w-full", "sm:h-10", "sm:w-fit");
+    });
+
+    it("sin url → solo el botón a ancho completo", () => {
+      renderItem({ item: buildRoadmapItem({ name: "Sin enlace" }), state: "pending" });
+
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Marcar como completado Sin enlace" })).toHaveClass(
+        "w-full",
+      );
+    });
+
+    it("tracking automático: mensaje tras el enlace en el DOM, a la izquierda desde sm:", () => {
+      renderItem({ item: NEXT_ITEM, stepNumber: 2, state: "next" });
+
+      const link = screen.getByRole("link", { name: /^Ir al curso Introducción a React/ });
+      const message = screen.getByText("El avance de este curso se registra automáticamente.");
+      expect(isBefore(link, message)).toBe(true);
+      expect(message).toHaveClass("sm:order-first", "sm:mr-auto", "min-w-0");
+      expect(message).not.toHaveClass("mr-auto");
+      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
   });
 });

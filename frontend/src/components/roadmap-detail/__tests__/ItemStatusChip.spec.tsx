@@ -43,6 +43,22 @@ describe("ItemStatusChip", () => {
     expect(container).not.toHaveTextContent("%");
   });
 
+  it("añade className a la raíz", () => {
+    renderWithProviders(
+      <ItemStatusChip state="next" progress={0} className="order-2 self-start" />,
+    );
+
+    expect(screen.getByText("Siguiente")).toHaveClass("order-2", "self-start", "rounded-full");
+  });
+
+  it("pending → no pinta nada aunque reciba className", () => {
+    const { container } = renderWithProviders(
+      <ItemStatusChip state="pending" progress={0} className="order-2" />,
+    );
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("pending → no pinta nada", () => {
     const { container } = renderWithProviders(<ItemStatusChip state="pending" progress={0} />);
 

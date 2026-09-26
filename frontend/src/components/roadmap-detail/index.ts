@@ -1,6 +1,7 @@
 export * from "./CompleteButton";
 export * from "./ExternalCourseLink";
 export * from "./ItemMeta";
+export * from "./ItemStateDot";
 export * from "./ItemStatusChip";
 export * from "./ItemThumbnail";
 export * from "./ItemTypeIcon";

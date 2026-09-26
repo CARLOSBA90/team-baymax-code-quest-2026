@@ -12,7 +12,12 @@ export interface RoadmapHeaderProps {
   headingId: string;
 }
 
-/** Cabecera del detalle: h1, resumen, badge de estado y última actividad. Sin menú ⋯ (slice 5). */
+/**
+ * Cabecera del detalle: h1, resumen, badge de estado y última actividad. Sin menú ⋯ (slice 5).
+ * En móvil el h1 baja a 26/32px (`text-[26px]/8`, sin `leading-*` para que `sm:text-3xl`
+ * recupere su interlineado) y el resumen queda solo para lectores de pantalla (`sr-only`,
+ * visible desde `sm:`), así se lee igual en todos los anchos.
+ */
 export function RoadmapHeader({
   name,
   summary,
@@ -24,10 +29,13 @@ export function RoadmapHeader({
 
   return (
     <header className="flex flex-col items-start gap-3">
-      <h1 id={headingId} className="font-display text-3xl font-bold text-text-primary">
+      <h1
+        id={headingId}
+        className="font-display text-[26px]/8 font-bold text-text-primary sm:text-3xl"
+      >
         {name}
       </h1>
-      {summary ? <p className="text-text-secondary">{summary}</p> : null}
+      {summary ? <p className="sr-only text-text-secondary sm:not-sr-only">{summary}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <RoadmapStatusBadge status={status} />
         {activity ? (

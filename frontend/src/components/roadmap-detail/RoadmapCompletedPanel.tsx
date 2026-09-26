@@ -43,7 +43,8 @@ function CompletedIllustration() {
 /**
  * Panel de ruta completada (solo COMPLETED) sobre la superficie Nebula verde: ilustración,
  * «Completaste la ruta», resumen de pasos y horas, y los caminos para seguir (crear otra ruta o
- * volver a Mis Rutas). Sin confeti.
+ * volver a Mis Rutas). Sin confeti. En móvil los enlaces se apilan a ancho completo («Crear otra
+ * ruta» primero) con padding compacto; desde `sm:` vuelven a una fila.
  */
 export function RoadmapCompletedPanel({ total, totalMinutes }: RoadmapCompletedPanelProps) {
   const titleId = useId();
@@ -51,7 +52,7 @@ export function RoadmapCompletedPanel({ total, totalMinutes }: RoadmapCompletedP
   return (
     <section
       aria-labelledby={titleId}
-      className="empty-state-surface empty-state-surface--success flex items-center gap-10 px-6 py-8 lg:px-10"
+      className="empty-state-surface empty-state-surface--success flex items-center gap-10 px-5 py-6 sm:px-6 sm:py-8 lg:px-10"
     >
       <CompletedIllustration />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -59,12 +60,18 @@ export function RoadmapCompletedPanel({ total, totalMinutes }: RoadmapCompletedP
           Completaste la ruta
         </h2>
         <p className="font-body text-text-secondary">{getCompletedSummary(total, totalMinutes)}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Link to="/dashboard/roadmaps/new" className={`${PRIMARY_LINK_CLASSES} h-11 px-5`}>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <Link
+            to="/dashboard/roadmaps/new"
+            className={`${PRIMARY_LINK_CLASSES} h-11 w-full px-5 sm:w-fit`}
+          >
             <PlusIcon className="size-4" />
             Crear otra ruta
           </Link>
-          <Link to="/dashboard/roadmaps" className={`${GHOST_LINK_CLASSES} h-11 px-5`}>
+          <Link
+            to="/dashboard/roadmaps"
+            className={`${GHOST_LINK_CLASSES} h-11 w-full px-5 sm:w-fit`}
+          >
             Volver a Mis Rutas
           </Link>
         </div>

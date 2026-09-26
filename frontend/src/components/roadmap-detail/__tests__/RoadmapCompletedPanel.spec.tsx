@@ -31,6 +31,17 @@ describe("RoadmapCompletedPanel", () => {
     );
   });
 
+  it.each(["Crear otra ruta", "Volver a Mis Rutas"])(
+    "«%s» ocupa el ancho completo en móvil y se ajusta desde sm:",
+    (name) => {
+      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+
+      const link = screen.getByRole("link", { name });
+      expect(link).toHaveClass("h-11", "w-full", "px-5", "sm:w-fit");
+      expect(link).not.toHaveClass("w-fit");
+    },
+  );
+
   it("usa la superficie Nebula en su variante verde", () => {
     renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
 
@@ -53,5 +64,42 @@ describe("RoadmapCompletedPanel", () => {
       "hidden",
       "sm:block",
     );
+  });
+
+  describe("móvil (base) / tablet (sm:)", () => {
+    it("la sección usa padding compacto en móvil y el de slice 2 desde sm:", () => {
+      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+
+      const region = screen.getByRole("region", { name: "Completaste la ruta" });
+      expect(region).toHaveClass("px-5", "py-6", "sm:px-6", "sm:py-8", "lg:px-10");
+      for (const cls of ["px-6", "py-8"]) expect(region).not.toHaveClass(cls);
+    });
+
+    it("los enlaces se apilan en móvil y van en fila desde sm:", () => {
+      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+
+      const create = screen.getByRole("link", { name: "Crear otra ruta" });
+      const back = screen.getByRole("link", { name: "Volver a Mis Rutas" });
+      const container = create.parentElement;
+      expect(back.parentElement).toBe(container);
+      expect(container).toHaveClass(
+        "flex",
+        "flex-col",
+        "sm:flex-row",
+        "sm:flex-wrap",
+        "sm:items-center",
+      );
+      for (const cls of ["flex-wrap", "items-center"]) expect(container).not.toHaveClass(cls);
+    });
+
+    it("«Crear otra ruta» precede a «Volver a Mis Rutas» en el DOM", () => {
+      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+
+      const create = screen.getByRole("link", { name: "Crear otra ruta" });
+      const back = screen.getByRole("link", { name: "Volver a Mis Rutas" });
+      expect(create).toHaveAttribute("href", "/dashboard/roadmaps/new");
+      expect(back).toHaveAttribute("href", "/dashboard/roadmaps");
+      expect(create.compareDocumentPosition(back)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
   });
 });
