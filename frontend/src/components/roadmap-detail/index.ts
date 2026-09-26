@@ -1,4 +1,5 @@
 export * from "./CompleteButton";
+export * from "./ConfirmCompleteDialog";
 export * from "./ExternalCourseLink";
 export * from "./ItemMeta";
 export * from "./ItemStateDot";

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { getItemState, getStepsCompletedLabel } from "@/lib";
+import { getItemHeadingId, getItemState, getStepsCompletedLabel } from "@/lib";
 import type { RoadmapItem as RoadmapItemData } from "@/types";
 import { RoadmapItem } from "./RoadmapItem";
 
@@ -10,6 +10,10 @@ export interface RoadmapTimelineProps {
   isPaused: boolean;
   /** Id del párrafo del banner de pausa (solo en PAUSED). */
   pausedDescriptionId?: string;
+  /** Pide completar un paso (abre la confirmación en el compositor). */
+  onComplete: (item: RoadmapItemData) => void;
+  /** Prefijo de los ids de los h3 (`getItemHeadingId(prefix, roadmapItemId)`). */
+  itemHeadingIdPrefix: string;
 }
 
 /**
@@ -23,6 +27,8 @@ export function RoadmapTimeline({
   completed,
   isPaused,
   pausedDescriptionId,
+  onComplete,
+  itemHeadingIdPrefix,
 }: RoadmapTimelineProps) {
   const headingId = useId();
   const total = items.length;
@@ -54,6 +60,8 @@ export function RoadmapTimeline({
             isLast={index === total - 1}
             isPaused={isPaused}
             pausedDescriptionId={pausedDescriptionId}
+            onComplete={onComplete}
+            headingId={getItemHeadingId(itemHeadingIdPrefix, item.roadmapItemId)}
           />
         ))}
       </ol>

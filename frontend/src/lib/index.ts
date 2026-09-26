@@ -7,5 +7,6 @@ export * from "./roadmap-detail";
 export * from "./roadmap-filters";
 export * from "./roadmap-labels";
 export * from "./roadmap-presentation";
+export * from "./roadmap-progress-errors";
 export * from "./roadmaps-location-state";
 export * from "./user-initials";

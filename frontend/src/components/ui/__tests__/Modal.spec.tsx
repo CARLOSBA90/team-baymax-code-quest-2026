@@ -241,6 +241,49 @@ describe("Modal", () => {
     });
   });
 
+  describe("hideCloseButton", () => {
+    function renderWithoutX(onClose = vi.fn()) {
+      renderWithProviders(
+        <Fixture open onClose={onClose} hideCloseButton>
+          <p>Contenido del modal</p>
+          <button type="button">Cancelar</button>
+          <button type="button">Confirmar</button>
+        </Fixture>,
+      );
+      return onClose;
+    }
+
+    it("no pinta la X y enfoca el primer botón del contenido", () => {
+      renderWithoutX();
+
+      expect(screen.queryByRole("button", { name: "Cerrar diálogo" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    });
+
+    it("Esc sigue llamando a onClose una vez", () => {
+      const onClose = renderWithoutX();
+
+      dispatchCancel(dialogElement());
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("el backdrop sigue llamando a onClose una vez", async () => {
+      const user = userEvent.setup();
+      const onClose = renderWithoutX();
+
+      await user.click(dialogElement());
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("sin la prop la X sigue existiendo", () => {
+      renderWithProviders(<Fixture open hideCloseButton={false} />);
+
+      expect(closeButton()).toBeInTheDocument();
+    });
+  });
+
   describe("cierre con Esc", () => {
     it("llama a onClose una vez y previene el cierre nativo", () => {
       const onClose = vi.fn();

@@ -8,6 +8,11 @@ export interface ModalProps {
   onClose: () => void;
   /** aria-label del botón X. Por defecto "Cerrar diálogo". */
   closeLabel?: string;
+  /**
+   * Omite la X: el consumidor ofrece su propia salida (p. ej. «Cancelar»), que pasa a ser el
+   * primer enfocable. Esc y el backdrop siguen llamando a `onClose`.
+   */
+  hideCloseButton?: boolean;
   "aria-labelledby"?: string;
   "aria-label"?: string;
   "aria-describedby"?: string;
@@ -15,13 +20,14 @@ export interface ModalProps {
 
 /**
  * Carcasa genérica y controlada sobre `<dialog>` nativo (`showModal()`): backdrop con blur,
- * panel y botón X. El consumidor aporta todo el contenido (heading, texto, botones) como
+ * panel y botón X (omitible con `hideCloseButton`). El consumidor aporta todo el contenido (heading, texto, botones) como
  * `children` y nombra el diálogo con `aria-labelledby` / `aria-label`.
  */
 export function Modal({
   open,
   onClose,
   closeLabel = "Cerrar diálogo",
+  hideCloseButton = false,
   "aria-labelledby": ariaLabelledBy,
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
@@ -93,26 +99,28 @@ export function Modal({
     >
       {open && (
         <div className="nebula-card relative flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border-card bg-bg-surface p-6 shadow-card backdrop-blur-lg sm:p-8">
-          <button
-            type="button"
-            aria-label={closeLabel}
-            onClick={onClose}
-            className="absolute top-4 right-4 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted outline-none transition-colors hover:bg-bg-ghost-hover hover:text-text-primary focus-visible:shadow-ring-focus"
-          >
-            <svg
-              className="size-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          {hideCloseButton ? null : (
+            <button
+              type="button"
+              aria-label={closeLabel}
+              onClick={onClose}
+              className="absolute top-4 right-4 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted outline-none transition-colors hover:bg-bg-ghost-hover hover:text-text-primary focus-visible:shadow-ring-focus"
             >
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          )}
           {children}
         </div>
       )}

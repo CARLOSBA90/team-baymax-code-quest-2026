@@ -1,5 +1,6 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { NextStepCard } from "@/components/roadmap-detail";
 import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -8,7 +9,9 @@ const NEXT_ITEM = ROADMAP_DETAIL.items[1];
 
 describe("NextStepCard", () => {
   it("es la región «Continúa aquí» con el nombre del paso como h2 y su meta con posición", () => {
-    renderWithProviders(<NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />);
+    renderWithProviders(
+      <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} onComplete={vi.fn()} />,
+    );
 
     const region = screen.getByRole("region", { name: "Continúa aquí" });
     expect(
@@ -18,7 +21,9 @@ describe("NextStepCard", () => {
   });
 
   it("enlace primario de 48px en móvil (44px desde sm:) a la url en pestaña nueva", () => {
-    renderWithProviders(<NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />);
+    renderWithProviders(
+      <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} onComplete={vi.fn()} />,
+    );
 
     const link = screen.getByRole("link", {
       name: "Ir al curso Introducción a React (se abre en una pestaña nueva)",
@@ -30,23 +35,54 @@ describe("NextStepCard", () => {
 
   it("sin url no pinta enlace", () => {
     renderWithProviders(
-      <NextStepCard item={{ ...NEXT_ITEM, url: null }} stepNumber={2} total={4} />,
+      <NextStepCard
+        item={{ ...NEXT_ITEM, url: null }}
+        stepNumber={2}
+        total={4}
+        onComplete={vi.fn()}
+      />,
     );
 
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("completable → «Marcar como completado» deshabilitado de 48px en móvil (44px desde sm:)", () => {
+  it("completable → «Marcar como completado» habilitado de 48px en móvil (44px desde sm:)", () => {
     const item = buildRoadmapItem({ name: "Node.js", url: "https://example.com/node" });
-    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />);
 
     const button = screen.getByRole("button", { name: "Marcar como completado Node.js" });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute("aria-describedby");
     expect(button).toHaveClass("h-12", "sm:h-11");
   });
 
+  it("clic en «Marcar como completado» llama a onComplete con el ítem", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    const item = buildRoadmapItem({ name: "Node.js" });
+    renderWithProviders(
+      <NextStepCard item={item} stepNumber={1} total={3} onComplete={onComplete} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Marcar como completado Node.js" }));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith(item);
+  });
+
+  it("su h2 no es destino de foco: sin id ni tabIndex (el foco va al h3 del timeline)", () => {
+    const item = buildRoadmapItem({ name: "Node.js" });
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />);
+
+    const heading = screen.getByRole("heading", { level: 2, name: "Node.js" });
+    expect(heading).not.toHaveAttribute("id");
+    expect(heading).not.toHaveAttribute("tabindex");
+  });
+
   it("tracking automático (VIDEO) → mensaje y sin botón", () => {
-    renderWithProviders(<NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />);
+    renderWithProviders(
+      <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} onComplete={vi.fn()} />,
+    );
 
     expect(
       screen.getByText("El avance de este curso se registra automáticamente."),
@@ -59,7 +95,7 @@ describe("NextStepCard", () => {
       name: "Curso por lecciones",
       tracking: { type: "LESSONS", enabled: true, disabledReason: null },
     });
-    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />);
 
     expect(
       screen.getByText("El avance de este curso se registra por lección."),
@@ -75,7 +111,7 @@ describe("NextStepCard", () => {
       progress: 100,
       tracking: { type: "LESSONS", enabled: true, disabledReason: null },
     });
-    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+    renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />);
 
     const region = screen.getByRole("region", { name: "Continúa aquí" });
     expect(within(region).queryByRole("link")).not.toBeInTheDocument();
@@ -85,13 +121,18 @@ describe("NextStepCard", () => {
 
   it("descripción en una línea; sin descripción no hay párrafo", () => {
     const { unmount } = renderWithProviders(
-      <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} />,
+      <NextStepCard item={NEXT_ITEM} stepNumber={2} total={4} onComplete={vi.fn()} />,
     );
     expect(screen.getByText("Componentes, props y estado.")).toHaveClass("line-clamp-1");
     unmount();
 
     const { container: empty } = renderWithProviders(
-      <NextStepCard item={{ ...NEXT_ITEM, description: null }} stepNumber={2} total={4} />,
+      <NextStepCard
+        item={{ ...NEXT_ITEM, description: null }}
+        stepNumber={2}
+        total={4}
+        onComplete={vi.fn()}
+      />,
     );
     expect(empty.querySelector(".line-clamp-1")).toBeNull();
   });
@@ -107,7 +148,9 @@ describe("NextStepCard", () => {
     });
 
     it("la región es un grid con áreas y padding mobile-first", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const region = screen.getByRole("region", { name: "Continúa aquí" });
       expect(region).toHaveClass(
@@ -127,7 +170,9 @@ describe("NextStepCard", () => {
     });
 
     it("el eyebrow «Continúa aquí» es el primer hijo y sigue nombrando la región", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const region = screen.getByRole("region", { name: "Continúa aquí" });
       const eyebrow = within(region).getByText("Continúa aquí");
@@ -137,7 +182,9 @@ describe("NextStepCard", () => {
     });
 
     it("orden DOM eyebrow → h2 → enlace → botón", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const region = screen.getByRole("region", { name: "Continúa aquí" });
       const eyebrow = within(region).getByText("Continúa aquí");
@@ -154,7 +201,9 @@ describe("NextStepCard", () => {
     });
 
     it("h2 de 17px en móvil y 19px desde sm:", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const heading = screen.getByRole("heading", { level: 2, name: "Node.js" });
       expect(heading).toHaveClass("text-[17px]", "sm:text-[19px]");
@@ -163,7 +212,9 @@ describe("NextStepCard", () => {
     });
 
     it("descripción en su área, 1 línea, con margen desde sm:", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       expect(screen.getByText("Servidores con Node.")).toHaveClass(
         "[grid-area:desc]",
@@ -173,7 +224,9 @@ describe("NextStepCard", () => {
     });
 
     it("acciones apiladas a ancho completo en móvil y en una fila sin wrap desde sm:", () => {
-      renderWithProviders(<NextStepCard item={COMPLETABLE} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={COMPLETABLE} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const link = screen.getByRole("link", {
         name: "Ir al curso Node.js (se abre en una pestaña nueva)",
@@ -195,7 +248,9 @@ describe("NextStepCard", () => {
         url: "https://example.com/lessons",
         tracking: { type: "LESSONS", enabled: true, disabledReason: null },
       });
-      renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} />);
+      renderWithProviders(
+        <NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />,
+      );
 
       const link = screen.getByRole("link", {
         name: "Ir al curso Curso por lecciones (se abre en una pestaña nueva)",
@@ -209,7 +264,7 @@ describe("NextStepCard", () => {
 
   it("no muestra el `reason` aunque llegue en el ítem", () => {
     const item = { ...NEXT_ITEM, reason: "Recommended because…" } as typeof NEXT_ITEM;
-    renderWithProviders(<NextStepCard item={item} stepNumber={2} total={4} />);
+    renderWithProviders(<NextStepCard item={item} stepNumber={2} total={4} onComplete={vi.fn()} />);
 
     expect(screen.queryByText(/Recommended because/)).not.toBeInTheDocument();
   });

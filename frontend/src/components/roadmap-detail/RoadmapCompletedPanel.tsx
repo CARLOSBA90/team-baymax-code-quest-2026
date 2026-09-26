@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { Link } from "react-router-dom";
 import { PlusIcon } from "@/components/roadmaps";
 import { getCompletedSummary } from "@/lib";
@@ -7,6 +6,8 @@ import { GHOST_LINK_CLASSES, PRIMARY_LINK_CLASSES } from "./link-classes";
 export interface RoadmapCompletedPanelProps {
   total: number;
   totalMinutes: number;
+  /** Id del h2: nombra la región y es destino de foco (`tabIndex={-1}`) al completar la ruta. */
+  headingId: string;
 }
 
 /** Ruta recorrida entera: tres nodos verdes unidos y un check en el último. Decorativa. */
@@ -46,17 +47,23 @@ function CompletedIllustration() {
  * volver a Mis Rutas). Sin confeti. En móvil los enlaces se apilan a ancho completo («Crear otra
  * ruta» primero) con padding compacto; desde `sm:` vuelven a una fila.
  */
-export function RoadmapCompletedPanel({ total, totalMinutes }: RoadmapCompletedPanelProps) {
-  const titleId = useId();
-
+export function RoadmapCompletedPanel({
+  total,
+  totalMinutes,
+  headingId,
+}: RoadmapCompletedPanelProps) {
   return (
     <section
-      aria-labelledby={titleId}
+      aria-labelledby={headingId}
       className="empty-state-surface empty-state-surface--success flex items-center gap-10 px-5 py-6 sm:px-6 sm:py-8 lg:px-10"
     >
       <CompletedIllustration />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <h2 id={titleId} className="font-display font-bold text-2xl text-text-primary">
+        <h2
+          id={headingId}
+          tabIndex={-1}
+          className="font-display font-bold text-2xl text-text-primary outline-none"
+        >
           Completaste la ruta
         </h2>
         <p className="font-body text-text-secondary">{getCompletedSummary(total, totalMinutes)}</p>

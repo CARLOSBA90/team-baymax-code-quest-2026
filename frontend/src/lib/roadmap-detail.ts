@@ -128,6 +128,34 @@ export function getRoadmapStepsProgressLabel(completed: number, total: number): 
   return `${completed} de ${total} ${total === 1 ? "paso" : "pasos"}`;
 }
 
+export interface ItemCompletedAnnouncementInput {
+  /** Nombre del paso completado. */
+  name: string;
+  /** Progreso de la ruta (0-100, se redondea y limita). */
+  progress: number;
+  /** Pasos completados de la ruta tras completar este. */
+  completed: number;
+  total: number;
+  /** La ruta ha quedado COMPLETED. */
+  roadmapCompleted: boolean;
+}
+
+/**
+ * Anuncio (live region) tras completar un paso: «{name} marcado como completado. Progreso de la
+ * ruta: 60 por ciento, 3 de 5 pasos.», con « Completaste la ruta.» al final si la ruta terminó.
+ */
+export function getItemCompletedAnnouncement({
+  name,
+  progress,
+  completed,
+  total,
+  roadmapCompleted,
+}: ItemCompletedAnnouncementInput): string {
+  const steps = getRoadmapStepsProgressLabel(completed, total);
+  const base = `${name} marcado como completado. Progreso de la ruta: ${clampProgress(progress)} por ciento, ${steps}.`;
+  return roadmapCompleted ? `${base} Completaste la ruta.` : base;
+}
+
 /** «2 de 5 pasos completados»; singular «1 de 1 paso completado». */
 export function getStepsCompletedLabel(completed: number, total: number): string {
   const suffix = total === 1 ? "completado" : "completados";
@@ -281,4 +309,9 @@ export function getNextStepItem(
   if (!nextStep) return null;
   const index = items.findIndex((item) => item.roadmapItemId === nextStep.roadmapItemId);
   return index === -1 ? null : { item: items[index], stepNumber: index + 1 };
+}
+
+/** Id estable del h3 de un paso del timeline (destino de foco): `${prefix}step-${id}`. */
+export function getItemHeadingId(prefix: string, roadmapItemId: string): string {
+  return `${prefix}step-${roadmapItemId}`;
 }
