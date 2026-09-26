@@ -3,9 +3,9 @@ import type { RoadmapItem as RoadmapItemData, RoadmapItemState } from "@/types";
 import { CompleteButton } from "./CompleteButton";
 import { ExternalCourseLink } from "./ExternalCourseLink";
 import { ItemMeta } from "./ItemMeta";
+import { ItemStateDot } from "./ItemStateDot";
 import { ItemStatusChip } from "./ItemStatusChip";
 import { ItemThumbnail } from "./ItemThumbnail";
-import { CheckIcon } from "./RoadmapDetailIcons";
 
 export interface RoadmapItemProps {
   item: RoadmapItemData;
@@ -18,13 +18,6 @@ export interface RoadmapItemProps {
   /** Id del párrafo del banner de pausa; describe el botón deshabilitado en PAUSED. */
   pausedDescriptionId?: string;
 }
-
-const NODE_CLASSES: Record<RoadmapItemState, string> = {
-  pending: "border-node-pending bg-bg-base",
-  next: "border-node-next bg-accent shadow-node-next",
-  in_progress: "border-accent-hover bg-bg-base",
-  completed: "border-node-done bg-node-done text-node-done-check",
-};
 
 const CARD_CLASSES: Record<RoadmapItemState, string> = {
   pending: "bg-bg-item border-border-item",
@@ -60,16 +53,11 @@ export function RoadmapItem({
           className={`absolute top-[30px] bottom-0 left-[13px] w-0.5 ${isCompleted ? "bg-rail-done" : "bg-rail"}`}
         />
       )}
-      <span
-        aria-hidden="true"
-        data-testid="timeline-node"
-        className={`absolute top-[22px] left-[7px] flex size-3.5 items-center justify-center rounded-full border-2 ${NODE_CLASSES[state]}`}
-      >
-        {state === "completed" ? <CheckIcon className="size-2.5" /> : null}
-        {state === "in_progress" ? (
-          <span className="block size-1.5 rounded-full bg-accent-hover" />
-        ) : null}
-      </span>
+      <ItemStateDot
+        testId="timeline-node"
+        state={state}
+        className="absolute top-[22px] left-[7px] flex size-3.5"
+      />
       <div
         data-testid="timeline-card"
         className={`flex gap-4 rounded-2xl border px-[18px] py-4 ${CARD_CLASSES[state]}`}
