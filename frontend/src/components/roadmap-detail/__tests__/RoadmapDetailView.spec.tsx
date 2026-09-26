@@ -10,6 +10,7 @@ import {
   ROADMAP_DETAIL,
 } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import { byTextContent } from "@/test/textContent";
 
 const CONTEXTUAL_BLOCKS = [
   "Continúa aquí",
@@ -58,7 +59,9 @@ describe("RoadmapDetailView", () => {
     expect(bar).toHaveAttribute("aria-valuenow", "33");
     expect(bar).toHaveAttribute("aria-valuetext", "33 por ciento. 1 de 4 pasos completados.");
     // 1 completado de 4 ítems (COURSE, COURSE, MEDIA, CHALLENGE); 390 min en total, 270 restantes.
-    expect(screen.getByText("1 de 4 pasos · 7 h en total · quedan ~5 h")).toBeInTheDocument();
+    expect(
+      screen.getByText(byTextContent("1 de 4 pasos · 7 h en total · quedan ~5 h")),
+    ).toBeInTheDocument();
     expect(screen.getByText("33%")).toHaveClass("text-accent-soft");
   });
 
@@ -91,7 +94,9 @@ describe("RoadmapDetailView", () => {
     );
 
     // buildRoadmapItem: 60 min, sin completar.
-    expect(screen.getByText("0 de 1 paso · 1 h en total · quedan ~1 h")).toBeInTheDocument();
+    expect(
+      screen.getByText(byTextContent("0 de 1 paso · 1 h en total · quedan ~1 h")),
+    ).toBeInTheDocument();
   });
 
   it("sin pasos muestra «0 de 0 pasos» y ningún listitem", () => {
@@ -289,7 +294,7 @@ describe("RoadmapDetailView", () => {
     );
     for (const item of items) expect(within(item).getByText("Completado")).toBeInTheDocument();
 
-    expect(screen.getByText("4 de 4 pasos · 7 h en total")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("4 de 4 pasos · 7 h en total"))).toBeInTheDocument();
     expect(screen.queryByText(/quedan/)).not.toBeInTheDocument();
   });
 });

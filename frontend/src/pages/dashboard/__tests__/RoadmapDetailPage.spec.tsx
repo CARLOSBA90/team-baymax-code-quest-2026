@@ -8,6 +8,7 @@ import { RoadmapDetailPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import { buildRoadmapDetail, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { createTestQueryClient, renderWithProviders } from "@/test/renderWithProviders";
+import { byTextContent } from "@/test/textContent";
 import type { RoadmapDetail } from "@/types";
 
 vi.mock("@/api/services", () => ({ getRoadmap: vi.fn() }));
@@ -65,7 +66,9 @@ describe("RoadmapDetailPage", () => {
       "aria-valuenow",
       "33",
     );
-    expect(screen.getByText("1 de 4 pasos · 7 h en total · quedan ~5 h")).toBeInTheDocument();
+    expect(
+      screen.getByText(byTextContent("1 de 4 pasos · 7 h en total · quedan ~5 h")),
+    ).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });

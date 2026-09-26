@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { RoadmapProgress, type RoadmapProgressProps } from "@/components/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import { byTextContent } from "@/test/textContent";
 import type { RoadmapStatus } from "@/types";
 
 const HEADING_ID = "roadmap-heading";
@@ -45,7 +46,9 @@ describe("RoadmapProgress", () => {
   it("muestra el resumen y el porcentaje, con el relleno al ancho del progreso", () => {
     renderProgress();
 
-    expect(screen.getByText("2 de 5 pasos · 77 h en total · quedan ~51 h")).toBeInTheDocument();
+    expect(
+      screen.getByText(byTextContent("2 de 5 pasos · 77 h en total · quedan ~51 h")),
+    ).toBeInTheDocument();
     expect(screen.getByText("40%")).toBeInTheDocument();
     expect(getFill()).toHaveStyle({ width: "40%" });
   });
@@ -71,8 +74,58 @@ describe("RoadmapProgress", () => {
     });
 
     expect(screen.getByText("100%")).toBeInTheDocument();
-    expect(screen.getByText("5 de 5 pasos · 77 h en total")).toBeInTheDocument();
+    expect(screen.getByText(byTextContent("5 de 5 pasos · 77 h en total"))).toBeInTheDocument();
     expect(screen.queryByText(/quedan/)).not.toBeInTheDocument();
+  });
+
+  it("en curso: « · {total}» va en un span oculto en móvil y «quedan» fuera de él", () => {
+    const { container } = renderProgress();
+
+    const hidden = container.querySelector("span.hidden");
+    expect(hidden).toHaveClass("hidden", "sm:inline");
+    expect(hidden?.textContent).toBe(" · 77 h en total");
+    const summary = hidden?.closest("p");
+    expect(summary?.textContent).toBe("2 de 5 pasos · 77 h en total · quedan ~51 h");
+    expect(hidden?.textContent).not.toContain("quedan");
+    expect(summary?.textContent).toContain(" · quedan ~51 h");
+    expect(screen.getByRole("progressbar", { name: ROADMAP_NAME })).toHaveAttribute(
+      "aria-valuetext",
+      "40 por ciento. 2 de 5 pasos completados.",
+    );
+  });
+
+  it("completada: span del total presente y sin «quedan»", () => {
+    const { container } = renderProgress({
+      status: "COMPLETED",
+      progress: 100,
+      completed: 5,
+      remainingMinutes: 0,
+    });
+
+    const hidden = container.querySelector("span.hidden");
+    expect(hidden).toHaveClass("sm:inline");
+    expect(hidden?.textContent).toBe(" · 77 h en total");
+    expect(hidden?.closest("p")?.textContent).toBe("5 de 5 pasos · 77 h en total");
+  });
+
+  it("sin minutos: «0 de 0 pasos» sin span oculto", () => {
+    const { container } = renderProgress({
+      progress: 0,
+      completed: 0,
+      total: 0,
+      totalMinutes: 0,
+      remainingMinutes: 0,
+    });
+
+    expect(container.querySelector("span.hidden")).toBeNull();
+    expect(screen.getByText("0 de 0 pasos")).toBeInTheDocument();
+  });
+
+  it("sin minutos restantes: sin separador colgante", () => {
+    const { container } = renderProgress({ remainingMinutes: 0 });
+
+    const hidden = container.querySelector("span.hidden");
+    expect(hidden?.closest("p")?.textContent).toBe("2 de 5 pasos · 77 h en total");
   });
 
   it("acota el progreso fuera de rango (100.4 → 100%)", () => {

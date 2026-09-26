@@ -13,6 +13,7 @@ import {
   getNextStepItem,
   getRemainingMinutes,
   getRoadmapProgressSummary,
+  getRoadmapProgressSummaryParts,
   getRoadmapProgressValueText,
   getRoadmapStepsProgressLabel,
   getStepLabel,
@@ -21,6 +22,7 @@ import {
   getTrackingUnavailableMessage,
   ITEM_COMPLETED_PROGRESS,
   isItemCompleted,
+  type RoadmapProgressSummaryInput,
   TRACKING_UNAVAILABLE_MESSAGES,
 } from "@/lib";
 import { buildRoadmapItem } from "@/test/fixtures/roadmap-detail";
@@ -289,6 +291,59 @@ describe("getRoadmapProgressSummary", () => {
         isCompleted: false,
       }),
     ).toBe("0 de 0 pasos");
+  });
+});
+
+describe("getRoadmapProgressSummaryParts", () => {
+  it("en curso: pasos, total y lo que queda por separado", () => {
+    expect(
+      getRoadmapProgressSummaryParts({
+        completed: 2,
+        total: 5,
+        totalMinutes: 4620,
+        remainingMinutes: 3060,
+        isCompleted: false,
+      }),
+    ).toEqual({ steps: "2 de 5 pasos", total: "77 h en total", remaining: "quedan ~51 h" });
+  });
+
+  it("completada: remaining null", () => {
+    expect(
+      getRoadmapProgressSummaryParts({
+        completed: 5,
+        total: 5,
+        totalMinutes: 4620,
+        remainingMinutes: 0,
+        isCompleted: true,
+      }),
+    ).toEqual({ steps: "5 de 5 pasos", total: "77 h en total", remaining: null });
+  });
+
+  it("sin minutos: total y remaining null", () => {
+    expect(
+      getRoadmapProgressSummaryParts({
+        completed: 0,
+        total: 0,
+        totalMinutes: 0,
+        remainingMinutes: 0,
+        isCompleted: false,
+      }),
+    ).toEqual({ steps: "0 de 0 pasos", total: null, remaining: null });
+  });
+
+  it.each<RoadmapProgressSummaryInput>([
+    { completed: 2, total: 5, totalMinutes: 4620, remainingMinutes: 3060, isCompleted: false },
+    { completed: 5, total: 5, totalMinutes: 4620, remainingMinutes: 0, isCompleted: true },
+    { completed: 4, total: 5, totalMinutes: 4620, remainingMinutes: 60, isCompleted: true },
+    { completed: 1, total: 2, totalMinutes: 120, remainingMinutes: 0, isCompleted: false },
+    { completed: 0, total: 1, totalMinutes: 45, remainingMinutes: 45, isCompleted: false },
+    { completed: 0, total: 0, totalMinutes: 0, remainingMinutes: 0, isCompleted: false },
+  ])("unir las partes no nulas con « · » iguala getRoadmapProgressSummary (%o)", (input) => {
+    const { steps, total, remaining } = getRoadmapProgressSummaryParts(input);
+
+    expect([steps, total, remaining].filter(Boolean).join(" · ")).toBe(
+      getRoadmapProgressSummary(input),
+    );
   });
 });
 
