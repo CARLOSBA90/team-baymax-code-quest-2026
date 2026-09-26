@@ -8,7 +8,7 @@ export interface RoadmapHeaderProps {
   status: RoadmapStatus;
   /** ISO de la última actividad; si no es una fecha válida se omite la línea. */
   lastActivity: string;
-  /** Id del h1: lo usa la barra global como `aria-labelledby`. */
+  /** Id del h1: lo usa la barra global como `aria-labelledby` y es el destino de foco de reserva. */
   headingId: string;
 }
 
@@ -31,7 +31,8 @@ export function RoadmapHeader({
     <header className="flex flex-col items-start gap-3">
       <h1
         id={headingId}
-        className="font-display text-[26px]/8 font-bold text-text-primary sm:text-3xl"
+        tabIndex={-1}
+        className="font-display text-[26px]/8 font-bold text-text-primary outline-none sm:text-3xl"
       >
         {name}
       </h1>

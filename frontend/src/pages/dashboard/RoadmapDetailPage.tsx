@@ -24,7 +24,8 @@ export function RoadmapDetailPage() {
   if (isError && isRoadmapNotFoundError(error)) {
     content = <RoadmapNotFound />;
   } else if (data) {
-    content = <RoadmapDetailView roadmap={data} />;
+    // `key`: el estado del flujo de completar (diálogo, anuncio, aviso) no sobrevive al cambiar de ruta.
+    content = <RoadmapDetailView key={data.id} roadmap={data} />;
   } else if (isError) {
     content = <RoadmapLoadError onRetry={() => void refetch()} />;
   } else {

@@ -4,8 +4,25 @@ import { RoadmapCompletedPanel } from "@/components/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 describe("RoadmapCompletedPanel", () => {
+  it("el h2 lleva el headingId recibido y tabIndex=-1 como destino de foco", () => {
+    renderWithProviders(
+      <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+    );
+
+    const heading = screen.getByRole("heading", { level: 2, name: "Completaste la ruta" });
+    expect(heading).toHaveAttribute("id", "completed-heading");
+    expect(heading).toHaveAttribute("tabindex", "-1");
+    expect(heading).toHaveClass("outline-none");
+    expect(screen.getByRole("region", { name: "Completaste la ruta" })).toHaveAttribute(
+      "aria-labelledby",
+      "completed-heading",
+    );
+  });
+
   it("es una región con el h2 «Completaste la ruta» y el resumen de pasos y horas", () => {
-    renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+    renderWithProviders(
+      <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+    );
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Completaste la ruta" }),
@@ -19,7 +36,9 @@ describe("RoadmapCompletedPanel", () => {
   });
 
   it("enlaza a crear otra ruta y a Mis Rutas", () => {
-    renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+    renderWithProviders(
+      <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+    );
 
     expect(screen.getByRole("link", { name: "Crear otra ruta" })).toHaveAttribute(
       "href",
@@ -34,7 +53,9 @@ describe("RoadmapCompletedPanel", () => {
   it.each(["Crear otra ruta", "Volver a Mis Rutas"])(
     "«%s» ocupa el ancho completo en móvil y se ajusta desde sm:",
     (name) => {
-      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+      renderWithProviders(
+        <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+      );
 
       const link = screen.getByRole("link", { name });
       expect(link).toHaveClass("h-11", "w-full", "px-5", "sm:w-fit");
@@ -43,7 +64,9 @@ describe("RoadmapCompletedPanel", () => {
   );
 
   it("usa la superficie Nebula en su variante verde", () => {
-    renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+    renderWithProviders(
+      <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+    );
 
     expect(screen.getByRole("region", { name: "Completaste la ruta" })).toHaveClass(
       "empty-state-surface",
@@ -53,7 +76,7 @@ describe("RoadmapCompletedPanel", () => {
 
   it("la ilustración y los iconos son decorativos", () => {
     const { container } = renderWithProviders(
-      <RoadmapCompletedPanel total={5} totalMinutes={4620} />,
+      <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
     );
 
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
@@ -68,7 +91,9 @@ describe("RoadmapCompletedPanel", () => {
 
   describe("móvil (base) / tablet (sm:)", () => {
     it("la sección usa padding compacto en móvil y el de slice 2 desde sm:", () => {
-      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+      renderWithProviders(
+        <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+      );
 
       const region = screen.getByRole("region", { name: "Completaste la ruta" });
       expect(region).toHaveClass("px-5", "py-6", "sm:px-6", "sm:py-8", "lg:px-10");
@@ -76,7 +101,9 @@ describe("RoadmapCompletedPanel", () => {
     });
 
     it("los enlaces se apilan en móvil y van en fila desde sm:", () => {
-      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+      renderWithProviders(
+        <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+      );
 
       const create = screen.getByRole("link", { name: "Crear otra ruta" });
       const back = screen.getByRole("link", { name: "Volver a Mis Rutas" });
@@ -93,7 +120,9 @@ describe("RoadmapCompletedPanel", () => {
     });
 
     it("«Crear otra ruta» precede a «Volver a Mis Rutas» en el DOM", () => {
-      renderWithProviders(<RoadmapCompletedPanel total={5} totalMinutes={4620} />);
+      renderWithProviders(
+        <RoadmapCompletedPanel total={5} totalMinutes={4620} headingId="completed-heading" />,
+      );
 
       const create = screen.getByRole("link", { name: "Crear otra ruta" });
       const back = screen.getByRole("link", { name: "Volver a Mis Rutas" });

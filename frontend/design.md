@@ -791,6 +791,18 @@ confirmar → POST /progress/track { roadmap_item_id, completed: true }
 
 El bloqueo es **por ítem**, nunca de pantalla: nada de overlay global. Marcar dos veces desde dos pestañas es inocuo (idempotente); un conflicto por `progress_version` se trata como el 409 —refrescar y mostrar el estado real— sin error rojo, porque el resultado que el usuario quería ya se cumplió.
 
+**Implementado (slice 4, rama `feature/roadmap-detail-complete`).** Diferencias resueltas respecto al texto de arriba:
+
+- **Copy «paso»**, no «curso»: el `<h2>` es «¿Marcar este paso como completado?» para todos los tipos de ítem (también retos y recursos).
+- **Esc/backdrop/«Cancelar» se ignoran mientras la petición está en curso** («Completando…»); fuera de ese estado, Esc y backdrop cierran como «Cancelar». El diálogo no tiene X (`Modal` `hideCloseButton`).
+- **Un solo estado de error, sin contador de fallos**: sin respuesta → «No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.»; 5xx/401/otros → «No se pudo marcar como completado. Inténtalo de nuevo.». El reintento es el propio «Sí, completar» (no hay botón «Reintentar» aparte).
+- **401 fuera de alcance**: cae en el error genérico; la redirección a login con ruta de vuelta queda para el interceptor global (issue aparte).
+- **Sin conflicto por `progress_version`**: `POST /progress/track` no lo envía ni lo comprueba; los 409 alcanzables son solo `ROADMAP_PAUSED`.
+- **404** → cierra, refetch y aviso visible (`Notice`, `role="status"`) «Este paso ya no existe. Hemos actualizado la ruta.», foco al `<h1>`; si la ruta entera ya no existe se ve «No encontramos esta ruta».
+- **422 `TRACKING_REPORT_MISMATCH`** (no previsto aquí) → cierra, refetch, anuncio «Este paso ya no se puede marcar como completado desde aquí.» y foco al `<h3>`.
+- Tras el 200 el diálogo **espera al refetch** antes de cerrar; si el refetch falla se parchea el detalle en caché con la respuesta del POST (nunca optimista antes de ella).
+- Botones: en móvil apilados con «Sí, completar» arriba (`flex-col-reverse`, «Cancelar» sigue primero en el DOM y recibe el foco inicial); desde `sm:` en fila a la derecha.
+
 ### 16.8 Responsive
 
 Frontera: la de Tailwind. `sm` empieza en 640, así que a 640px exactos ya se ve la versión tablet; no hay breakpoint propio. Implementación mobile-first: base = móvil, `sm:` = tablet, `lg:` = escritorio.

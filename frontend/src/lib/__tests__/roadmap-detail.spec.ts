@@ -7,6 +7,8 @@ import {
   formatShortDate,
   getCompletedCount,
   getCompletedSummary,
+  getItemCompletedAnnouncement,
+  getItemHeadingId,
   getItemMeta,
   getItemState,
   getItemTypeLabel,
@@ -571,5 +573,73 @@ describe("getNextStepItem", () => {
 
   it("id huérfano (no está en los ítems) → null", () => {
     expect(getNextStepItem(items, { roadmapItemId: "zz", name: "X", url: null })).toBeNull();
+  });
+});
+
+describe("getItemCompletedAnnouncement", () => {
+  it("anuncia el paso y el progreso de la ruta", () => {
+    expect(
+      getItemCompletedAnnouncement({
+        name: "Fundamentos de Node",
+        progress: 60,
+        completed: 3,
+        total: 5,
+        roadmapCompleted: false,
+      }),
+    ).toBe(
+      "Fundamentos de Node marcado como completado. Progreso de la ruta: 60 por ciento, 3 de 5 pasos.",
+    );
+  });
+
+  it("añade « Completaste la ruta.» cuando la ruta queda completada", () => {
+    expect(
+      getItemCompletedAnnouncement({
+        name: "Proyecto final",
+        progress: 100,
+        completed: 5,
+        total: 5,
+        roadmapCompleted: true,
+      }),
+    ).toBe(
+      "Proyecto final marcado como completado. Progreso de la ruta: 100 por ciento, 5 de 5 pasos. Completaste la ruta.",
+    );
+  });
+
+  it("usa el singular «paso» y redondea/limita el porcentaje", () => {
+    expect(
+      getItemCompletedAnnouncement({
+        name: "Único",
+        progress: 100.4,
+        completed: 1,
+        total: 1,
+        roadmapCompleted: true,
+      }),
+    ).toContain("100 por ciento, 1 de 1 paso.");
+  });
+
+  it.each([
+    [-5, "0 por ciento"],
+    [Number.NaN, "0 por ciento"],
+    [33.33, "33 por ciento"],
+  ])("progress %s → «%s»", (progress, expected) => {
+    expect(
+      getItemCompletedAnnouncement({
+        name: "Paso",
+        progress,
+        completed: 1,
+        total: 3,
+        roadmapCompleted: false,
+      }),
+    ).toContain(`Progreso de la ruta: ${expected}, 1 de 3 pasos.`);
+  });
+});
+
+describe("getItemHeadingId", () => {
+  it("combina el prefijo con el id del ítem", () => {
+    expect(getItemHeadingId("p-", "abc")).toBe("p-step-abc");
+  });
+
+  it("ids distintos dan resultados distintos", () => {
+    expect(getItemHeadingId("p-", "a")).not.toBe(getItemHeadingId("p-", "b"));
   });
 });

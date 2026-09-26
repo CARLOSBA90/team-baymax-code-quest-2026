@@ -1,10 +1,14 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { RoadmapTimeline } from "@/components/roadmap-detail";
+import { getItemHeadingId } from "@/lib";
 import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const NEXT_ID = "item-2";
+const PREFIX = "tl-";
+const HANDLERS = { onComplete: () => undefined, itemHeadingIdPrefix: PREFIX };
 
 describe("RoadmapTimeline", () => {
   it("sección nombrada por el h2 «Pasos de la ruta» con contador visible y accesible", () => {
@@ -14,6 +18,7 @@ describe("RoadmapTimeline", () => {
         nextStepId={NEXT_ID}
         completed={1}
         isPaused={false}
+        {...HANDLERS}
       />,
     );
 
@@ -30,6 +35,7 @@ describe("RoadmapTimeline", () => {
         nextStepId={NEXT_ID}
         completed={1}
         isPaused={false}
+        {...HANDLERS}
       />,
     );
 
@@ -54,6 +60,7 @@ describe("RoadmapTimeline", () => {
         nextStepId={NEXT_ID}
         completed={1}
         isPaused={false}
+        {...HANDLERS}
       />,
     );
 
@@ -70,7 +77,7 @@ describe("RoadmapTimeline", () => {
 
   it("sin ítems pinta la lista vacía sin fallar", () => {
     renderWithProviders(
-      <RoadmapTimeline items={[]} nextStepId={null} completed={0} isPaused={false} />,
+      <RoadmapTimeline items={[]} nextStepId={null} completed={0} isPaused={false} {...HANDLERS} />,
     );
 
     expect(screen.getByRole("list", { name: "Pasos de la ruta" })).toBeEmptyDOMElement();
@@ -86,12 +93,61 @@ describe("RoadmapTimeline", () => {
       }),
     );
     renderWithProviders(
-      <RoadmapTimeline items={items} nextStepId="item-1" completed={0} isPaused={false} />,
+      <RoadmapTimeline
+        items={items}
+        nextStepId="item-1"
+        completed={0}
+        isPaused={false}
+        {...HANDLERS}
+      />,
     );
 
     const names = screen.getAllByRole("link").map((link) => link.textContent);
     expect(screen.getAllByRole("link")).toHaveLength(5);
     expect(new Set(names).size).toBe(5);
+  });
+
+  it("cada h3 lleva un id único derivado del prefijo y tabIndex=-1", () => {
+    renderWithProviders(
+      <RoadmapTimeline
+        items={ROADMAP_DETAIL.items}
+        nextStepId={NEXT_ID}
+        completed={1}
+        isPaused={false}
+        {...HANDLERS}
+      />,
+    );
+
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings.map((heading) => heading.id)).toEqual(
+      ROADMAP_DETAIL.items.map((item) => getItemHeadingId(PREFIX, item.roadmapItemId)),
+    );
+    expect(new Set(headings.map((heading) => heading.id)).size).toBe(headings.length);
+    for (const heading of headings) expect(heading).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("clic en el botón de un ítem propaga ese ítem a onComplete", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    const items = [
+      buildRoadmapItem({ roadmapItemId: "item-a", name: "Curso A" }),
+      buildRoadmapItem({ roadmapItemId: "item-b", name: "Curso B" }),
+    ];
+    renderWithProviders(
+      <RoadmapTimeline
+        items={items}
+        nextStepId="item-a"
+        completed={0}
+        isPaused={false}
+        onComplete={onComplete}
+        itemHeadingIdPrefix={PREFIX}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Marcar como completado Curso B" }));
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith(items[1]);
   });
 
   it("en pausa describe cada botón de completar con el párrafo del banner", () => {
@@ -102,6 +158,7 @@ describe("RoadmapTimeline", () => {
         completed={1}
         isPaused
         pausedDescriptionId="paused-desc"
+        {...HANDLERS}
       />,
     );
 

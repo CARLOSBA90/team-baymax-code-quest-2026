@@ -17,6 +17,10 @@ export interface RoadmapItemProps {
   isPaused: boolean;
   /** Id del párrafo del banner de pausa; describe el botón deshabilitado en PAUSED. */
   pausedDescriptionId?: string;
+  /** Pide completar este paso (abre la confirmación en el compositor). */
+  onComplete: (item: RoadmapItemData) => void;
+  /** Id del h3; destino de foco (`tabIndex={-1}`) tras completar. */
+  headingId: string;
 }
 
 const CARD_CLASSES: Record<RoadmapItemState, string> = {
@@ -28,8 +32,9 @@ const CARD_CLASSES: Record<RoadmapItemState, string> = {
 
 /**
  * Paso del timeline: nodo y riel decorativos (`aria-hidden`), miniatura, h3 con la posición como
- * texto real («Paso i de N: …»), chip, meta, descripción y acciones. Completar sigue deshabilitado
- * (slice 4); en pausa el botón se describe con el párrafo del banner. Sin atenuación en pausa.
+ * texto real («Paso i de N: …»), chip, meta, descripción y acciones. Completar llama a
+ * `onComplete(item)`; en pausa el botón se deshabilita y se describe con el párrafo del banner.
+ * Sin atenuación en pausa. El h3 lleva `id` y `tabIndex={-1}` para recibir el foco tras completar.
  *
  * Mobile-first con un solo DOM: en móvil no hay riel/nodo y el estado lo muestra el punto
  * `item-state-dot` dentro del h3; la fila del título es `display: contents`, así `order-*` pone el
@@ -45,6 +50,8 @@ export function RoadmapItem({
   isLast,
   isPaused,
   pausedDescriptionId,
+  onComplete,
+  headingId,
 }: RoadmapItemProps) {
   const isCompleted = state === "completed";
   const trackingMessage = isCompleted ? null : getTrackingUnavailableMessage(item.tracking);
@@ -78,7 +85,11 @@ export function RoadmapItem({
         />
         <div className="[grid-area:body] flex min-w-0 flex-col gap-1.5">
           <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
-            <h3 className="line-clamp-2 font-body font-semibold text-[15px] text-text-primary">
+            <h3
+              id={headingId}
+              tabIndex={-1}
+              className="line-clamp-2 font-body font-semibold text-[15px] text-text-primary outline-none"
+            >
               <ItemStateDot
                 testId="item-state-dot"
                 state={state}
@@ -113,6 +124,8 @@ export function RoadmapItem({
               <CompleteButton
                 itemName={item.name}
                 describedBy={isPaused ? pausedDescriptionId : undefined}
+                disabled={isPaused}
+                onClick={() => onComplete(item)}
               />
             ) : null}
             {trackingMessage ? (

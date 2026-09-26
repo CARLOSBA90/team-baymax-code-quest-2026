@@ -1,4 +1,10 @@
-import type { RoadmapCounts, RoadmapStatus, RoadmapsListResult } from "@/types";
+import type {
+  RoadmapCounts,
+  RoadmapDetail,
+  RoadmapStatus,
+  RoadmapsListResult,
+  TrackProgressResult,
+} from "@/types";
 
 const STATUS_COUNT_KEY: Record<RoadmapStatus, keyof Omit<RoadmapCounts, "all">> = {
   NOT_STARTED: "notStarted",
@@ -29,5 +35,39 @@ export function removeRoadmapFromList(result: RoadmapsListResult, id: string): R
       all: decrement(result.counts.all),
       [countKey]: decrement(result.counts[countKey]),
     },
+  };
+}
+
+/**
+ * Parche del detalle cacheado con la respuesta de `POST /progress/track` (datos del servidor, no
+ * optimista); solo se usa si el refetch del detalle tras un 200 falla. El ítem toma el `progress`
+ * de la respuesta y, si queda completado sin `completedAt`, `lastActivity` de la ruta (el POST no
+ * trae `completed_at`); la ruta toma `progress`/`status`/`lastActivity`/`activityVersion`,
+ * `pausedAt` pasa a `null` si queda COMPLETED y `nextStep` a `null` si apuntaba al ítem (el
+ * siguiente no se puede calcular aquí). Ítem ausente → solo campos de ruta. Nunca muta `detail`.
+ */
+export function applyTrackProgressResult(
+  detail: RoadmapDetail,
+  roadmapItemId: string,
+  result: TrackProgressResult,
+): RoadmapDetail {
+  const { roadmap } = result;
+  return {
+    ...detail,
+    progress: roadmap.progress,
+    status: roadmap.status,
+    lastActivity: roadmap.lastActivity,
+    activityVersion: roadmap.activityVersion,
+    pausedAt: roadmap.status === "COMPLETED" ? null : detail.pausedAt,
+    items: detail.items.map((item) =>
+      item.roadmapItemId === roadmapItemId
+        ? {
+            ...item,
+            progress: result.progress,
+            completedAt: item.completedAt ?? (result.completed ? roadmap.lastActivity : null),
+          }
+        : item,
+    ),
+    nextStep: detail.nextStep?.roadmapItemId === roadmapItemId ? null : detail.nextStep,
   };
 }

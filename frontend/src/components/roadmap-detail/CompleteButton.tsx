@@ -10,6 +10,9 @@ export interface CompleteButtonProps {
    * móvil, 44px desde `sm:`).
    */
   size?: "sm" | "md";
+  onClick: () => void;
+  /** En pausa el botón se deshabilita (y se describe con `describedBy`). */
+  disabled?: boolean;
 }
 
 /**
@@ -24,14 +27,21 @@ const SIZES: Record<
   md: { ghost: "lg", classes: "w-full sm:h-11 sm:w-fit" },
 };
 
-/** «Marcar como completado», deshabilitado hasta el slice 4 (sin escrituras). */
-export function CompleteButton({ itemName, describedBy, size = "sm" }: CompleteButtonProps) {
+/** «Marcar como completado»: pide al compositor abrir la confirmación (`onClick`). */
+export function CompleteButton({
+  itemName,
+  describedBy,
+  size = "sm",
+  onClick,
+  disabled = false,
+}: CompleteButtonProps) {
   const { ghost, classes } = SIZES[size];
 
   return (
     <GhostButton
       size={ghost}
-      disabled
+      onClick={onClick}
+      disabled={disabled}
       aria-describedby={describedBy}
       className={`text-sm ${classes}`}
     >

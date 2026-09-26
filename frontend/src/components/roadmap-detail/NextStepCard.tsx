@@ -11,12 +11,14 @@ export interface NextStepCardProps {
   /** Posición 1-based del paso en la lista. */
   stepNumber: number;
   total: number;
+  /** Pide completar el paso (abre la confirmación en el compositor). */
+  onComplete: (item: RoadmapItem) => void;
 }
 
 /**
  * «Continúa aquí»: región nombrada por el eyebrow con el siguiente paso (miniatura, h2, meta con
- * posición, descripción en una línea) y sus acciones. Sin `reason`. Completar sigue deshabilitado
- * (slice 4).
+ * posición, descripción en una línea) y sus acciones. Sin `reason`. Completar llama a
+ * `onComplete(item)`; el foco tras completar va al h3 del timeline, así que este h2 no lleva id.
  *
  * Mobile-first con un solo DOM (eyebrow → miniatura → título → descripción → acciones) colocado
  * con `grid-template-areas`: en móvil el eyebrow ocupa la primera fila, miniatura y título
@@ -26,7 +28,7 @@ export interface NextStepCardProps {
  * descripción o sin acciones) quedan en filas de 0px porque no hay `gap-y`: el espacio vertical
  * son los `mt-*` de los hijos presentes.
  */
-export function NextStepCard({ item, stepNumber, total }: NextStepCardProps) {
+export function NextStepCard({ item, stepNumber, total, onComplete }: NextStepCardProps) {
   const eyebrowId = useId();
   const isCompleted = isItemCompleted(item);
   const showCompleteButton = !isCompleted && canTrack(item.tracking);
@@ -66,7 +68,9 @@ export function NextStepCard({ item, stepNumber, total }: NextStepCardProps) {
           {item.url ? (
             <ExternalCourseLink url={item.url} itemName={item.name} variant="primary" />
           ) : null}
-          {showCompleteButton ? <CompleteButton itemName={item.name} size="md" /> : null}
+          {showCompleteButton ? (
+            <CompleteButton itemName={item.name} size="md" onClick={() => onComplete(item)} />
+          ) : null}
           {trackingMessage ? (
             <p className="min-w-0 font-body text-[12.5px] text-text-muted">{trackingMessage}</p>
           ) : null}
