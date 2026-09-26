@@ -11,6 +11,7 @@ import {
 } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { byTextContent } from "@/test/textContent";
+import type { RoadmapDetail } from "@/types";
 
 const CONTEXTUAL_BLOCKS = [
   "Continúa aquí",
@@ -78,6 +79,114 @@ describe("RoadmapDetailView", () => {
           sequence[i - 1].compareDocumentPosition(sequence[i]) & Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
       }
+    });
+  });
+
+  describe("nombres accesibles únicos (un solo DOM para todos los breakpoints)", () => {
+    const FIVE_ITEMS = [1, 2, 3, 4, 5].map((order) =>
+      buildRoadmapItem({
+        roadmapItemId: `item-${order}`,
+        order,
+        courseId: `course-${order}`,
+        name: `Curso número ${order}`,
+        url: `https://example.com/courses/${order}`,
+        ...(order <= 2
+          ? {
+              progress: 100,
+              startedAt: "2026-09-10T09:00:00.000Z",
+              completedAt: "2026-09-15T17:00:00.000Z",
+            }
+          : {}),
+      }),
+    );
+    const FIVE_ITEMS_ROADMAP = buildRoadmapDetail({
+      status: "IN_PROGRESS",
+      progress: 40,
+      items: FIVE_ITEMS,
+      nextStep: {
+        roadmapItemId: "item-3",
+        name: "Curso número 3",
+        url: "https://example.com/courses/3",
+      },
+    });
+
+    function expectUniqueNames(roadmap: RoadmapDetail) {
+      const list = screen.getByRole("list", { name: "Pasos de la ruta" });
+      const nextRegion = screen.queryByRole("region", { name: "Continúa aquí" });
+      const total = roadmap.items.length;
+
+      expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole("heading", { level: 1, name: roadmap.name })).toBeInTheDocument();
+      expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+      expect(within(list).getAllByRole("heading", { level: 3 })).toHaveLength(total);
+
+      roadmap.items.forEach((item, index) => {
+        expect(
+          screen.getAllByRole("heading", {
+            level: 3,
+            name: `Paso ${index + 1} de ${total}: ${item.name}`,
+          }),
+        ).toHaveLength(1);
+        if (!item.url) return;
+        const linkName = `Ir al curso ${item.name} (se abre en una pestaña nueva)`;
+        expect(within(list).getAllByRole("link", { name: linkName })).toHaveLength(1);
+        const isNext =
+          nextRegion !== null && roadmap.nextStep?.roadmapItemId === item.roadmapItemId;
+        if (nextRegion) {
+          expect(within(nextRegion).queryAllByRole("link", { name: linkName })).toHaveLength(
+            isNext ? 1 : 0,
+          );
+        }
+        expect(screen.getAllByRole("link", { name: linkName })).toHaveLength(isNext ? 2 : 1);
+      });
+
+      const indicators = [
+        ...screen.getAllByTestId("timeline-node"),
+        ...screen.getAllByTestId("item-state-dot"),
+      ];
+      expect(indicators).toHaveLength(total * 2);
+      for (const indicator of indicators) {
+        expect(indicator).toHaveAttribute("aria-hidden", "true");
+      }
+      expect(document.querySelector("[aria-haspopup]")).toBeNull();
+    }
+
+    it("en curso con 5 pasos: un h1, un h3 por paso, un enlace por paso y otro en «Continúa aquí»", () => {
+      renderWithProviders(<RoadmapDetailView roadmap={FIVE_ITEMS_ROADMAP} />);
+
+      const headings = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(
+        "heading",
+        { level: 3 },
+      );
+      expect(headings).toHaveLength(5);
+      FIVE_ITEMS.forEach((item, index) => {
+        expect(headings[index]).toHaveAccessibleName(`Paso ${index + 1} de 5: ${item.name}`);
+      });
+
+      const nextRegion = screen.getByRole("region", { name: "Continúa aquí" });
+      const nextLinkName = "Ir al curso Curso número 3 (se abre en una pestaña nueva)";
+      expect(within(nextRegion).getAllByRole("link", { name: nextLinkName })).toHaveLength(1);
+      expect(screen.getAllByRole("link", { name: nextLinkName })).toHaveLength(2);
+      for (const order of [1, 2, 4, 5]) {
+        expect(
+          screen.getAllByRole("link", {
+            name: `Ir al curso Curso número ${order} (se abre en una pestaña nueva)`,
+          }),
+        ).toHaveLength(1);
+      }
+      expectUniqueNames(FIVE_ITEMS_ROADMAP);
+    });
+
+    it.each([
+      ["NOT_STARTED", buildNotStartedRoadmapDetail],
+      ["IN_PROGRESS", () => ROADMAP_DETAIL],
+      ["PAUSED", buildPausedRoadmapDetail],
+      ["COMPLETED", buildCompletedRoadmapDetail],
+    ] as const)("%s: ningún encabezado, enlace ni indicador accesible duplicado", (_, build) => {
+      const roadmap = build();
+      renderWithProviders(<RoadmapDetailView roadmap={roadmap} />);
+
+      expectUniqueNames(roadmap);
     });
   });
 
