@@ -9,8 +9,8 @@ import {
   CloseIcon,
 } from "@/components/assessment";
 import { GhostButton, NebulaSurface, Notice, PrimaryButton } from "@/components/ui";
-import { ASSESSMENT_COMPLETED_STATE, getAssessmentSubtitle } from "@/lib";
-import type { AssessmentAnswer } from "@/types";
+import { ASSESSMENT_COMPLETED_STATE, getAssessmentSubtitle, getRoadmapPath } from "@/lib";
+import type { AssessmentAnswer, AssessmentResult } from "@/types";
 
 function AssessmentBreadcrumb() {
   return (
@@ -60,8 +60,16 @@ export const AssessmentPage = () => {
     submit.mutate(
       { answers },
       {
-        onSuccess: () =>
-          navigate("/dashboard/roadmaps", { replace: true, state: ASSESSMENT_COMPLETED_STATE }),
+        onSuccess: (result: AssessmentResult) => {
+          // Con ruta generada se va directo a su detalle; si la generación falló (el assessment
+          // sí se guardó), a Mis Rutas con aviso. `replace`: atrás no vuelve al cuestionario.
+          const roadmapId = result.roadmap?.status === "FAILED" ? undefined : result.roadmap?.id;
+          if (roadmapId) {
+            navigate(getRoadmapPath(roadmapId), { replace: true });
+          } else {
+            navigate("/dashboard/roadmaps", { replace: true, state: ASSESSMENT_COMPLETED_STATE });
+          }
+        },
       },
     );
   };

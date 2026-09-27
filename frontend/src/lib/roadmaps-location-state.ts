@@ -6,7 +6,10 @@ import {
 // `location.state` con el que otras pantallas llegan a Mis Rutas (`/dashboard/roadmaps`) para que
 // muestre un aviso una sola vez.
 
-/** `location.state` con el que `AssessmentPage` navega a Mis Rutas tras un envío correcto. */
+/**
+ * `location.state` con el que `AssessmentPage` navega a Mis Rutas tras un envío correcto cuyo
+ * roadmap no se pudo generar (con ruta generada navega a su detalle, sin state).
+ */
 export interface AssessmentCompletedState {
   assessmentCompleted: true;
 }

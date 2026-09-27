@@ -189,8 +189,9 @@ export const RoadmapsPage = () => {
         )}
       </header>
       {showAssessmentNotice && (
-        <Notice variant="success">
-          ¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.
+        <Notice variant="info">
+          Guardamos tus respuestas del cuestionario, pero no pudimos generar tu ruta. Vuelve a
+          intentarlo en unos minutos.
         </Notice>
       )}
       {deletedMessage !== null && <Notice variant="success">{deletedMessage}</Notice>}
