@@ -774,6 +774,17 @@ Padding 18×20, radio 16, borde `rgba(251,191,36,0.28)`, fondo `rgba(251,191,36,
 
 `PATCH /roadmaps/:id/pause` con `{ paused: false, expectedActivityVersion: data.activity_version }`. Si responde 409 por versión desfasada: refetch + «Alguien actualizó esta ruta desde otro lugar. Ya tienes la versión más reciente.»
 
+**Implementado (slice 5, rama `feature/roadmap-detail-pause`).** Pausar y reanudar desde el menú ⋯ y reanudar desde este banner. Diferencias resueltas respecto al texto de arriba:
+
+- **Sin confirmación** para pausar ni reanudar: es reversible.
+- **Pesimista**: la respuesta 200 (mismo serializer que el GET del detalle) se escribe en la caché del detalle sin GET extra; Mis Rutas y la pill se invalidan en segundo plano.
+- **Mientras está en curso** se bloquean el ⋯ entero (`aria-disabled`, conserva el foco), el botón del banner («Reanudando…») y **todos** los «Marcar como completado». Sin overlay global.
+- **Anuncio y foco según el estado que devuelve el back** (idempotente), no según la acción pedida: PAUSED → «Ruta pausada. Mientras esté pausada no se registra tu avance.» y foco al `<h2>` del banner; IN_PROGRESS/NOT_STARTED → «Ruta reanudada. Ya puedes registrar tu avance.» y foco al `<h1>`; COMPLETED → sin anuncio (el panel de cierre ya lo dice) y foco al `<h1>`.
+- **409 `ROADMAP_VERSION_CONFLICT` y también `INVALID_ROADMAP_TRANSITION`** → refetch + el aviso de arriba como `Notice` **`info`** (violeta neutro, `role="status"`, no rojo) sobre la cabecera; foco al `<h1>`.
+- **404** → refetch → «No encontramos esta ruta» (sin aviso propio).
+- **Red / 5xx / 401** → `Notice` de error (`role="alert"`) arriba, **nunca dentro del banner** («No se pudo reanudar la ruta. Inténtalo de nuevo.» / copy de conexión sin respuesta). El foco no se mueve: desde el ⋯ sigue en el ⋯; desde el banner vuelve a «Reanudar ruta» (el botón estuvo `disabled` y el navegador puede haber soltado el foco).
+- Cualquier acción nueva limpia el aviso y el anuncio anteriores.
+
 ### 16.7 Flujo de «Marcar como completado»
 
 Diálogo: icono de check en cuadro violeta, `<h2>` «¿Marcar este curso como completado?», el curso en una caja con su miniatura, y la advertencia «Esta acción **no se puede deshacer**». Botones: «Cancelar» (foco inicial) y «Sí, completar». Esc cierra. El error de red se muestra **dentro** del diálogo para reintentar sin reabrirlo.
@@ -815,7 +826,9 @@ Frontera: la de Tailwind. `sm` empieza en 640, así que a 640px exactos ya se ve
 - Título del ítem hasta 2 líneas, sin truncar a una. El chip «Siguiente»/«Completado» baja bajo la meta (solo en móvil).
 - Se omiten las horas totales; queda «quedan ~51 h». Ruta completada: solo «5 de 5 pasos» (el panel ya da las horas de estudio).
 - «Última actividad» conserva prefijo y forma larga («Última actividad: hace 2 horas»).
-- El menú ⋯ (slice 5) irá en la fila de la miga en móvil y junto al h1 en escritorio; de momento esa fila solo queda con `justify-between`.
+- El menú ⋯ va en la fila de la miga en móvil y junto al h1 desde `sm:`.
+
+**Implementado (slice 5).** Miga, cabecera y ⋯ forman un grid con `grid-template-areas` (`'back menu' 'header header'` en móvil, `'back back' 'header menu'` desde `sm:`), con una sola instancia del ⋯ (44×44, borde, menú alineado a la derecha). El orden del DOM es miga → cabecera → ⋯: en móvil el orden visual no coincide, pero el Tab sigue miga → ⋯ porque la cabecera no tiene elementos tabulables (mismatch aceptado).
 
 **640–1023px**: como escritorio con el riel a 28px, miniatura 80×56 y acciones en una sola fila.
 
@@ -880,6 +893,16 @@ formatRelative(iso)              → "hace 2 h"      ← relativo hasta 7 días,
 ```
 
 Si el backend añade un `type` o un `tracking.type` nuevo, se toca ahí y en el icono. En ningún otro sitio.
+
+**Implementado (slice 5).** El árbol real difiere del boceto de arriba:
+
+- **`RoadmapDetailView` es el compositor** y dueño de todos los flujos (completar, pausar/reanudar, eliminar): las piezas solo emiten callbacks. `RoadmapHeader` no lleva el menú ni la barra; el compositor coloca `RoadmapDetailMenu { roadmapName, status, disabled, onPause, onResume, onDelete }` junto a ella en el grid (§16.8).
+- **Ítems del ⋯ por estado**: en curso «Pausar ruta» + «Eliminar ruta»; pausada «Reanudar ruta» + «Eliminar ruta»; sin empezar y completada solo «Eliminar ruta» (siempre la última, en rojo).
+- `PausedBanner { pausedAt, descriptionId, headingId, resumeButtonId, onResume, resuming }`: sin prop de error (los errores van al `Notice` superior del compositor).
+- El bloqueo durante pausar/reanudar llega a los botones de completar con `completeDisabled` (timeline e ítems, «Continúa aquí»).
+- `usePauseRoadmap(id)` → `mutate({ paused, expectedActivityVersion })` como se preveía; `useDeleteRoadmap({ removeDetail: false })` en el detalle.
+- **Eliminar desde el detalle**: el mismo `DeleteRoadmapDialog` que Mis Rutas. 200 y 404 navegan a Mis Rutas con `replace` (atrás no vuelve a la ruta borrada) y el diálogo sigue en «Eliminando…» hasta que el router desmonta el detalle, sin destello de «No encontramos esta ruta» ni GET tras el DELETE; Mis Rutas muestra «Ruta «X» eliminada» (o el aviso neutro del 404) y enfoca su `<h1>`. Red/5xx/401 → error dentro del diálogo.
+- `Notice` gana la variante `info` (tokens `--color-notice-*`) para avisos neutros: 409 de pausa y paso que ya no existe al completar.
 
 ### 16.11 Pendientes
 
