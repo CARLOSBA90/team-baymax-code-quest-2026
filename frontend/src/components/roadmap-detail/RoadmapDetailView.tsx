@@ -13,6 +13,7 @@ import { Notice } from "@/components/ui";
 import { useFocusRequest } from "@/hooks";
 import {
   buildRoadmapDeletedState,
+  didPauseRefetchFail,
   getCompletedCount,
   getCompleteItemErrorMessage,
   getDeleteRoadmapErrorMessage,
@@ -159,8 +160,10 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
             // Sin anuncio: el Notice ya es `role="status"`. El detalle ya está refrescado.
             setNotice({ variant: "info", message: ROADMAP_UPDATED_ELSEWHERE_MESSAGE });
             requestFocus(headingId, getCachedDetail());
-          } else if (!isRoadmapNotFoundError(error)) {
-            // 404: el refetch da 404 y la página pinta «No encontramos esta ruta».
+          } else if (!isRoadmapNotFoundError(error) || didPauseRefetchFail(error)) {
+            // 404 con refetch interno exitoso: el refetch da 404 y la página pinta «No encontramos
+            // esta ruta», sin notice aquí. 404 con refetch interno fallido (red/5xx): la caché queda
+            // obsoleta, así que se trata como cualquier otro error genérico.
             setNotice({ variant: "error", message: getPauseRoadmapErrorMessage(error, paused) });
             // El foco no se mueve de donde estaba el usuario: el ⋯ lo conserva (`aria-disabled`),
             // pero el botón del banner es `disabled` nativo mientras está pendiente y el navegador

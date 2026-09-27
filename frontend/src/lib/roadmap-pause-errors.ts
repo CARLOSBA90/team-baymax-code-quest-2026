@@ -45,6 +45,21 @@ export function shouldRefreshAfterPauseError(error: unknown): boolean {
   return isRoadmapUpdatedElsewhereError(error) || isRoadmapNotFoundError(error);
 }
 
+/**
+ * Error de `usePauseRoadmap` marcado por `refetchFailed` cuando el refetch interno del detalle
+ * (tras un 404/409 de conflicto/transición) falló. Preserva la forma del error original: no lo
+ * envuelve, así `isRoadmapNotFoundError`/`isRoadmapUpdatedElsewhereError`/`getPauseRoadmapErrorMessage`
+ * siguen operando sobre él sin cambios.
+ */
+export interface PauseRefetchError extends Error {
+  refetchFailed?: boolean;
+}
+
+/** El refetch interno de `usePauseRoadmap` tras un 404/409 de conflicto/transición falló. */
+export function didPauseRefetchFail(error: unknown): boolean {
+  return error instanceof Error && (error as PauseRefetchError).refetchFailed === true;
+}
+
 /** Mensaje del Notice de error: conexión si no hubo respuesta; si no, genérico por acción. */
 export function getPauseRoadmapErrorMessage(error: unknown, paused: boolean): string {
   if (isAxiosError(error) && !error.response) return PAUSE_NETWORK_MESSAGE;
