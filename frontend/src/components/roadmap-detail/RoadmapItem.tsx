@@ -79,9 +79,12 @@ export function RoadmapItem({
 }: RoadmapItemProps) {
   const isCompleted = state === "completed";
   const isLessonItem = isLessonChecklistItem(item);
-  const trackingMessage =
-    isCompleted || isLessonItem ? null : getTrackingUnavailableMessage(item.tracking);
-  const showCompleteButton = !isCompleted && canTrack(item.tracking);
+  const trackingMessage = isCompleted ? null : getTrackingUnavailableMessage(item.tracking);
+  const canComplete = !isCompleted && canTrack(item.tracking);
+  // Un curso con temario también se marca entero (atajo bulk), pero su botón vive dentro del
+  // checklist, no en la fila de acciones: así se lee como «marcar todas estas lecciones».
+  const showCompleteButton = canComplete && !isLessonItem;
+  const showCompleteAll = canComplete && isLessonItem;
 
   const handleToggleLesson = (lessonId: string) => {
     if (!onToggleLesson || item.syllabus === null) return;
@@ -177,6 +180,9 @@ export function RoadmapItem({
               locked={lessonTracking.locked}
               pendingKey={lessonTracking.pendingKey}
               onToggle={(lessonId) => handleToggleLesson(lessonId)}
+              onCompleteAll={showCompleteAll ? () => onComplete(item) : undefined}
+              completeAllDisabled={isPaused || completeDisabled}
+              completeAllDescribedBy={isPaused ? pausedDescriptionId : undefined}
             />
           </div>
         ) : null}

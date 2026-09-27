@@ -83,19 +83,21 @@ describe("getItemState", () => {
 });
 
 describe("canTrack", () => {
-  it("true para READING y COMPLETION habilitados", () => {
+  it("true para READING, COMPLETION y LESSONS habilitados", () => {
     expect(canTrack({ type: "READING", enabled: true })).toBe(true);
     expect(canTrack({ type: "COMPLETION", enabled: true })).toBe(true);
+    // LESSONS entra por el atajo bulk: marca el temario entero de una vez.
+    expect(canTrack({ type: "LESSONS", enabled: true })).toBe(true);
   });
 
   it("false si está deshabilitado", () => {
     expect(canTrack({ type: "COMPLETION", enabled: false })).toBe(false);
     expect(canTrack({ type: "READING", enabled: false })).toBe(false);
+    expect(canTrack({ type: "LESSONS", enabled: false })).toBe(false);
   });
 
   it("false para tipos no completables desde el front", () => {
     expect(canTrack({ type: "VIDEO", enabled: true })).toBe(false);
-    expect(canTrack({ type: "LESSONS", enabled: true })).toBe(false);
     expect(canTrack({ type: "CHALLENGE", enabled: true })).toBe(false);
   });
 
@@ -516,7 +518,6 @@ describe("getItemMeta", () => {
 describe("getTrackingUnavailableMessage", () => {
   const METADATA = "Aún no podemos registrar el avance de este curso.";
   const AUTOMATIC = "El avance de este curso se registra automáticamente.";
-  const LESSONS = "El avance de este curso se registra por lección.";
   const CHALLENGE = "El avance se registra al enviar el reto.";
   const GENERIC = "No se puede marcar como completado desde aquí.";
   const tracking = (
@@ -535,7 +536,8 @@ describe("getTrackingUnavailableMessage", () => {
     ],
     ["SYLLABUS_MISSING", tracking("LESSONS", false, "SYLLABUS_MISSING"), METADATA],
     ["VIDEO habilitado", tracking("VIDEO", true), AUTOMATIC],
-    ["LESSONS habilitado", tracking("LESSONS", true), LESSONS],
+    // Con temario, LESSONS ya es `canTrack` (atajo bulk), así que no hay mensaje que dar.
+    ["LESSONS habilitado", tracking("LESSONS", true), null],
     ["CHALLENGE habilitado", tracking("CHALLENGE", true), CHALLENGE],
     [
       "CHALLENGE con disabledReason (tiene precedencia)",

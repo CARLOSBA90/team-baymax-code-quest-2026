@@ -5,7 +5,7 @@ import {
   ConfirmCompleteDialog,
   type ConfirmCompleteDialogProps,
 } from "@/components/roadmap-detail";
-import { buildRoadmapItem } from "@/test/fixtures/roadmap-detail";
+import { buildRoadmapItem, buildSyllabus } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const TITLE = "¿Marcar este paso como completado?";
@@ -66,6 +66,54 @@ describe("ConfirmCompleteDialog", () => {
     expect(screen.queryByRole("button", { name: "Cerrar diálogo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sí, completar" })).toBeEnabled();
+  });
+
+  describe("curso con temario (atajo bulk)", () => {
+    const LESSONS_TITLE = "¿Marcar el curso entero como completado?";
+    const LESSONS_ITEM = buildRoadmapItem({
+      name: "JavaScript desde cero",
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus({ totalLessons: 151 }),
+    });
+
+    it("avisa de cuántas lecciones marca y de que es reversible", () => {
+      renderDialog({ item: LESSONS_ITEM });
+
+      const dialog = screen.getByRole("dialog", { name: LESSONS_TITLE });
+      expect(dialog).toHaveAccessibleDescription(
+        expect.stringContaining("Se marcarán las 151 lecciones del temario."),
+      );
+      // Completar un curso con temario NO es terminal: se puede desmarcar cualquier lección.
+      expect(dialog).toHaveAccessibleDescription(
+        expect.stringContaining("Podrás desmarcar las que quieras después."),
+      );
+      expect(within(dialog).queryByText("no se puede deshacer")).not.toBeInTheDocument();
+    });
+
+    it("singular con un temario de una sola lección", () => {
+      renderDialog({
+        item: buildRoadmapItem({
+          tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+          syllabus: buildSyllabus({ totalLessons: 1 }),
+        }),
+      });
+
+      expect(screen.getByRole("dialog")).toHaveAccessibleDescription(
+        expect.stringContaining("Se marcarán las 1 lección del temario."),
+      );
+    });
+
+    it("un LESSONS sin temario conserva el aviso de acción irreversible", () => {
+      renderDialog({
+        item: buildRoadmapItem({
+          tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+        }),
+      });
+
+      expect(screen.getByRole("dialog", { name: TITLE })).toHaveAccessibleDescription(
+        expect.stringContaining("Esta acción no se puede deshacer."),
+      );
+    });
   });
 
   it.each([

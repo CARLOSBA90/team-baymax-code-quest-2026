@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { getLessonListId, getLessonState, getLessonsProgressLabel } from "@/lib";
 import type { RoadmapItem as RoadmapItemData } from "@/types";
+import { COMPLETE_ALL_LESSONS_LABEL, CompleteButton } from "./CompleteButton";
 import { LessonRow } from "./LessonRow";
 import { ChevronIcon } from "./RoadmapDetailIcons";
 
@@ -14,6 +15,17 @@ export interface LessonChecklistProps {
   /** `${roadmapItemId}:${lessonId}` de la lección con la mutación en vuelo, o `null`. */
   pendingKey: string | null;
   onToggle: (lessonId: string, completed: boolean) => void;
+  /**
+   * Atajo bulk: marca el temario entero. Ausente → no se pinta el botón (ítem ya completado o
+   * tracking deshabilitado). Vive aquí, y no en la fila de acciones del ítem, para que se lea como
+   * «marcar todas estas lecciones»; queda fuera del `<ul>` colapsable para no obligar a desplegar
+   * cientos de casillas antes de encontrarlo.
+   */
+  onCompleteAll?: () => void;
+  /** Deshabilita el botón de marcar todo (pausa o mutación de progreso en curso). */
+  completeAllDisabled?: boolean;
+  /** Id del párrafo del banner de pausa; describe el botón cuando la pausa lo deshabilita. */
+  completeAllDescribedBy?: string;
 }
 
 /**
@@ -29,6 +41,9 @@ export function LessonChecklist({
   locked,
   pendingKey,
   onToggle,
+  onCompleteAll,
+  completeAllDisabled = false,
+  completeAllDescribedBy,
 }: LessonChecklistProps) {
   const [expanded, setExpanded] = useState(false);
   const buttonId = useId();
@@ -56,6 +71,15 @@ export function LessonChecklist({
           className={`size-4 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
         />
       </button>
+      {onCompleteAll ? (
+        <CompleteButton
+          itemName={item.name}
+          label={COMPLETE_ALL_LESSONS_LABEL}
+          describedBy={completeAllDescribedBy}
+          disabled={completeAllDisabled}
+          onClick={onCompleteAll}
+        />
+      ) : null}
       <ul
         id={listId}
         aria-labelledby={buttonId}

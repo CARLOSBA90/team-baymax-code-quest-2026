@@ -12,8 +12,12 @@ import { clampProgress } from "./roadmap-presentation";
 /** Progreso (0-100) a partir del cual un ítem cuenta como completado. */
 export const ITEM_COMPLETED_PROGRESS = 100;
 
-/** Tipos de tracking que el front puede marcar como completados. */
-const TRACKABLE_TYPES: ReadonlySet<string> = new Set(["COMPLETION", "READING"]);
+/**
+ * Tipos de tracking que el front puede marcar como completados. `LESSONS` entra por el atajo bulk
+ * del back (`completed` sin `lesson_id`): marca el temario entero de una vez, para quien ya hizo
+ * el curso fuera de la plataforma y no va a pulsar 151 casillas.
+ */
+const TRACKABLE_TYPES: ReadonlySet<string> = new Set(["COMPLETION", "READING", "LESSONS"]);
 
 const SECOND_MS = 1000;
 const MINUTE_MS = 60 * SECOND_MS;
@@ -268,7 +272,6 @@ export function getItemMeta(
 const TRACKING_METADATA_MESSAGE = "Aún no podemos registrar el avance de este curso.";
 const TRACKING_GENERIC_MESSAGE = "No se puede marcar como completado desde aquí.";
 const TRACKING_AUTOMATIC_MESSAGE = "El avance de este curso se registra automáticamente.";
-const TRACKING_LESSONS_MESSAGE = "El avance de este curso se registra por lección.";
 const TRACKING_CHALLENGE_MESSAGE = "El avance se registra al enviar el reto.";
 
 /** Texto por `disabledReason` (códigos de `backend/src/modules/progress/progress.constants.ts`). */
@@ -279,9 +282,9 @@ export const TRACKING_UNAVAILABLE_MESSAGES: Readonly<Record<string, string>> = {
 
 /**
  * Por qué un ítem no se marca a mano (`null` si `canTrack`). Precedencia: `disabledReason` (código
- * conocido → su texto, desconocido → genérico) > VIDEO automático > LESSONS por lección > CHALLENGE >
- * genérico.
- * Nunca devuelve el código crudo.
+ * conocido → su texto, desconocido → genérico) > VIDEO automático > CHALLENGE > genérico.
+ * Nunca devuelve el código crudo. `LESSONS` con temario ya es `canTrack` (atajo bulk), así que
+ * solo llega aquí sin temario, por su `disabledReason` (`SYLLABUS_MISSING`).
  */
 export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): string | null {
   if (canTrack(tracking)) return null;
@@ -291,7 +294,6 @@ export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): st
       : TRACKING_GENERIC_MESSAGE;
   }
   if (tracking.enabled && tracking.type === "VIDEO") return TRACKING_AUTOMATIC_MESSAGE;
-  if (tracking.enabled && tracking.type === "LESSONS") return TRACKING_LESSONS_MESSAGE;
   if (tracking.type === "CHALLENGE") return TRACKING_CHALLENGE_MESSAGE;
   return TRACKING_GENERIC_MESSAGE;
 }
@@ -328,9 +330,14 @@ export function isLessonChecklistItem(item: Pick<RoadmapItem, "tracking" | "syll
   );
 }
 
+/** «12 lecciones»; singular «1 lección». */
+export function getLessonsCountLabel(total: number): string {
+  return `${total} ${total === 1 ? "lección" : "lecciones"}`;
+}
+
 /** «3 de 12 lecciones»; singular «lección» si el total es 1. */
 export function getLessonsProgressLabel(completed: number, total: number): string {
-  return `${completed} de ${total} ${total === 1 ? "lección" : "lecciones"}`;
+  return `${completed} de ${getLessonsCountLabel(total)}`;
 }
 
 /** `"completed"`/`"pending"` directo de `lesson.completed` (sin cálculo, a diferencia de `getItemState`). */

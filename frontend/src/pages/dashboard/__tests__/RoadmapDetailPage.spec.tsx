@@ -424,9 +424,11 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
 
   it("422: el paso recargado muestra su mensaje de seguimiento y el foco va a su h3", async () => {
     const refreshed = buildFlowRoadmap();
+    // CHALLENGE sigue sin poder marcarse a mano; LESSONS ya no sirve de ejemplo desde que el
+    // atajo bulk lo hace completable.
     refreshed.items[2] = {
       ...refreshed.items[2],
-      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      tracking: { type: "CHALLENGE", enabled: true, disabledReason: null },
     };
     vi.mocked(getRoadmap)
       .mockResolvedValueOnce(buildFlowRoadmap())
@@ -439,9 +441,7 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const { heading, row } = itemRow();
     await waitFor(() =>
-      expect(
-        within(row).getByText("El avance de este curso se registra por lección."),
-      ).toBeInTheDocument(),
+      expect(within(row).getByText("El avance se registra al enviar el reto.")).toBeInTheDocument(),
     );
     expect(within(row).queryByRole("button", { name: COMPLETE_NAME })).not.toBeInTheDocument();
     expect(document.activeElement).toBe(heading);

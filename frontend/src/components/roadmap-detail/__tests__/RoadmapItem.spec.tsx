@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RoadmapItem, type RoadmapItemProps } from "@/components/roadmap-detail";
-import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
+import { buildRoadmapItem, buildSyllabus, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import type { RoadmapItem as RoadmapItemData, RoadmapItemState } from "@/types";
 
@@ -112,19 +112,35 @@ describe("RoadmapItem", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("pendiente con tracking por lecciones (LESSONS) → mensaje por lección y sin botón", () => {
+  it("pendiente con temario (LESSONS) → el botón bulk vive en el checklist, no en las acciones", () => {
     const item = buildRoadmapItem({
       name: "Curso por lecciones",
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus(),
+    });
+    renderItem({ item, stepNumber: 3, state: "pending" });
+
+    expect(screen.queryByText(/se registra por lección/)).not.toBeInTheDocument();
+    // Ni el botón genérico en la fila de acciones ni duplicados: solo el del temario.
+    expect(
+      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+    ).not.toBeInTheDocument();
+    const bulkButton = screen.getByRole("button", { name: /^Marcar curso completo/ });
+    expect(bulkButton.closest("[data-testid='timeline-card']")).not.toBeNull();
+  });
+
+  it("LESSONS sin temario → botón genérico en la fila de acciones y sin checklist", () => {
+    const item = buildRoadmapItem({
+      name: "Curso sin temario",
       tracking: { type: "LESSONS", enabled: true, disabledReason: null },
     });
     renderItem({ item, stepNumber: 3, state: "pending" });
 
+    expect(screen.getByRole("button", { name: /^Marcar como completado/ })).toBeInTheDocument();
     expect(
-      screen.getByText("El avance de este curso se registra por lección."),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+      screen.queryByRole("button", { name: /^Marcar curso completo/ }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Temario/ })).not.toBeInTheDocument();
   });
 
   it("en curso con 40 % → chip «En curso, 40 %», nodo con punto interior y tarjeta activa", () => {

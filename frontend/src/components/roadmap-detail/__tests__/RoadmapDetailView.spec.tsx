@@ -37,6 +37,7 @@ import {
   buildResumedRoadmapDetail,
   buildRoadmapNotFoundError,
   buildRoadmapVersionConflictError,
+  PAUSED_AT,
 } from "@/test/fixtures/roadmap-pause";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { byTextContent } from "@/test/textContent";
@@ -1546,5 +1547,81 @@ describe("RoadmapDetailView — checklist de lecciones", () => {
     expect(otherItemCheckbox).toBeEnabled();
     expect(mediaButton).toBeEnabled();
     expect(menuTrigger).not.toHaveAttribute("aria-disabled");
+  });
+
+  describe("atajo «Marcar curso completo»", () => {
+    function bulkButton(itemName: string) {
+      return screen.getByRole("button", { name: `Marcar curso completo ${itemName}` });
+    }
+
+    it("vive dentro del temario, visible sin desplegarlo, y no duplica el botón genérico", () => {
+      renderFlow();
+
+      const heading = screen.getByRole("heading", { level: 3, name: new RegExp(ITEM_NAME) });
+      const card = heading.closest('[data-testid="timeline-card"]') as HTMLElement;
+      const button = within(card).getByRole("button", {
+        name: `Marcar curso completo ${ITEM_NAME}`,
+      });
+
+      // Sin desplegar: el temario sigue colapsado y aun así el botón se ve.
+      expect(within(card).getByRole("button", { name: /Temario/ })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      expect(button).toBeVisible();
+      expect(
+        within(card).queryByRole("button", { name: /^Marcar como completado/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("confirmar marca el curso entero: un solo POST de ítem, sin reportes por lección", async () => {
+      vi.mocked(trackItemCompletion).mockResolvedValue(
+        buildTrackProgressResult({ roadmapItemId: "item-1", progress: 100, completed: true }),
+      );
+      const user = renderFlow();
+
+      await user.click(bulkButton(ITEM_NAME));
+      const dialog = await screen.findByRole("dialog", {
+        name: "¿Marcar el curso entero como completado?",
+      });
+      expect(dialog).toHaveAccessibleDescription(expect.stringContaining("Se marcarán las"));
+
+      await user.click(within(dialog).getByRole("button", { name: "Sí, completar" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(vi.mocked(trackItemCompletion).mock.calls[0][0]).toBe("item-1");
+      expect(trackItemCompletion).toHaveBeenCalledTimes(1);
+      expect(trackLessonCompletion).not.toHaveBeenCalled();
+    });
+
+    it("cancelar no llama al servicio", async () => {
+      const user = renderFlow();
+
+      await user.click(bulkButton(ITEM_NAME));
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(trackItemCompletion).not.toHaveBeenCalled();
+    });
+
+    it("en pausa queda deshabilitado y descrito por el banner", () => {
+      const paused = buildLessonsRoadmap();
+      renderFlow({ ...paused, status: "PAUSED", pausedAt: PAUSED_AT });
+
+      const button = bulkButton(ITEM_NAME);
+      expect(button).toBeDisabled();
+      const describedBy = button.getAttribute("aria-describedby");
+      expect(describedBy).toBeTruthy();
+      expect(document.getElementById(describedBy as string)).toBeInTheDocument();
+    });
+
+    it("no aparece en un curso con el temario ya completo", () => {
+      renderFlow(buildLessonsRoadmap(4));
+
+      expect(
+        screen.queryByRole("button", { name: `Marcar curso completo ${ITEM_NAME}` }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

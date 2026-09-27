@@ -1,8 +1,17 @@
 import { GhostButton, type GhostButtonProps } from "@/components/ui";
 import { CheckIcon } from "./RoadmapDetailIcons";
 
+/** Etiqueta del atajo bulk: marca de una vez todas las lecciones de un curso con temario. */
+export const COMPLETE_ALL_LESSONS_LABEL = "Marcar curso completo";
+
 export interface CompleteButtonProps {
   itemName: string;
+  /**
+   * Texto visible. Por defecto «Marcar como completado»; el atajo bulk de un temario usa «Marcar
+   * curso completo» para que se lea como «marcar todas las lecciones» y no como una acción
+   * paralela a las casillas.
+   */
+  label?: string;
   /** Id del texto que explica por qué está deshabilitado (p. ej. el banner de pausa). */
   describedBy?: string;
   /**
@@ -30,6 +39,7 @@ const SIZES: Record<
 /** «Marcar como completado»: pide al compositor abrir la confirmación (`onClick`). */
 export function CompleteButton({
   itemName,
+  label = "Marcar como completado",
   describedBy,
   size = "sm",
   onClick,
@@ -46,7 +56,7 @@ export function CompleteButton({
       className={`text-sm ${classes}`}
     >
       <CheckIcon className="size-4" />
-      Marcar como completado <span className="sr-only">{itemName}</span>
+      {label} <span className="sr-only">{itemName}</span>
     </GhostButton>
   );
 }

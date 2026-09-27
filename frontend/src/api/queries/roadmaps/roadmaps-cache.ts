@@ -105,11 +105,11 @@ export function applyTrackProgressResult(
     pausedAt: roadmap.status === "COMPLETED" ? null : detail.pausedAt,
     items: detail.items.map((item) => {
       if (item.roadmapItemId !== variables.roadmapItemId) return item;
-      const syllabus = !item.syllabus
-        ? item.syllabus
-        : variables.kind === "lesson"
+      const syllabus = item.syllabus
+        ? variables.kind === "lesson"
           ? patchSyllabusLesson(item.syllabus, variables.lessonId, variables.completed)
-          : markAllLessons(item.syllabus);
+          : markAllLessons(item.syllabus)
+        : item.syllabus;
       return {
         ...item,
         progress: result.progress,
