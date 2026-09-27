@@ -1537,11 +1537,14 @@ describe("RoadmapDetailView — checklist de lecciones", () => {
       name: `Marcar como completado ${MEDIA_ITEM_NAME}`,
     });
     expect(mediaButton).toBeDisabled();
+    const menuTrigger = screen.getByRole("button", { name: /Más acciones para/ });
+    expect(menuTrigger).toHaveAttribute("aria-disabled", "true");
 
     resolve(buildTrackProgressResult({ roadmapItemId: "item-1" }));
 
     await waitFor(() => expect(busyCheckbox).not.toHaveAttribute("aria-busy"));
     expect(otherItemCheckbox).toBeEnabled();
     expect(mediaButton).toBeEnabled();
+    expect(menuTrigger).not.toHaveAttribute("aria-disabled");
   });
 });

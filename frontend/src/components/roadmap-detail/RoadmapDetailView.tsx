@@ -336,7 +336,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           <RoadmapDetailMenu
             roadmapName={roadmap.name}
             status={roadmap.status}
-            disabled={pauseLocked}
+            disabled={trackLocked}
             onPause={() => handlePauseToggle(true)}
             onResume={() => handlePauseToggle(false)}
             onDelete={handleDeleteRequest}
