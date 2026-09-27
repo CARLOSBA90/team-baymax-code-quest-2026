@@ -4,6 +4,7 @@ import { trackItemCompletion } from "@/api/services";
 import { isRoadmapNotFoundError, shouldRefreshAfterTrackError } from "@/lib";
 import type { RoadmapDetail, TrackProgressResult } from "@/types";
 import { roadmapsKeys } from "./keys";
+import { invalidateRoadmapsList, refreshRoadmapDetail } from "./refresh-detail";
 import { applyTrackProgressResult } from "./roadmaps-cache";
 
 export interface TrackItemCompletionOutcome {
@@ -13,8 +14,6 @@ export interface TrackItemCompletionOutcome {
   /** `false` si el refetch del detalle tras el 200 falló. */
   detailRefreshed: boolean;
 }
-
-type RefreshOutcome = { ok: true } | { ok: false; error: unknown };
 
 /**
  * Marca un paso de la ruta `roadmapId` como completado, de forma pesimista. Todo el ciclo va en el
@@ -32,22 +31,8 @@ export function useTrackProgress(
   const queryClient = useQueryClient();
   const detailKey = roadmapsKeys.detail(roadmapId);
 
-  const refreshDetail = async (): Promise<RefreshOutcome> => {
-    try {
-      await queryClient.invalidateQueries(
-        { queryKey: detailKey, exact: true },
-        { throwOnError: true },
-      );
-      return { ok: true };
-    } catch (error) {
-      return { ok: false, error };
-    }
-  };
-
-  const invalidateList = () => {
-    // Sin await: la pill y Mis Rutas se actualizan en segundo plano.
-    void queryClient.invalidateQueries({ queryKey: roadmapsKeys.list() });
-  };
+  const refreshDetail = () => refreshRoadmapDetail(queryClient, roadmapId);
+  const invalidateList = () => invalidateRoadmapsList(queryClient);
 
   return useMutation<TrackItemCompletionOutcome, Error, string>({
     mutationKey: [...roadmapsKeys.all, "track", roadmapId],
