@@ -12,6 +12,10 @@ import {
   getItemMeta,
   getItemState,
   getItemTypeLabel,
+  getLessonListId,
+  getLessonState,
+  getLessonsProgressLabel,
+  getLessonToggledAnnouncement,
   getNextStepItem,
   getRemainingMinutes,
   getRoadmapProgressSummary,
@@ -24,10 +28,15 @@ import {
   getTrackingUnavailableMessage,
   ITEM_COMPLETED_PROGRESS,
   isItemCompleted,
+  isLessonChecklistItem,
   type RoadmapProgressSummaryInput,
   TRACKING_UNAVAILABLE_MESSAGES,
 } from "@/lib";
-import { buildRoadmapItem } from "@/test/fixtures/roadmap-detail";
+import {
+  buildRoadmapItem,
+  buildSyllabus,
+  buildSyllabusLesson,
+} from "@/test/fixtures/roadmap-detail";
 import type { RoadmapItemTracking } from "@/types";
 
 const STARTED_AT = "2026-09-20T12:00:00Z";
@@ -645,5 +654,120 @@ describe("getItemHeadingId", () => {
 
   it("ids distintos dan resultados distintos", () => {
     expect(getItemHeadingId("p-", "a")).not.toBe(getItemHeadingId("p-", "b"));
+  });
+});
+
+describe("isLessonChecklistItem", () => {
+  it("LESSONS con temario real (al menos una lección) → true", () => {
+    const item = buildRoadmapItem({
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus(),
+    });
+    expect(isLessonChecklistItem(item)).toBe(true);
+  });
+
+  it("LESSONS sin temario (SYLLABUS_MISSING, syllabus null) → false", () => {
+    const item = buildRoadmapItem({
+      tracking: { type: "LESSONS", enabled: false, disabledReason: "SYLLABUS_MISSING" },
+      syllabus: null,
+    });
+    expect(isLessonChecklistItem(item)).toBe(false);
+  });
+
+  it("LESSONS con syllabus sin lecciones → false", () => {
+    const item = buildRoadmapItem({
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus({ totalLessons: 0, sections: [] }),
+    });
+    expect(isLessonChecklistItem(item)).toBe(false);
+  });
+
+  it("otro tipo de tracking → false aunque haya syllabus", () => {
+    const item = buildRoadmapItem({
+      tracking: { type: "COMPLETION", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus(),
+    });
+    expect(isLessonChecklistItem(item)).toBe(false);
+  });
+});
+
+describe("getLessonsProgressLabel", () => {
+  it.each([
+    [3, 12, "3 de 12 lecciones"],
+    [0, 1, "0 de 1 lección"],
+    [1, 1, "1 de 1 lección"],
+    [5, 5, "5 de 5 lecciones"],
+  ])("(%s, %s) → «%s»", (completed, total, expected) => {
+    expect(getLessonsProgressLabel(completed, total)).toBe(expected);
+  });
+});
+
+describe("getLessonState", () => {
+  it('completed: true → "completed"', () => {
+    expect(getLessonState(buildSyllabusLesson({ completed: true }))).toBe("completed");
+  });
+
+  it('completed: false → "pending"', () => {
+    expect(getLessonState(buildSyllabusLesson({ completed: false }))).toBe("pending");
+  });
+});
+
+describe("getLessonListId", () => {
+  it("combina el prefijo con el id del ítem", () => {
+    expect(getLessonListId("p-", "item-1")).toBe("p-lessons-item-1");
+  });
+
+  it("ids distintos dan resultados distintos", () => {
+    expect(getLessonListId("p-", "a")).not.toBe(getLessonListId("p-", "b"));
+  });
+});
+
+describe("getLessonToggledAnnouncement", () => {
+  it('marcar una lección intermedia anuncia el progreso, sin "Completaste"', () => {
+    expect(
+      getLessonToggledAnnouncement({
+        lessonTitle: "Variables y tipos de datos",
+        marked: true,
+        itemName: "Fundamentos de JavaScript",
+        itemProgress: 50,
+        completedLessons: 2,
+        totalLessons: 4,
+        roadmapCompleted: false,
+      }),
+    ).toBe(
+      "Variables y tipos de datos marcada como completada. 2 de 4 lecciones en Fundamentos de JavaScript.",
+    );
+  });
+
+  it("marcar la última lección añade « Completaste la ruta.»", () => {
+    expect(
+      getLessonToggledAnnouncement({
+        lessonTitle: "Condicionales y bucles",
+        marked: true,
+        itemName: "Fundamentos de JavaScript",
+        itemProgress: 100,
+        completedLessons: 4,
+        totalLessons: 4,
+        roadmapCompleted: true,
+      }),
+    ).toBe(
+      "Condicionales y bucles marcada como completada. 4 de 4 lecciones en Fundamentos de JavaScript. Completaste la ruta.",
+    );
+  });
+
+  it('desmarcar anuncia "pendiente" y nunca "Completaste", ni con roadmapCompleted true', () => {
+    const announcement = getLessonToggledAnnouncement({
+      lessonTitle: "Variables y tipos de datos",
+      marked: false,
+      itemName: "Fundamentos de JavaScript",
+      itemProgress: 75,
+      completedLessons: 3,
+      totalLessons: 4,
+      roadmapCompleted: true,
+    });
+    expect(announcement).toBe(
+      "Variables y tipos de datos marcada como pendiente. 3 de 4 lecciones en Fundamentos de JavaScript.",
+    );
+    expect(announcement).not.toContain("Completaste");
   });
 });

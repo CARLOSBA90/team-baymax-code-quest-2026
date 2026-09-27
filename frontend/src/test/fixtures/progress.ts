@@ -58,3 +58,13 @@ export function buildRoadmapItemNotFoundError(): AxiosError {
 export function buildTrackingMismatchError(): AxiosError {
   return buildAxiosError(422, "Tracking report mismatch", { code: "TRACKING_REPORT_MISMATCH" });
 }
+
+/** 422 `SYLLABUS_MISSING`: el curso ya no tiene temario al intentar trackear una lección. */
+export function buildSyllabusMissingError(): AxiosError {
+  return buildAxiosError(422, "Syllabus missing", { code: "SYLLABUS_MISSING" });
+}
+
+/** 422 `LESSON_NOT_IN_ITEM`: la lección enviada ya no pertenece al curso. */
+export function buildLessonNotInItemError(): AxiosError {
+  return buildAxiosError(422, "Lesson not in item", { code: "LESSON_NOT_IN_ITEM" });
+}
