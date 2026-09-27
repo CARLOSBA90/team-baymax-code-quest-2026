@@ -20,7 +20,8 @@ export interface RoadmapDetailMenuProps {
  * derecha (el radio lo pone `DropdownMenu`, así que aquí no va otra utilidad de `rounded-*`).
  * Mientras `disabled` (pausar/reanudar en curso), además de `aria-disabled` (lo pone
  * `DropdownMenu`, con `aria-disabled:opacity-50`) el ⋯ se sustituye por `SpinnerIcon`
- * (`animate-spin`, decorativo) como indicador visual de carga.
+ * (`animate-spin motion-reduce:animate-none`, decorativo) como indicador visual de carga,
+ * y un `role="status"` `sr-only` anuncia el estado a lectores de pantalla.
  */
 export function RoadmapDetailMenu({
   roadmapName,
@@ -49,15 +50,26 @@ export function RoadmapDetailMenu({
   items.push({ id: "delete", label: "Eliminar ruta", tone: "danger", onSelect: onDelete });
 
   return (
-    <DropdownMenu
-      triggerLabel={`Más acciones para ${roadmapName}`}
-      trigger={
-        disabled ? <SpinnerIcon className="size-5 animate-spin" /> : <MoreIcon className="size-5" />
-      }
-      items={items}
-      align="end"
-      disabled={disabled}
-      triggerClassName="size-11 border border-border-card text-text-secondary transition-colors hover:bg-bg-ghost-hover hover:text-text-primary"
-    />
+    <>
+      <DropdownMenu
+        triggerLabel={`Más acciones para ${roadmapName}`}
+        trigger={
+          disabled ? (
+            <SpinnerIcon className="size-5 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <MoreIcon className="size-5" />
+          )
+        }
+        items={items}
+        align="end"
+        disabled={disabled}
+        triggerClassName="size-11 border border-border-card text-text-secondary transition-colors hover:bg-bg-ghost-hover hover:text-text-primary"
+      />
+      {disabled ? (
+        <p role="status" aria-live="polite" className="sr-only">
+          Actualizando el estado de la ruta…
+        </p>
+      ) : null}
+    </>
   );
 }

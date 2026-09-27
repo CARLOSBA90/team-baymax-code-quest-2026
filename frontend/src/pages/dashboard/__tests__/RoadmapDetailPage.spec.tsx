@@ -767,18 +767,19 @@ describe("RoadmapDetailPage — pausar, reanudar y eliminar (refetch real)", () 
     expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
   });
 
-  it("409 con el refetch fallido: se queda la vista previa, aviso neutro y foco en el h1", async () => {
+  it("409 con el refetch fallido: se queda la vista previa, alerta genérica (no el aviso neutro) y el foco no se mueve", async () => {
     vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapVersionConflictError());
     const { user } = await renderLoaded();
-    // Refetch tras el error.
+    // Refetch tras el error: falla por red, no confirma el conflicto de versión.
     vi.mocked(getRoadmap).mockRejectedValueOnce(buildAxiosError(500, "Internal server error"));
 
     await selectMenuItem(user, "Pausar ruta");
 
-    expect(await screen.findByText(UPDATED_ELSEWHERE)).toHaveAttribute("role", "status");
-    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(await screen.findByRole("alert")).toHaveTextContent(PAUSE_GENERIC_MESSAGE);
+    expect(screen.queryByText(UPDATED_ELSEWHERE)).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
     expect(screen.queryByText("No pudimos cargar la ruta")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger());
     expect(getRoadmap).toHaveBeenCalledTimes(2);
   });
 
