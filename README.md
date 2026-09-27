@@ -201,7 +201,7 @@ Requisitos: Node 22+, pnpm 9+, una base PostgreSQL (Neon gratuita o local) y una
 ```bash
 cd backend
 pnpm install
-cp .env.example .env        # copiar COMPLETO: el backend no arranca si faltan variables
+cp .env.example .env        # copiar COMPLETO: ver "Variables de entorno del backend"
 ```
 
 Editar en `.env` solo estas cinco; el resto puede quedar como está:
@@ -236,6 +236,46 @@ pnpm dev                    # http://localhost:5173
 Opcional: Google/GitHub como login (`GOOGLE_*`, `GITHUB_*`), correos reales (`MAIL_*`, cuenta gratuita de Brevo)
 y generación de rutas con IA (`ROADMAP_GENERATOR_PROVIDER=NVIDIA` + `NVIDIA_API_KEY`).
 Sin nada de eso la app funciona completa: login con Discord y rutas por reglas.
+
+#### Variables de entorno del backend
+
+La referencia con valores de ejemplo es `backend/.env.example`. El backend no
+valida el `.env` al arrancar: cada variable tiene un valor por defecto salvo las
+marcadas como obligatorias.
+
+| Variable | ¿Obligatoria? | Por defecto | Para qué / qué pasa si falta |
+|---|---|---|---|
+| `DATABASE_URL` | **Sí** | — | Conexión de la app a PostgreSQL (con `-pooler` en Neon). Sin ella no hay base de datos. |
+| `DIRECT_URL` | **Sí** para migrar | — | Conexión directa que usa Prisma CLI (`migrate`, `db seed`). |
+| `BETTER_AUTH_SECRET` | **Sí** en producción | secreto por defecto de Better Auth | Firma las sesiones. En producción Better Auth se niega a arrancar con el secreto por defecto. |
+| `BETTER_AUTH_URL` | Recomendada | — | URL pública del backend, sin `/api/auth`. |
+| `MAIL_HOST`, `MAIL_USER`, `MAIL_PASSWORD` | **Deben existir** (pueden estar vacías) | — | El módulo de correo las lee con `getOrThrow`: si la variable no está en el `.env`, el backend no arranca. Vacías, arranca pero no envía correos. |
+| `MAIL_PORT` | No | `587` | `465` usa TLS directo; `587`, STARTTLS. |
+| `MAIL_SENDER_NAME` / `MAIL_SENDER_EMAIL` | No | `CodeQuest` / `MAIL_USER` | Remitente de los correos (con Brevo debe ser un remitente verificado). |
+| `FRONTEND_URL` | No | — | Base de los enlaces de los correos (recuperar contraseña). |
+| `DISCORD_CLIENT_ID` / `_SECRET` | No | — | Sin el par, el login con Discord se deshabilita (aviso en el log). |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | No | — | Igual para Google. |
+| `GITHUB_CLIENT_ID` / `_SECRET` | No | — | Igual para GitHub. |
+| `REQUIRE_EMAIL_VERIFICATION` | No | `false` | Solo `true` exige verificar el email antes de iniciar sesión. |
+| `EXPOSE_VERIFICATION_URL` | No | `false` | Solo desarrollo: devuelve la URL de verificación en `X-Verification-Url`. Nunca en producción. |
+| `NODE_ENV` | No | — | Con `production` las cookies pasan a `SameSite=None` y `Secure`. |
+| `PORT` | No | `3001` | Puerto HTTP. |
+| `TRUSTED_ORIGINS` | Recomendada | vacío | Orígenes permitidos para CORS y Better Auth, separados por comas (el frontend). |
+| `ADMIN_EMAILS` | No | vacío | Emails administradores, separados por comas. Vacío: nadie es admin. |
+| `ROADMAP_GENERATOR_PROVIDER` | No | `RULES` | Generador principal: `RULES` (determinista, sin servicios externos) o `NVIDIA` (IA). |
+| `ROADMAP_GENERATOR_FALLBACKS` | No | ninguno | Generadores de respaldo; `RULES` siempre queda al final. |
+| `NVIDIA_API_KEY` | Solo para IA | vacía | Sin clave, NVIDIA queda no disponible y las rutas se generan con `RULES`. |
+| `NVIDIA_MODELS` / `NVIDIA_MODEL` | Solo para IA | vacías | Modelos separados por comas. Sin modelos, igual que sin clave: se usa `RULES`. |
+| `NVIDIA_BASE_URL` | No | `https://integrate.api.nvidia.com/v1` | API de NVIDIA o un NIM propio compatible con OpenAI. |
+| `NVIDIA_MAX_ATTEMPTS` | No | `2` (máx. 4) | Cuántos modelos de la lista compiten en paralelo; gana el primer plan válido. |
+| `NVIDIA_TIMEOUT_MS` / `NVIDIA_TOTAL_TIMEOUT_MS` | No | `30000` / `30000` | Tiempo máximo por modelo: el menor de los dos (máx. 120 000). |
+| `NVIDIA_FIRST_TOKEN_TIMEOUT_MS` | No | `10000` | Sin primer fragmento en ese tiempo, la petición está en cola y se reenvía. |
+| `NVIDIA_QUEUE_RETRIES` | No | `2` (máx. 5) | Reenvíos por cola o HTTP 429/5xx, dentro del tiempo del modelo. |
+| `CHALLENGE_UPLOAD_DIR` | No | `.data/challenge-submissions` | Carpeta privada de los archivos de retos. En despliegue, un volumen persistente que nunca se sirva públicamente. |
+
+Para generar rutas con IA basta con `ROADMAP_GENERATOR_PROVIDER=NVIDIA`,
+`NVIDIA_API_KEY` y `NVIDIA_MODELS`; si NVIDIA falla o no responde a tiempo,
+la ruta se genera igualmente con `RULES`.
 
 ---
 
