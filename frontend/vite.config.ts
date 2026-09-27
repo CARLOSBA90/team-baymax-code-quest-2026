@@ -61,6 +61,8 @@ export default defineConfig({
         "src/lib/roadmap-{detail,filters,labels,presentation}.ts",
         "src/lib/roadmap-delete-errors.ts",
         "src/lib/roadmap-progress-errors.ts",
+        "src/lib/roadmap-pause-errors.ts",
+        "src/lib/api-error-code.ts",
         "src/api/services/roadmaps.service.ts",
         "src/api/services/progress.service.ts",
         "src/api/queries/roadmaps/**",

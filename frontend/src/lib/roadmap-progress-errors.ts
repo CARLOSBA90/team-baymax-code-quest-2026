@@ -1,4 +1,5 @@
 import { isAxiosError } from "axios";
+import { getApiErrorCode, getApiErrorStatus } from "./api-error-code";
 
 // Clasificación y copy en español de los errores de `POST /progress/track` al marcar un paso como
 // completado. Nunca se muestra el `message` del back (en inglés).
@@ -21,31 +22,21 @@ export const ROADMAP_ITEM_NOT_FOUND_MESSAGE = "Este paso ya no existe. Hemos act
 export const TRACKING_MISMATCH_TRACK_MESSAGE =
   "Este paso ya no se puede marcar como completado desde aquí.";
 
-function getStatus(error: unknown): number | undefined {
-  return isAxiosError(error) ? error.response?.status : undefined;
-}
-
-/** `response.data.code` del back si es un string; si no, `null`. */
-export function getTrackErrorCode(error: unknown): string | null {
-  if (!isAxiosError(error)) return null;
-  const data: unknown = error.response?.data;
-  if (typeof data !== "object" || data === null || !("code" in data)) return null;
-  return typeof data.code === "string" ? data.code : null;
-}
-
 /** 409 con `code` `ROADMAP_PAUSED` (otros 409 no son alcanzables al completar → genérico). */
 export function isRoadmapPausedError(error: unknown): boolean {
-  return getStatus(error) === 409 && getTrackErrorCode(error) === ROADMAP_PAUSED_CODE;
+  return getApiErrorStatus(error) === 409 && getApiErrorCode(error) === ROADMAP_PAUSED_CODE;
 }
 
 /** 404 por status: el back solo responde `ROADMAP_ITEM_NOT_FOUND` (ítem o ruta inexistentes). */
 export function isRoadmapItemNotFoundError(error: unknown): boolean {
-  return getStatus(error) === 404;
+  return getApiErrorStatus(error) === 404;
 }
 
 /** 422 con `code` `TRACKING_REPORT_MISMATCH`. */
 export function isTrackingMismatchError(error: unknown): boolean {
-  return getStatus(error) === 422 && getTrackErrorCode(error) === TRACKING_REPORT_MISMATCH_CODE;
+  return (
+    getApiErrorStatus(error) === 422 && getApiErrorCode(error) === TRACKING_REPORT_MISMATCH_CODE
+  );
 }
 
 /** Errores tras los que hay que recargar el detalle (el estado del servidor cambió). */

@@ -181,3 +181,13 @@ export interface RoadmapDetail {
   items: RoadmapItem[];
   nextStep: RoadmapNextStep | null;
 }
+
+/**
+ * Body de `PATCH /roadmaps/:id/pause`. En camelCase: el DTO de entrada del back lo es (excepción
+ * frente al resto del cable, en snake_case). `expectedActivityVersion` = `activityVersion` del
+ * detalle pintado (control de concurrencia optimista: 409 `ROADMAP_VERSION_CONFLICT`).
+ */
+export interface SetRoadmapPausedBody {
+  paused: boolean;
+  expectedActivityVersion: number;
+}
