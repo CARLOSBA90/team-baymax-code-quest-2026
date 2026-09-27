@@ -100,3 +100,14 @@ export function PlayIcon({ className }: RoadmapDetailIconProps) {
     </StrokeIcon>
   );
 }
+
+/** ⋯ horizontal del menú de acciones del detalle. */
+export function MoreIcon({ className }: RoadmapDetailIconProps) {
+  return (
+    <StrokeIcon className={className}>
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+    </StrokeIcon>
+  );
+}

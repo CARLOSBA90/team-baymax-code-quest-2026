@@ -1,5 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { DropdownMenu, type DropdownMenuItem, type DropdownMenuProps } from "@/components/ui";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -267,5 +268,66 @@ describe("DropdownMenu", () => {
     const { trigger, user } = renderMenu();
     await user.click(trigger);
     expect(screen.getByRole("menu")).toHaveClass("right-0");
+  });
+
+  describe("disabled", () => {
+    it("marca el disparador aria-disabled y ni clic ni teclas abren el menú", async () => {
+      const { trigger, user, items } = renderMenu({ disabled: true });
+      expect(trigger).toHaveAttribute("aria-disabled", "true");
+      expect(trigger).toHaveClass("aria-disabled:cursor-not-allowed", "aria-disabled:opacity-50");
+
+      await user.click(trigger);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      trigger.focus();
+      for (const key of ["{Enter}", " ", "{ArrowDown}", "{ArrowUp}"]) {
+        await user.keyboard(key);
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      }
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      for (const item of items) expect(item.onSelect).not.toHaveBeenCalled();
+    });
+
+    it("el disparador deshabilitado conserva el foco y sigue en el orden de tabulación", async () => {
+      const { trigger, user } = renderMenu({ disabled: true });
+      await user.click(screen.getByRole("button", { name: "Antes" }));
+      await user.tab();
+      expect(trigger).toHaveFocus();
+      expect(trigger).not.toHaveAttribute("disabled");
+    });
+
+    it("sin disabled no hay aria-disabled", () => {
+      const { trigger } = renderMenu();
+      expect(trigger).not.toHaveAttribute("aria-disabled");
+    });
+
+    it("deshabilitarlo con el menú abierto lo cierra y no se reabre al rehabilitar", () => {
+      function Harness() {
+        const [disabled, setDisabled] = useState(false);
+        return (
+          <>
+            <DropdownMenu
+              triggerLabel="Más acciones"
+              trigger={<span>⋮</span>}
+              items={buildItems()}
+              disabled={disabled}
+            />
+            <button type="button" onClick={() => setDisabled((value) => !value)}>
+              Alternar
+            </button>
+          </>
+        );
+      }
+      renderWithProviders(<Harness />);
+      const trigger = screen.getByRole("button", { name: "Más acciones" });
+      const toggle = screen.getByRole("button", { name: "Alternar" });
+
+      fireEvent.click(trigger);
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      fireEvent.click(toggle);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      fireEvent.click(toggle);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
   });
 });

@@ -13,6 +13,11 @@ export interface NextStepCardProps {
   total: number;
   /** Pide completar el paso (abre la confirmación en el compositor). */
   onComplete: (item: RoadmapItem) => void;
+  /**
+   * Bloquea «Marcar como completado» mientras pausar/reanudar está en curso (sin describirlo: es
+   * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
+   */
+  completeDisabled?: boolean;
 }
 
 /**
@@ -28,7 +33,13 @@ export interface NextStepCardProps {
  * descripción o sin acciones) quedan en filas de 0px porque no hay `gap-y`: el espacio vertical
  * son los `mt-*` de los hijos presentes.
  */
-export function NextStepCard({ item, stepNumber, total, onComplete }: NextStepCardProps) {
+export function NextStepCard({
+  item,
+  stepNumber,
+  total,
+  onComplete,
+  completeDisabled = false,
+}: NextStepCardProps) {
   const eyebrowId = useId();
   const isCompleted = isItemCompleted(item);
   const showCompleteButton = !isCompleted && canTrack(item.tracking);
@@ -69,7 +80,12 @@ export function NextStepCard({ item, stepNumber, total, onComplete }: NextStepCa
             <ExternalCourseLink url={item.url} itemName={item.name} variant="primary" />
           ) : null}
           {showCompleteButton ? (
-            <CompleteButton itemName={item.name} size="md" onClick={() => onComplete(item)} />
+            <CompleteButton
+              itemName={item.name}
+              size="md"
+              disabled={completeDisabled}
+              onClick={() => onComplete(item)}
+            />
           ) : null}
           {trackingMessage ? (
             <p className="min-w-0 font-body text-[12.5px] text-text-muted">{trackingMessage}</p>

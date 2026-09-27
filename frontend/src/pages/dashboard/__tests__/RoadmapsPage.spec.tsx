@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
 import { deleteRoadmap, getRoadmaps } from "@/api/services";
 import { DashboardLayout } from "@/components/layouts";
-import { ASSESSMENT_COMPLETED_STATE } from "@/lib";
+import { ASSESSMENT_COMPLETED_STATE, buildRoadmapDeletedState } from "@/lib";
 import { RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
@@ -851,6 +851,110 @@ describe("RoadmapsPage", () => {
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
       expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("aviso de ruta eliminada desde el detalle", () => {
+    const DELETED_NAME = "Frontend moderno";
+    const DELETED_NOTICE = `Ruta «${DELETED_NAME}» eliminada`;
+    const NOT_FOUND_NOTICE = "Esa ruta ya no existe. Hemos actualizado tu lista.";
+
+    beforeEach(() => {
+      vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+      vi.mocked(deleteRoadmap).mockResolvedValue({ id: "rm-backend-nest" });
+    });
+
+    function StateProbe() {
+      const location = useLocation();
+      return <p data-testid="location-state">{JSON.stringify(location.state ?? null)}</p>;
+    }
+
+    function renderArrival(state: unknown) {
+      renderWithProviders(
+        <>
+          <Routes>
+            <Route path="/dashboard/roadmaps" element={<RoadmapsPage />} />
+          </Routes>
+          <StateProbe />
+        </>,
+        { initialEntries: [{ pathname: "/dashboard/roadmaps", state }] },
+      );
+      return userEvent.setup();
+    }
+
+    function heading() {
+      return screen.getByRole("heading", { level: 1, name: "Mis Rutas" });
+    }
+
+    it("muestra el aviso success con el nombre, enfoca el h1 y limpia el state", async () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+
+      expect(screen.getByText(DELETED_NOTICE)).toHaveAttribute("role", "status");
+      await waitFor(() => expect(heading()).toHaveFocus());
+      await expectStateCleared();
+      await waitForList();
+      expect(screen.getByText(DELETED_NOTICE)).toBeInTheDocument();
+      expect(screen.getAllByText(DELETED_NOTICE)).toHaveLength(1);
+    });
+
+    it("con notFound muestra el aviso neutro de 404 como success", async () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, true));
+
+      expect(screen.getByText(NOT_FOUND_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+      await waitFor(() => expect(heading()).toHaveFocus());
+      await expectStateCleared();
+    });
+
+    it("cambiar de filtro oculta el aviso y no vuelve", async () => {
+      const user = renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+      await expectStateCleared();
+      await waitForList();
+
+      await user.click(filterButton(/^Completadas/));
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+
+      await user.click(filterButton(/^Todas/));
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+    });
+
+    it("borrar otra ruta desde la lista deja solo el aviso nuevo", async () => {
+      const user = renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+      await expectStateCleared();
+      await waitForList();
+
+      await user.click(within(table()).getByRole("button", { name: `Más acciones para ${BE}` }));
+      await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
+      await user.click(screen.getByRole("button", { name: "Eliminar ruta" }));
+
+      expect(await screen.findByText(`Ruta «${BE}» eliminada`)).toBeInTheDocument();
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["{ foo: 1 }", { foo: 1 }],
+      ["nombre vacío", { roadmapDeleted: { name: "", notFound: false } }],
+      ["notFound no booleano", { roadmapDeleted: { name: DELETED_NAME, notFound: "no" } }],
+    ])(
+      "con un state de otra forma (%s) no muestra aviso ni mueve el foco",
+      async (_label, state) => {
+        renderArrival(state);
+
+        await waitForList();
+        expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+        expect(screen.queryByText(NOT_FOUND_NOTICE)).not.toBeInTheDocument();
+        expect(heading()).not.toHaveFocus();
+      },
+    );
+
+    it("el state de cuestionario completado sigue mostrando su aviso sin mover el foco", async () => {
+      renderArrival(ASSESSMENT_COMPLETED_STATE);
+
+      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
+      await expectStateCleared();
+      await waitForList();
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+      expect(heading()).not.toHaveFocus();
     });
   });
 });

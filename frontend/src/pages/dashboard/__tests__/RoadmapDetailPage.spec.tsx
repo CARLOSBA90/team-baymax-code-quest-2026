@@ -1,10 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { roadmapsKeys } from "@/api/queries/roadmaps";
-import { getRoadmap, trackItemCompletion } from "@/api/services";
+import { deleteRoadmap, getRoadmap, setRoadmapPaused, trackItemCompletion } from "@/api/services";
 import { RoadmapDetailPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
@@ -15,14 +15,26 @@ import {
 } from "@/test/fixtures/progress";
 import {
   buildCompletedRoadmapDetail,
+  buildPausedRoadmapDetail,
   buildRoadmapDetail,
   ROADMAP_DETAIL,
 } from "@/test/fixtures/roadmap-detail";
+import {
+  buildInvalidRoadmapTransitionError,
+  buildRoadmapNotFoundError,
+  buildRoadmapVersionConflictError,
+  PAUSED_AT,
+} from "@/test/fixtures/roadmap-pause";
 import { createTestQueryClient, renderWithProviders } from "@/test/renderWithProviders";
 import { byTextContent } from "@/test/textContent";
 import type { RoadmapDetail } from "@/types";
 
-vi.mock("@/api/services", () => ({ getRoadmap: vi.fn(), trackItemCompletion: vi.fn() }));
+vi.mock("@/api/services", () => ({
+  deleteRoadmap: vi.fn(),
+  getRoadmap: vi.fn(),
+  setRoadmapPaused: vi.fn(),
+  trackItemCompletion: vi.fn(),
+}));
 
 const ID = ROADMAP_DETAIL.id;
 
@@ -349,6 +361,7 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
       }),
     );
     const { user } = await renderLoaded();
+    const liveRegion = announcer();
 
     await openAndConfirm(user);
 
@@ -358,6 +371,9 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
         within(region).getByRole("heading", { level: 2, name: "Completaste la ruta" }),
       ),
     );
+    // La live region es el mismo nodo antes y después del cambio a COMPLETED (no se remonta).
+    expect(announcer()).toBe(liveRegion);
+    expect(liveRegion).toHaveAttribute("aria-live", "polite");
     expect(announcer()).toHaveTextContent(
       `${ITEM_NAME} marcado como completado. Progreso de la ruta: 100 por ciento, 4 de 4 pasos. Completaste la ruta.`,
     );
@@ -383,6 +399,25 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
       "Esta ruta está pausada. Reanúdala para registrar tu avance.",
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(getRoadmap).toHaveBeenCalledTimes(2);
+  });
+
+  it("409 pausada con el refetch fallido: cierra el diálogo, la vista sigue montada y el foco va al h1", async () => {
+    vi.mocked(getRoadmap)
+      .mockResolvedValueOnce(buildFlowRoadmap())
+      .mockRejectedValueOnce(buildNetworkError());
+    vi.mocked(trackItemCompletion).mockRejectedValue(buildRoadmapPausedError());
+    const { user } = await renderLoaded();
+
+    await openAndConfirm(user);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const heading = screen.getByRole("heading", { level: 1, name: ROADMAP_DETAIL.name });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(
+      screen.queryByRole("region", { name: "Esta ruta está en pausa" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar la ruta")).not.toBeInTheDocument();
     expect(getRoadmap).toHaveBeenCalledTimes(2);
   });
 
@@ -520,6 +555,316 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(trackItemCompletion).not.toHaveBeenCalled();
+    expect(getRoadmap).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("RoadmapDetailPage — pausar, reanudar y eliminar (refetch real)", () => {
+  const NAME = ROADMAP_DETAIL.name;
+  const TRIGGER_NAME = `Más acciones para ${NAME}`;
+  const PAUSED_ANNOUNCEMENT = "Ruta pausada. Mientras esté pausada no se registra tu avance.";
+  const RESUMED_ANNOUNCEMENT = "Ruta reanudada. Ya puedes registrar tu avance.";
+  const UPDATED_ELSEWHERE =
+    "Alguien actualizó esta ruta desde otro lugar. Ya tienes la versión más reciente.";
+  const NETWORK_MESSAGE =
+    "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
+
+  /** Respuesta 200 de pausar `ROADMAP_DETAIL` (v12 → v13). */
+  function buildPausedResponse(): RoadmapDetail {
+    return buildRoadmapDetail({ status: "PAUSED", pausedAt: PAUSED_AT, activityVersion: 13 });
+  }
+
+  /** Respuesta 200 de reanudar `buildPausedRoadmapDetail()` (v12 → v13). */
+  function buildResumedResponse(): RoadmapDetail {
+    return buildRoadmapDetail({ status: "IN_PROGRESS", pausedAt: null, activityVersion: 13 });
+  }
+
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => {};
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  function trigger() {
+    return screen.getByRole("button", { name: TRIGGER_NAME });
+  }
+
+  function mainHeading() {
+    return screen.getByRole("heading", { level: 1, name: NAME });
+  }
+
+  function announcer() {
+    return screen.getByTestId("roadmap-detail-announcer");
+  }
+
+  function pausedRegion() {
+    return screen.getByRole("region", { name: "Esta ruta está en pausa" });
+  }
+
+  function completeButtons() {
+    return screen.getAllByRole("button", { name: /^Marcar como completado/ });
+  }
+
+  async function renderLoaded(initial: RoadmapDetail = ROADMAP_DETAIL) {
+    vi.mocked(getRoadmap).mockResolvedValueOnce(initial);
+    const user = userEvent.setup();
+    const result = renderPage();
+    expect(await roadmapHeading()).toBeInTheDocument();
+    return { user, ...result };
+  }
+
+  async function selectMenuItem(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.click(trigger());
+    await user.click(screen.getByRole("menuitem", { name: label }));
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.documentElement.classList.remove("overflow-hidden");
+  });
+
+  it("pausar desde ⋯: bloquea mientras pende; luego banner, «En pausa», anuncio y foco en el h2 del banner", async () => {
+    const patch = deferred<RoadmapDetail>();
+    vi.mocked(setRoadmapPaused).mockReturnValue(patch.promise);
+    const { user } = await renderLoaded();
+    const liveRegion = announcer();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(trigger()).toHaveAttribute("aria-disabled", "true");
+    for (const button of completeButtons()) expect(button).toBeDisabled();
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][0]).toBe(ID);
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][1]).toEqual({
+      paused: true,
+      expectedActivityVersion: ROADMAP_DETAIL.activityVersion,
+    });
+
+    patch.resolve(buildPausedResponse());
+
+    const region = await screen.findByRole("region", { name: "Esta ruta está en pausa" });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(region).getByRole("heading", { level: 2 })),
+    );
+    expect(screen.getByText("En pausa")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Continúa aquí" })).not.toBeInTheDocument();
+    expect(announcer()).toBe(liveRegion);
+    expect(liveRegion).toHaveTextContent(PAUSED_ANNOUNCEMENT);
+    expect(trigger()).not.toHaveAttribute("aria-disabled");
+    expect(getRoadmap).toHaveBeenCalledTimes(1);
+  });
+
+  it("reanudar desde el banner: «Reanudando…», luego «Continúa aquí», completar habilitado, anuncio y foco en el h1", async () => {
+    const patch = deferred<RoadmapDetail>();
+    vi.mocked(setRoadmapPaused).mockReturnValue(patch.promise);
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+
+    await user.click(within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" }));
+
+    expect(within(pausedRegion()).getByRole("button", { name: "Reanudando…" })).toBeDisabled();
+    expect(trigger()).toHaveAttribute("aria-disabled", "true");
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][1]).toEqual({
+      paused: false,
+      expectedActivityVersion: ROADMAP_DETAIL.activityVersion,
+    });
+
+    patch.resolve(buildResumedResponse());
+
+    expect(await screen.findByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(
+      screen.queryByRole("region", { name: "Esta ruta está en pausa" }),
+    ).not.toBeInTheDocument();
+    for (const button of completeButtons()) expect(button).toBeEnabled();
+    expect(announcer()).toHaveTextContent(RESUMED_ANNOUNCEMENT);
+    expect(getRoadmap).toHaveBeenCalledTimes(1);
+  });
+
+  it("reanudar desde ⋯: «Continúa aquí», anuncio y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockResolvedValue(buildResumedResponse());
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+
+    await selectMenuItem(user, "Reanudar ruta");
+
+    expect(await screen.findByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(announcer()).toHaveTextContent(RESUMED_ANNOUNCEMENT);
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][1]).toMatchObject({ paused: false });
+  });
+
+  it("200 idempotente igual a lo pintado: el foco se mueve enseguida, sin esperar la cota", async () => {
+    // El back devuelve la ruta tal cual (ya estaba en ese estado): structural sharing conserva la
+    // referencia en caché, así que no hay re-render que esperar.
+    vi.mocked(setRoadmapPaused).mockResolvedValue(buildPausedRoadmapDetail());
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+
+    await selectMenuItem(user, "Reanudar ruta");
+
+    // Muy por debajo de FOCUS_REQUEST_MAX_WAIT_MS (1000 ms).
+    await waitFor(
+      () =>
+        expect(document.activeElement).toBe(
+          within(pausedRegion()).getByRole("heading", { level: 2 }),
+        ),
+      { timeout: 300 },
+    );
+    expect(announcer()).toHaveTextContent(PAUSED_ANNOUNCEMENT);
+    expect(getRoadmap).toHaveBeenCalledTimes(1);
+  });
+
+  it("reanudar → 200 COMPLETED: panel de completada, sin anuncio y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockResolvedValue(buildCompletedRoadmapDetail());
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+
+    await user.click(within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" }));
+
+    expect(await screen.findByRole("region", { name: "Completaste la ruta" })).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("409 ROADMAP_VERSION_CONFLICT: recarga la ruta (ya en pausa), aviso neutro y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapVersionConflictError());
+    const { user } = await renderLoaded();
+    // Refetch tras el error.
+    vi.mocked(getRoadmap).mockResolvedValueOnce(buildPausedResponse());
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(
+      await screen.findByRole("region", { name: "Esta ruta está en pausa" }),
+    ).toBeInTheDocument();
+    const notice = await screen.findByText(UPDATED_ELSEWHERE);
+    expect(notice).toHaveAttribute("role", "status");
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+    expect(getRoadmap).toHaveBeenCalledTimes(2);
+  });
+
+  it("409 INVALID_ROADMAP_TRANSITION: recarga la ruta completada, aviso neutro y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildInvalidRoadmapTransitionError());
+    const { user } = await renderLoaded();
+    // Refetch tras el error.
+    vi.mocked(getRoadmap).mockResolvedValueOnce(buildCompletedRoadmapDetail());
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(await screen.findByRole("region", { name: "Completaste la ruta" })).toBeInTheDocument();
+    expect(await screen.findByText(UPDATED_ELSEWHERE)).toHaveAttribute("role", "status");
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+  });
+
+  it("409 con el refetch fallido: se queda la vista previa, aviso neutro y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapVersionConflictError());
+    const { user } = await renderLoaded();
+    // Refetch tras el error.
+    vi.mocked(getRoadmap).mockRejectedValueOnce(buildAxiosError(500, "Internal server error"));
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(await screen.findByText(UPDATED_ELSEWHERE)).toHaveAttribute("role", "status");
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(screen.getByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar la ruta")).not.toBeInTheDocument();
+    expect(getRoadmap).toHaveBeenCalledTimes(2);
+  });
+
+  it("404 con la ruta borrada: «No encontramos esta ruta»", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapNotFoundError());
+    const { user } = await renderLoaded();
+    // Refetch tras el error.
+    vi.mocked(getRoadmap).mockRejectedValueOnce(buildRoadmapNotFoundError());
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "No encontramos esta ruta" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Roadmap not found.")).not.toBeInTheDocument();
+  });
+
+  it("sin conexión: alerta arriba, el foco sigue en ⋯ y un reintento correcto la limpia", async () => {
+    vi.mocked(setRoadmapPaused)
+      .mockRejectedValueOnce(buildNetworkError())
+      .mockResolvedValueOnce(buildPausedResponse());
+    const { user } = await renderLoaded();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+    expect(document.activeElement).toBe(trigger());
+    expect(getRoadmap).toHaveBeenCalledTimes(1);
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(
+      await screen.findByRole("region", { name: "Esta ruta está en pausa" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(announcer()).toHaveTextContent(PAUSED_ANNOUNCEMENT);
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(2);
+  });
+
+  it("sin conexión al reanudar desde el banner: el foco vuelve a su «Reanudar ruta»", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildNetworkError());
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+
+    await user.click(within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+    const button = within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" });
+    await waitFor(() => expect(document.activeElement).toBe(button));
+    expect(button).toBeEnabled();
+  });
+
+  it("eliminar desde ⋯ navega a Mis Rutas con replace y el state de borrado", async () => {
+    vi.mocked(deleteRoadmap).mockResolvedValue({ id: ID });
+    vi.mocked(getRoadmap).mockResolvedValueOnce(ROADMAP_DETAIL);
+    function MisRutasStub() {
+      const location = useLocation();
+      const navigationType = useNavigationType();
+      return (
+        <>
+          <h1>Mis Rutas</h1>
+          <output data-testid="arrival">
+            {navigationType} {JSON.stringify(location.state)}
+          </output>
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route path="/dashboard/roadmaps" element={<MisRutasStub />} />
+        <Route path="/dashboard/roadmaps/:roadmapId" element={<RoadmapDetailPage />} />
+      </Routes>,
+      { route: `/dashboard/roadmaps/${ID}` },
+    );
+    expect(await roadmapHeading()).toBeInTheDocument();
+
+    await selectMenuItem(user, "Eliminar ruta");
+    await user.click(
+      within(screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` })).getByRole("button", {
+        name: "Eliminar ruta",
+      }),
+    );
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
+    expect(screen.getByTestId("arrival")).toHaveTextContent(
+      `REPLACE ${JSON.stringify({ roadmapDeleted: { name: NAME, notFound: false } })}`,
+    );
+    expect(vi.mocked(deleteRoadmap).mock.calls[0][0]).toBe(ID);
     expect(getRoadmap).toHaveBeenCalledTimes(1);
   });
 });

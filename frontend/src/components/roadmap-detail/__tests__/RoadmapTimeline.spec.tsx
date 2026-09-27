@@ -169,4 +169,24 @@ describe("RoadmapTimeline", () => {
       expect(button).toHaveAttribute("aria-describedby", "paused-desc");
     }
   });
+
+  it("completeDisabled deshabilita todos los botones de completar, sin describirlos", () => {
+    renderWithProviders(
+      <RoadmapTimeline
+        items={ROADMAP_DETAIL.items}
+        nextStepId={NEXT_ID}
+        completed={1}
+        isPaused={false}
+        completeDisabled
+        {...HANDLERS}
+      />,
+    );
+
+    const buttons = screen.getAllByRole("button", { name: /^Marcar como completado/ });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button).toBeDisabled();
+      expect(button).not.toHaveAttribute("aria-describedby");
+    }
+  });
 });

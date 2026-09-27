@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   getCompleteItemErrorMessage,
-  getTrackErrorCode,
   isRoadmapItemNotFoundError,
   isRoadmapPausedError,
   isTrackingMismatchError,
@@ -133,21 +132,7 @@ describe("clasificación de errores de completado", () => {
   });
 });
 
-describe("getTrackErrorCode", () => {
-  it("devuelve response.data.code si es string", () => {
-    expect(getTrackErrorCode(buildRoadmapPausedError())).toBe("ROADMAP_PAUSED");
-  });
-
-  it.each([
-    ["code numérico", buildAxiosError(409, BACKEND_MESSAGE, { code: 42 })],
-    ["sin code", buildAxiosError(409, BACKEND_MESSAGE)],
-    ["red", buildNetworkError()],
-    ["no Axios", new Error("x")],
-    ["null", null],
-  ])("%s → null", (_label, error) => {
-    expect(getTrackErrorCode(error)).toBeNull();
-  });
-
+describe("code no string", () => {
   it("un 409 con code no string no cuenta como pausa", () => {
     const error = buildAxiosError(409, BACKEND_MESSAGE, { code: 42 });
     expect(isRoadmapPausedError(error)).toBe(false);

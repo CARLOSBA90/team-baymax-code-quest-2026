@@ -1,3 +1,4 @@
+export * from "./api-error-code";
 export * from "./assessment-labels";
 export * from "./auth-client";
 export * from "./auth-errors";
@@ -6,6 +7,7 @@ export * from "./roadmap-delete-errors";
 export * from "./roadmap-detail";
 export * from "./roadmap-filters";
 export * from "./roadmap-labels";
+export * from "./roadmap-pause-errors";
 export * from "./roadmap-presentation";
 export * from "./roadmap-progress-errors";
 export * from "./roadmaps-location-state";

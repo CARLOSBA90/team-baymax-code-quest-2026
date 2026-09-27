@@ -1,4 +1,4 @@
-import { apiClient, del, get } from "@/api/client";
+import { apiClient, del, get, patch } from "@/api/client";
 import type {
   RoadmapDetail,
   RoadmapDetailDto,
@@ -8,6 +8,7 @@ import type {
   RoadmapSummaryDto,
   RoadmapsListResponseDto,
   RoadmapsListResult,
+  SetRoadmapPausedBody,
 } from "@/types";
 
 /**
@@ -123,4 +124,22 @@ export function toRoadmapDetail(dto: RoadmapDetailDto): RoadmapDetail {
  */
 export async function getRoadmap(id: string): Promise<RoadmapDetail> {
   return toRoadmapDetail(await get<RoadmapDetailDto>(`/roadmaps/${encodeURIComponent(id)}`));
+}
+
+/**
+ * `PATCH /roadmaps/{id}/pause`: pausa (`paused: true`) o reanuda (`false`) la ruta. El body va en
+ * camelCase (el DTO de entrada del back lo es) y se construye campo a campo: no se cuela ninguna
+ * otra clave. La respuesta es el detalle completo (mismo serializer que `GET /roadmaps/:id`), así
+ * que se mapea con `toRoadmapDetail`. Los errores (404, 409 `ROADMAP_VERSION_CONFLICT` /
+ * `INVALID_ROADMAP_TRANSITION`, red…) se propagan tal cual.
+ */
+export async function setRoadmapPaused(
+  id: string,
+  { paused, expectedActivityVersion }: SetRoadmapPausedBody,
+): Promise<RoadmapDetail> {
+  const dto = await patch<RoadmapDetailDto, SetRoadmapPausedBody>(
+    `/roadmaps/${encodeURIComponent(id)}/pause`,
+    { paused, expectedActivityVersion },
+  );
+  return toRoadmapDetail(dto);
 }

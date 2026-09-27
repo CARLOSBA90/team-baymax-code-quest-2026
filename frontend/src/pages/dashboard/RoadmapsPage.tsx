@@ -12,68 +12,22 @@ import {
   RoadmapsTable,
 } from "@/components/roadmaps";
 import { Notice, PrimaryButton } from "@/components/ui";
-import { useDeleteRoadmapNotice } from "@/hooks";
+import { useDeleteRoadmapNotice, useLocationStateNotice } from "@/hooks";
 import {
   filterRoadmaps,
   getDeleteRoadmapErrorMessage,
   getRoadmapDeletedMessage,
   getRoadmapsSummary,
-  isAssessmentCompletedState,
+  isRoadmapDeletedState,
   isRoadmapNotFoundError,
   parseRoadmapFilter,
+  parseRoadmapsArrivalState,
   ROADMAP_DELETE_NOT_FOUND_MESSAGE,
   ROADMAP_FILTER_EMPTY_MESSAGES,
   ROADMAP_STATUS_PARAM,
   type RoadmapFilter,
 } from "@/lib";
 import type { RoadmapSummary } from "@/types";
-
-/**
- * Entrada del historial (`location.key`) a la que pertenece el aviso. `pending` mientras se
- * espera la entrada que crea la limpieza del `state` (el `replace` genera una `key` nueva).
- */
-interface NoticeOwner {
-  key: string;
-  pending: boolean;
-}
-
-/**
- * Aviso de cuestionario completado, ligado a una sola entrada del historial.
- *
- * `RoadmapsPage` no se remonta al cambiar entre entradas de la misma ruta (atrás/adelante, un
- * `Link` a Mis Rutas), así que no basta con congelar el valor inicial: el aviso se descarta en
- * cuanto `location.key` deja de ser la de su entrada. No se usa `key={location.key}` para
- * remontar porque la propia limpieza con `replace` cambia la `key` y borraría el aviso.
- */
-function useAssessmentCompletedNotice(): boolean {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const arrivedCompleted = isAssessmentCompletedState(location.state);
-  const [owner, setOwner] = useState<NoticeOwner | null>(() =>
-    arrivedCompleted ? { key: location.key, pending: true } : null,
-  );
-  // Evita un segundo `replace` si StrictMode repite el efecto sobre la misma entrada.
-  const cleanedKeyRef = useRef<string | null>(null);
-
-  if (arrivedCompleted && owner?.key !== location.key) {
-    setOwner({ key: location.key, pending: true });
-  } else if (owner !== null && owner.key !== location.key) {
-    // La primera entrada nueva tras la limpieza hereda el aviso; cualquier otra lo descarta.
-    setOwner(owner.pending ? { key: location.key, pending: false } : null);
-  }
-
-  // Limpia el state de la entrada del historial para que el aviso no reaparezca al recargar.
-  useEffect(() => {
-    if (!arrivedCompleted || cleanedKeyRef.current === location.key) return;
-    cleanedKeyRef.current = location.key;
-    navigate(
-      { pathname: location.pathname, search: location.search, hash: location.hash },
-      { replace: true, state: null },
-    );
-  }, [arrivedCompleted, location, navigate]);
-
-  return owner !== null;
-}
 
 interface RoadmapsLoadErrorProps {
   message: string;
@@ -114,7 +68,11 @@ function useRoadmapFilterParam(): [RoadmapFilter, (filter: RoadmapFilter) => voi
 
 export const RoadmapsPage = () => {
   const navigate = useNavigate();
-  const showAssessmentNotice = useAssessmentCompletedNotice();
+  const location = useLocation();
+  // Aviso de llegada desde otra pantalla (`location.state`), ligado a su entrada del historial:
+  // cuestionario completado o ruta eliminada desde el detalle.
+  const arrival = useLocationStateNotice(parseRoadmapsArrivalState);
+  const showAssessmentNotice = arrival?.kind === "assessment-completed";
   const [filter, setFilter] = useRoadmapFilterParam();
   const { data, isError, error, refetch } = useRoadmaps();
   // Filtrado en memoria: cambiar de filtro no cambia la query key ni dispara peticiones.
@@ -128,7 +86,9 @@ export const RoadmapsPage = () => {
   const deleteMutation = useDeleteRoadmap();
   const [roadmapToDelete, setRoadmapToDelete] = useState<RoadmapSummary | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [focusHeading, setFocusHeading] = useState(false);
+  // Al llegar tras borrar desde el detalle la página se monta nueva: el foco va al h1 (el detalle
+  // desmontado ya no tiene dónde dejarlo).
+  const [focusHeading, setFocusHeading] = useState(() => isRoadmapDeletedState(location.state));
 
   // Tras borrar (o 404) el foco va al h1. Este efecto corre después del de `Modal`, que al
   // cerrarse devuelve el foco al kebab; así gana el h1 aunque el kebab ya no exista.
@@ -162,6 +122,10 @@ export const RoadmapsPage = () => {
       },
     });
   };
+
+  // Un borrado en esta página reemplaza al aviso de llegada.
+  const deletedMessage =
+    deleteNotice.message ?? (arrival?.kind === "roadmap-deleted" ? arrival.message : null);
 
   const deleteErrorMessage =
     deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
@@ -229,7 +193,7 @@ export const RoadmapsPage = () => {
           ¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.
         </Notice>
       )}
-      {deleteNotice.message !== null && <Notice variant="success">{deleteNotice.message}</Notice>}
+      {deletedMessage !== null && <Notice variant="success">{deletedMessage}</Notice>}
       {content}
       <DeleteRoadmapDialog
         roadmap={roadmapToDelete}

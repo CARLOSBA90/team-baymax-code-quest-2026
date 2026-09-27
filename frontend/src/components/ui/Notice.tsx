@@ -1,32 +1,30 @@
 import type { PropsWithChildren } from "react";
 
-const variants = {
-  error: {
-    role: "alert",
-    backgroundColor: "rgba(248, 113, 113, 0.10)",
-    borderColor: "rgba(248, 113, 113, 0.30)",
-    color: "#FCA5A5",
-  },
-  success: {
-    role: "status",
-    backgroundColor: "rgba(74, 222, 128, 0.10)",
-    borderColor: "rgba(74, 222, 128, 0.30)",
-    color: "#86EFAC",
-  },
-} as const;
+export type NoticeVariant = "error" | "success" | "info";
+
+const ROLE: Record<NoticeVariant, "alert" | "status"> = {
+  error: "alert",
+  success: "status",
+  info: "status",
+};
+
+// Tokens `--color-notice-*` de `index.css` (bloque «Avisos»).
+const VARIANT_CLASSES: Record<NoticeVariant, string> = {
+  error: "border-notice-error-border bg-notice-error-bg text-notice-error-text",
+  success: "border-notice-success-border bg-notice-success-bg text-notice-success-text",
+  info: "border-notice-info-border bg-notice-info-bg text-notice-info-text",
+};
 
 interface NoticeProps {
-  variant: keyof typeof variants;
+  /** `error` → `role="alert"`; `success` e `info` (aviso neutro) → `role="status"`. */
+  variant: NoticeVariant;
 }
 
 export function Notice({ variant, children }: PropsWithChildren<NoticeProps>) {
-  const { role, ...colors } = variants[variant];
-
   return (
     <div
-      role={role}
-      className="rounded-xl px-3 py-3 font-body text-xs"
-      style={{ ...colors, borderWidth: 1, borderStyle: "solid" }}
+      role={ROLE[variant]}
+      className={`rounded-xl border px-3 py-3 font-body text-xs ${VARIANT_CLASSES[variant]}`}
     >
       {children}
     </div>

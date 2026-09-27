@@ -1,11 +1,12 @@
 import type { AxiosResponse } from "axios";
 import { describe, expect, it, vi } from "vitest";
-import { apiClient, del, get } from "@/api/client";
+import { apiClient, del, get, patch } from "@/api/client";
 import {
   deleteRoadmap,
   getRoadmap,
   getRoadmaps,
   ROADMAPS_LIST_LIMIT,
+  setRoadmapPaused,
   toRoadmapDetail,
   toRoadmapSummary,
 } from "@/api/services";
@@ -16,6 +17,11 @@ import {
   ROADMAP_DETAIL_DTO,
 } from "@/test/fixtures/roadmap-detail";
 import {
+  buildPausedRoadmapDetailDto,
+  buildPausedRoadmapDetailResult,
+  buildRoadmapVersionConflictError,
+} from "@/test/fixtures/roadmap-pause";
+import {
   buildRoadmapsListResponseDto,
   EMPTY_ROADMAPS_RESULT,
   ROADMAP_SUMMARY_DTOS,
@@ -23,7 +29,12 @@ import {
 } from "@/test/fixtures/roadmaps";
 import type { RoadmapDetailDto, RoadmapItemDto, RoadmapsListResponseDto } from "@/types";
 
-vi.mock("@/api/client", () => ({ apiClient: { get: vi.fn() }, del: vi.fn(), get: vi.fn() }));
+vi.mock("@/api/client", () => ({
+  apiClient: { get: vi.fn() },
+  del: vi.fn(),
+  get: vi.fn(),
+  patch: vi.fn(),
+}));
 
 function mockListResponse(body: RoadmapsListResponseDto) {
   vi.mocked(apiClient.get).mockResolvedValue({
@@ -312,5 +323,63 @@ describe("getRoadmap", () => {
     vi.mocked(get).mockRejectedValue(error);
 
     await expect(getRoadmap("x")).rejects.toBe(error);
+  });
+});
+
+describe("setRoadmapPaused", () => {
+  it("envía un único PATCH /roadmaps/:id/pause con el body exacto", async () => {
+    vi.mocked(patch).mockResolvedValue(buildPausedRoadmapDetailDto());
+
+    await setRoadmapPaused("r1", { paused: true, expectedActivityVersion: 7 });
+
+    expect(patch).toHaveBeenCalledTimes(1);
+    expect(patch).toHaveBeenCalledWith("/roadmaps/r1/pause", {
+      paused: true,
+      expectedActivityVersion: 7,
+    });
+  });
+
+  it("no reenvía claves extra del objeto recibido", async () => {
+    vi.mocked(patch).mockResolvedValue(buildPausedRoadmapDetailDto());
+    const body = { paused: false, expectedActivityVersion: 3, status: "PAUSED", id: "x" };
+
+    await setRoadmapPaused("r1", body);
+
+    const sent = vi.mocked(patch).mock.calls[0][1];
+    expect(sent).toEqual({ paused: false, expectedActivityVersion: 3 });
+    expect(Object.keys(sent as object).sort()).toEqual(["expectedActivityVersion", "paused"]);
+  });
+
+  it("codifica el id como segmento de la URL", async () => {
+    vi.mocked(patch).mockResolvedValue(buildPausedRoadmapDetailDto());
+
+    await setRoadmapPaused("a/b c", { paused: true, expectedActivityVersion: 1 });
+
+    expect(vi.mocked(patch).mock.calls[0][0]).toBe("/roadmaps/a%2Fb%20c/pause");
+  });
+
+  it("mapea la respuesta con el mismo mapeo que el detalle (PAUSED, ordenado, sin extras)", async () => {
+    const dto = buildPausedRoadmapDetailDto();
+    vi.mocked(patch).mockResolvedValue(dto);
+
+    const result = await setRoadmapPaused("r1", { paused: true, expectedActivityVersion: 7 });
+
+    expect(result).toEqual(toRoadmapDetail(dto));
+    expect(result).toEqual(buildPausedRoadmapDetailResult());
+    expect(result.status).toBe("PAUSED");
+    expect(result.pausedAt).toBe("2026-09-25T11:30:00.000Z");
+    expect(result.activityVersion).toBe(8);
+    expect(result.items.map((item) => item.order)).toEqual([1, 2, 3, 4]);
+    expect(collectKeys(result)).not.toContain("reason");
+    expect(collectKeys(result)).not.toContain("courses");
+  });
+
+  it("propaga el AxiosError original (409)", async () => {
+    const error = buildRoadmapVersionConflictError();
+    vi.mocked(patch).mockRejectedValue(error);
+
+    await expect(setRoadmapPaused("r1", { paused: true, expectedActivityVersion: 7 })).rejects.toBe(
+      error,
+    );
   });
 });

@@ -14,6 +14,11 @@ export interface RoadmapTimelineProps {
   onComplete: (item: RoadmapItemData) => void;
   /** Prefijo de los ids de los h3 (`getItemHeadingId(prefix, roadmapItemId)`). */
   itemHeadingIdPrefix: string;
+  /**
+   * Bloquea «Marcar como completado» mientras pausar/reanudar está en curso (sin describirlo: es
+   * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
+   */
+  completeDisabled?: boolean;
 }
 
 /**
@@ -29,6 +34,7 @@ export function RoadmapTimeline({
   pausedDescriptionId,
   onComplete,
   itemHeadingIdPrefix,
+  completeDisabled = false,
 }: RoadmapTimelineProps) {
   const headingId = useId();
   const total = items.length;
@@ -62,6 +68,7 @@ export function RoadmapTimeline({
             pausedDescriptionId={pausedDescriptionId}
             onComplete={onComplete}
             headingId={getItemHeadingId(itemHeadingIdPrefix, item.roadmapItemId)}
+            completeDisabled={completeDisabled}
           />
         ))}
       </ol>

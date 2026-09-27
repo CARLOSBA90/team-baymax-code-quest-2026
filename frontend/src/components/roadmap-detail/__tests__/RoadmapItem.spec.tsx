@@ -378,4 +378,22 @@ describe("RoadmapItem", () => {
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
   });
+
+  it("completeDisabled: botón disabled sin aria-describedby y el clic no llama", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    renderItem({
+      onComplete,
+      item: MEDIA_ITEM,
+      stepNumber: 3,
+      state: "next",
+      completeDisabled: true,
+    });
+
+    const button = screen.getByRole("button", { name: /^Marcar como completado/ });
+    expect(button).toBeDisabled();
+    expect(button).not.toHaveAttribute("aria-describedby");
+    await user.click(button);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
 });

@@ -21,6 +21,11 @@ export interface RoadmapItemProps {
   onComplete: (item: RoadmapItemData) => void;
   /** Id del h3; destino de foco (`tabIndex={-1}`) tras completar. */
   headingId: string;
+  /**
+   * Bloquea «Marcar como completado» mientras pausar/reanudar está en curso (sin describirlo: es
+   * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
+   */
+  completeDisabled?: boolean;
 }
 
 const CARD_CLASSES: Record<RoadmapItemState, string> = {
@@ -52,6 +57,7 @@ export function RoadmapItem({
   pausedDescriptionId,
   onComplete,
   headingId,
+  completeDisabled = false,
 }: RoadmapItemProps) {
   const isCompleted = state === "completed";
   const trackingMessage = isCompleted ? null : getTrackingUnavailableMessage(item.tracking);
@@ -124,7 +130,7 @@ export function RoadmapItem({
               <CompleteButton
                 itemName={item.name}
                 describedBy={isPaused ? pausedDescriptionId : undefined}
-                disabled={isPaused}
+                disabled={isPaused || completeDisabled}
                 onClick={() => onComplete(item)}
               />
             ) : null}

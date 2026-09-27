@@ -5,7 +5,8 @@ import type { RoadmapsListResult } from "@/types";
 import { roadmapsKeys } from "./keys";
 
 // Evita volver a pedir el listado en cada remount (navegar entre páginas del dashboard); las
-// mutaciones que lo cambian (p. ej. enviar el cuestionario) invalidan roadmapsKeys.all explícitamente.
+// mutaciones que lo cambian lo invalidan explícitamente: enviar el cuestionario, roadmapsKeys.all;
+// borrar, completar un paso y pausar/reanudar, solo roadmapsKeys.list() (no el detalle activo).
 export const ROADMAPS_STALE_TIME = 30_000;
 
 // Una sola entrada de caché para toda la app: la página (cualquier filtro) y la pill del

@@ -268,4 +268,24 @@ describe("NextStepCard", () => {
 
     expect(screen.queryByText(/Recommended because/)).not.toBeInTheDocument();
   });
+
+  it("completeDisabled: «Marcar como completado» deshabilitado y el clic no llama", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    const item = buildRoadmapItem({ name: "Node.js" });
+    renderWithProviders(
+      <NextStepCard
+        item={item}
+        stepNumber={1}
+        total={3}
+        onComplete={onComplete}
+        completeDisabled
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Marcar como completado Node.js" });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
 });

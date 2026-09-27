@@ -10,6 +10,7 @@ export * from "./NextStepCard";
 export * from "./PausedBanner";
 export * from "./RoadmapCompletedPanel";
 export * from "./RoadmapDetailIcons";
+export * from "./RoadmapDetailMenu";
 export * from "./RoadmapDetailSkeleton";
 export * from "./RoadmapDetailView";
 export * from "./RoadmapHeader";
