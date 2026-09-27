@@ -445,14 +445,29 @@ describe('ProgressService.track lessons', () => {
     );
   });
 
-  it('requires the lesson id for lesson tracking', async () => {
-    const { service } = setup(lessons());
+  it('marks all lessons at once and reaches 100 % with { completed: true }', async () => {
+    const { service, tx } = setup(lessons());
 
-    await expectError(
-      service.track(USER_ID, report({ completed: true })),
-      HttpStatus.UNPROCESSABLE_ENTITY,
-      'TRACKING_REPORT_MISMATCH',
+    await service.track(USER_ID, report({ completed: true }));
+
+    const data = tx.progress.update.mock.calls[0][0].data;
+    expect(data.percentage).toBe(100);
+    expect(data.completedAt).toBeInstanceOf(Date);
+    expect(data.trackingState.completedLessons).toEqual(['l1', 'l2', 'l3', 'l4']);
+    expect(data.trackingState.lastLessonId).toBe('l4');
+  });
+
+  it('resets all lessons at once back to 0 % with { completed: false }', async () => {
+    const { service, tx } = setup(
+      lessons({ completedLessons: ['l1', 'l2', 'l3', 'l4'] }, 100),
     );
+
+    await service.track(USER_ID, report({ completed: false }));
+
+    const data = tx.progress.update.mock.calls[0][0].data;
+    expect(data.percentage).toBe(0);
+    expect(data.completedAt).toBeNull();
+    expect(data.trackingState.completedLessons).toEqual([]);
   });
 
   it('only accepts completed: true for items without lessons', async () => {
