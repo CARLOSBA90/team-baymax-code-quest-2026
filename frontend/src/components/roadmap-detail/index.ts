@@ -6,6 +6,8 @@ export * from "./ItemStateDot";
 export * from "./ItemStatusChip";
 export * from "./ItemThumbnail";
 export * from "./ItemTypeIcon";
+export * from "./LessonChecklist";
+export * from "./LessonRow";
 export * from "./NextStepCard";
 export * from "./PausedBanner";
 export * from "./RoadmapCompletedPanel";

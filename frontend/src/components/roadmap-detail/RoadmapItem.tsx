@@ -1,11 +1,23 @@
-import { canTrack, getStepLabel, getTrackingUnavailableMessage } from "@/lib";
-import type { RoadmapItem as RoadmapItemData, RoadmapItemState } from "@/types";
+import {
+  canTrack,
+  getStepLabel,
+  getTrackingUnavailableMessage,
+  isLessonChecklistItem,
+} from "@/lib";
+import type { RoadmapItem as RoadmapItemData, RoadmapItemState, SyllabusLesson } from "@/types";
 import { CompleteButton } from "./CompleteButton";
 import { ExternalCourseLink } from "./ExternalCourseLink";
 import { ItemMeta } from "./ItemMeta";
 import { ItemStateDot } from "./ItemStateDot";
 import { ItemStatusChip } from "./ItemStatusChip";
 import { ItemThumbnail } from "./ItemThumbnail";
+import { LessonChecklist } from "./LessonChecklist";
+
+/** Bloqueo compartido del checklist de lecciones (todos los ítems comparten una sola mutación). */
+export interface LessonTracking {
+  locked: boolean;
+  pendingKey: string | null;
+}
 
 export interface RoadmapItemProps {
   item: RoadmapItemData;
@@ -26,6 +38,10 @@ export interface RoadmapItemProps {
    * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
    */
   completeDisabled?: boolean;
+  /** Marca/desmarca una lección del temario (checklist de un ítem `LESSONS` con temario real). */
+  onToggleLesson?: (item: RoadmapItemData, lesson: SyllabusLesson) => void;
+  /** Bloqueo/lección en curso compartido por el checklist de todos los ítems del timeline. */
+  lessonTracking?: LessonTracking;
 }
 
 const CARD_CLASSES: Record<RoadmapItemState, string> = {
@@ -58,10 +74,22 @@ export function RoadmapItem({
   onComplete,
   headingId,
   completeDisabled = false,
+  onToggleLesson,
+  lessonTracking = { locked: false, pendingKey: null },
 }: RoadmapItemProps) {
   const isCompleted = state === "completed";
-  const trackingMessage = isCompleted ? null : getTrackingUnavailableMessage(item.tracking);
+  const isLessonItem = isLessonChecklistItem(item);
+  const trackingMessage =
+    isCompleted || isLessonItem ? null : getTrackingUnavailableMessage(item.tracking);
   const showCompleteButton = !isCompleted && canTrack(item.tracking);
+
+  const handleToggleLesson = (lessonId: string) => {
+    if (!onToggleLesson || item.syllabus === null) return;
+    const lesson = item.syllabus.sections
+      .flatMap((section) => section.lessons)
+      .find((candidate) => candidate.lessonId === lessonId);
+    if (lesson) onToggleLesson(item, lesson);
+  };
 
   return (
     <li className="relative pb-3.5 last:pb-0 sm:pl-7 lg:pl-11" data-state={state}>
@@ -79,7 +107,7 @@ export function RoadmapItem({
       />
       <div
         data-testid="timeline-card"
-        className={`grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border p-3.5 [grid-template-areas:'thumb_body'_'actions_actions'] sm:grid-rows-[auto_1fr] sm:gap-x-4 sm:px-[18px] sm:py-4 sm:[grid-template-areas:'thumb_body'_'thumb_actions'] ${CARD_CLASSES[state]}`}
+        className={`grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border p-3.5 [grid-template-areas:'thumb_body'_'actions_actions'_'lessons_lessons'] sm:grid-rows-[auto_1fr] sm:gap-x-4 sm:px-[18px] sm:py-4 sm:[grid-template-areas:'thumb_body'_'thumb_actions'_'lessons_lessons'] ${CARD_CLASSES[state]}`}
       >
         <ItemThumbnail
           key={item.image ?? "none"}
@@ -139,6 +167,17 @@ export function RoadmapItem({
                 {trackingMessage}
               </p>
             ) : null}
+          </div>
+        ) : null}
+        {isLessonItem && item.syllabus !== null ? (
+          <div className="[grid-area:lessons] mt-3">
+            <LessonChecklist
+              item={item}
+              headingId={headingId}
+              locked={lessonTracking.locked}
+              pendingKey={lessonTracking.pendingKey}
+              onToggle={(lessonId) => handleToggleLesson(lessonId)}
+            />
           </div>
         ) : null}
       </div>

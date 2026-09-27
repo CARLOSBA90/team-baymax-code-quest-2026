@@ -37,7 +37,7 @@ describe("RoadmapItem", () => {
     vi.useRealTimers();
   });
 
-  it("completado: li con data-state, h3 «Paso i de N: …», chip, meta y enlace, sin botón ni mensaje", () => {
+  it("completado: li con data-state, h3 «Paso i de N: …», chip, meta y enlace, sin botón de completar ni mensaje", () => {
     renderItem();
 
     const li = screen.getByRole("listitem");
@@ -54,7 +54,12 @@ describe("RoadmapItem", () => {
         name: "Ir al curso Fundamentos de JavaScript (se abre en una pestaña nueva)",
       }),
     ).toHaveAttribute("href", COMPLETED_ITEM.url);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // Ítem LESSONS con temario real: sin botón «Marcar como completado» (irreversible, no aplica
+    // a LESSONS) pero SÍ con el disclosure del checklist, incluso completado (reversible).
+    expect(
+      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Temario/ })).toBeInTheDocument();
     expect(screen.queryByText(/registra|registrar/)).not.toBeInTheDocument();
   });
 
