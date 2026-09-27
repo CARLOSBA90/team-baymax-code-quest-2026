@@ -145,6 +145,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   // Sin confirmación ni guard de `isPending`: el ⋯ y el banner están deshabilitados mientras tanto.
   // `fromBanner`: la acción salió del botón del banner, al que vuelve el foco si falla.
   const handlePauseToggle = (paused: boolean, fromBanner = false) => {
+    pauseMutation.reset();
     clearFeedback();
     pauseMutation.mutate(
       { paused, expectedActivityVersion: roadmap.activityVersion },
