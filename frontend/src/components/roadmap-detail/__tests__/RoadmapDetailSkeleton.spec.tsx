@@ -40,6 +40,19 @@ describe("RoadmapDetailSkeleton", () => {
     expect(screen.getByTestId("skeleton-badge")).toHaveClass("h-6.5", "w-22.5");
   });
 
+  it("reserva el hueco de 44×44 del ⋯ junto a la cabecera, igual que la vista real", () => {
+    render(<RoadmapDetailSkeleton />);
+
+    const menuPlaceholder = screen.getByTestId("skeleton-menu");
+    expect(menuPlaceholder).toHaveClass("size-11");
+    expect(menuPlaceholder).toHaveClass("[grid-area:menu]");
+    expect(menuPlaceholder.parentElement).toHaveClass(
+      "grid-cols-[minmax(0,1fr)_auto]",
+      "[grid-template-areas:'back_menu'_'header_header']",
+      "sm:[grid-template-areas:'back_back'_'header_menu']",
+    );
+  });
+
   it("pinta la barra global de 8px a todo el ancho sin tarjeta y la tarjeta de 150px", () => {
     render(<RoadmapDetailSkeleton />);
 
@@ -111,6 +124,7 @@ describe("RoadmapDetailSkeleton", () => {
         "skeleton-title",
         "skeleton-summary",
         "skeleton-badge",
+        "skeleton-menu",
         "skeleton-progress",
         "skeleton-next-step",
       ]) {
