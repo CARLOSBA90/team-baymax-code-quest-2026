@@ -9,6 +9,10 @@ import type {
   RoadmapsListResponseDto,
   RoadmapsListResult,
   SetRoadmapPausedBody,
+  Syllabus,
+  SyllabusDto,
+  SyllabusNextLesson,
+  SyllabusNextLessonDto,
 } from "@/types";
 
 /**
@@ -66,7 +70,7 @@ export function deleteRoadmap(id: string): Promise<{ id: string }> {
 }
 
 // Mapeo campo a campo explícito (nunca spread del DTO): así no se cuelan en el dominio los campos
-// que el front ignora (`reason`, `details`, `syllabus`, `resume`, `progress_version`,
+// que el front ignora (`reason`, `details`, `resume`, `progress_version`,
 // `tracking.report_interval_seconds`…).
 function toRoadmapItem(dto: RoadmapItemDto): RoadmapItem {
   return {
@@ -88,12 +92,50 @@ function toRoadmapItem(dto: RoadmapItemDto): RoadmapItem {
     },
     startedAt: dto.started_at,
     completedAt: dto.completed_at,
+    syllabus: toSyllabus(dto.syllabus),
+  };
+}
+
+/**
+ * `syllabus.next_lesson` / `next_step.lesson` (misma forma en el cable) → camelCase. Mapeo campo
+ * a campo, nunca spread.
+ */
+function toSyllabusNextLesson(dto: SyllabusNextLessonDto | null): SyllabusNextLesson | null {
+  if (dto === null) return null;
+  return {
+    lessonId: dto.lesson_id,
+    title: dto.title,
+    sectionTitle: dto.section_title,
+    position: dto.position,
+    positionSeconds: dto.position_seconds,
+  };
+}
+
+/** `content[].syllabus` → `Syllabus` camelCase. Mapeo campo a campo, nunca spread. */
+function toSyllabus(dto: SyllabusDto | null): Syllabus | null {
+  if (dto === null) return null;
+  return {
+    totalLessons: dto.total_lessons,
+    completedLessons: dto.completed_lessons,
+    lastLessonId: dto.last_lesson_id,
+    nextLesson: toSyllabusNextLesson(dto.next_lesson),
+    sections: dto.sections.map((section) => ({
+      title: section.title,
+      lessons: section.lessons.map((lesson) => ({
+        lessonId: lesson.lesson_id,
+        title: lesson.title,
+        type: lesson.type,
+        freePreview: lesson.free_preview,
+        completed: lesson.completed,
+        positionSeconds: lesson.position_seconds,
+      })),
+    })),
   };
 }
 
 /**
  * `data` de `GET /roadmaps/:id` → `RoadmapDetail` camelCase. Ordena los ítems por `order` (sobre
- * una copia: el DTO no se muta) y descarta `generator`, `courses`, `reason` y `next_step.lesson`.
+ * una copia: el DTO no se muta) y descarta `generator`, `courses` y `reason`.
  */
 export function toRoadmapDetail(dto: RoadmapDetailDto): RoadmapDetail {
   return {
@@ -113,6 +155,7 @@ export function toRoadmapDetail(dto: RoadmapDetailDto): RoadmapDetail {
             roadmapItemId: dto.next_step.roadmap_item_id,
             name: dto.next_step.name,
             url: dto.next_step.url,
+            lesson: toSyllabusNextLesson(dto.next_step.lesson),
           },
   };
 }
