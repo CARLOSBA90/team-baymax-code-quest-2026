@@ -1,5 +1,5 @@
 import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/api/errors";
 import { useDeleteRoadmap, useRoadmaps } from "@/api/queries/roadmaps";
 import { RoadmapsEmptyState } from "@/components/dashboard";
@@ -18,6 +18,7 @@ import {
   getDeleteRoadmapErrorMessage,
   getRoadmapDeletedMessage,
   getRoadmapsSummary,
+  isRoadmapDeletedState,
   isRoadmapNotFoundError,
   parseRoadmapFilter,
   parseRoadmapsArrivalState,
@@ -67,7 +68,9 @@ function useRoadmapFilterParam(): [RoadmapFilter, (filter: RoadmapFilter) => voi
 
 export const RoadmapsPage = () => {
   const navigate = useNavigate();
-  // Aviso de llegada desde otra pantalla (`location.state`), ligado a su entrada del historial.
+  const location = useLocation();
+  // Aviso de llegada desde otra pantalla (`location.state`), ligado a su entrada del historial:
+  // cuestionario completado o ruta eliminada desde el detalle.
   const arrival = useLocationStateNotice(parseRoadmapsArrivalState);
   const showAssessmentNotice = arrival?.kind === "assessment-completed";
   const [filter, setFilter] = useRoadmapFilterParam();
@@ -83,7 +86,9 @@ export const RoadmapsPage = () => {
   const deleteMutation = useDeleteRoadmap();
   const [roadmapToDelete, setRoadmapToDelete] = useState<RoadmapSummary | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const [focusHeading, setFocusHeading] = useState(false);
+  // Al llegar tras borrar desde el detalle la página se monta nueva: el foco va al h1 (el detalle
+  // desmontado ya no tiene dónde dejarlo).
+  const [focusHeading, setFocusHeading] = useState(() => isRoadmapDeletedState(location.state));
 
   // Tras borrar (o 404) el foco va al h1. Este efecto corre después del de `Modal`, que al
   // cerrarse devuelve el foco al kebab; así gana el h1 aunque el kebab ya no exista.
@@ -117,6 +122,10 @@ export const RoadmapsPage = () => {
       },
     });
   };
+
+  // Un borrado en esta página reemplaza al aviso de llegada.
+  const deletedMessage =
+    deleteNotice.message ?? (arrival?.kind === "roadmap-deleted" ? arrival.message : null);
 
   const deleteErrorMessage =
     deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
@@ -184,7 +193,7 @@ export const RoadmapsPage = () => {
           ¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.
         </Notice>
       )}
-      {deleteNotice.message !== null && <Notice variant="success">{deleteNotice.message}</Notice>}
+      {deletedMessage !== null && <Notice variant="success">{deletedMessage}</Notice>}
       {content}
       <DeleteRoadmapDialog
         roadmap={roadmapToDelete}
