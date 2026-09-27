@@ -193,8 +193,6 @@ pnpm --version
 
 ### Puesta en marcha rapida (pasos obligatorios)
 
-Producción: <URL del deploy> · Video demo: <URL del video>
-
 Requisitos: Node 22+, pnpm 9+, una base PostgreSQL (Neon gratuita o local) y una app de Discord
 (Developer Portal → OAuth2) con el Redirect URI `http://localhost:3001/api/auth/callback/discord`.
 
@@ -218,11 +216,12 @@ Editar en `.env` solo estas cinco; el resto puede quedar como está:
 ```bash
 npx prisma migrate deploy   # crea las tablas (usa DIRECT_URL)
 npx prisma generate         # genera el cliente Prisma (obligatorio antes del seed)
-pnpm db:seed                # preguntas del cuestionario + 74 cursos reales de DevTalles con temario
+pnpm db:seed                # preguntas del cuestionario + 74 cursos activos de DevTalles con temario
 pnpm start:dev              # http://localhost:3001
 ```
 
-El seed no necesita usuario, sesión ni `ADMIN_EMAILS`; es idempotente y se puede repetir.
+El seed no necesita usuario, sesión ni `ADMIN_EMAILS`. Se puede repetir sin duplicar cursos;
+cada ejecución de la importación crea un nuevo registro `CatalogImport`.
 Verificar: `curl "http://localhost:3001/api/v1/catalog/courses?limit=1"` debe devolver `"total": 74`.
 
 **Frontend**
