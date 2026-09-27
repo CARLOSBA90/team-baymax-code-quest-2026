@@ -9,7 +9,10 @@ export interface LessonChecklistProps {
   item: Pick<RoadmapItemData, "roadmapItemId" | "name" | "syllabus">;
   /** El mismo id que `RoadmapItem` usa para su h3 (`getItemHeadingId`); prefijo del `<ul>`. */
   headingId: string;
-  /** Bloqueo amplio: cualquier mutación de progreso en curso (marcar lección o completar ítem). */
+  /**
+   * Bloqueo amplio: cualquier mutación de progreso en curso (marcar lección o completar ítem),
+   * pausar/reanudar, o la ruta en pausa (el back rechaza reportes con 409 `ROADMAP_PAUSED`).
+   */
   locked: boolean;
   /** `${roadmapItemId}:${lessonId}` de la lección con la mutación en vuelo, o `null`. */
   pendingKey: string | null;

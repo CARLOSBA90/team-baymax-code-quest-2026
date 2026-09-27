@@ -115,6 +115,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   // progreso en curso (completar un ítem o marcar/desmarcar una lección de cualquier ítem) o
   // pausar/reanudar bloquea todo, evitando llamadas concurrentes sobre `trackMutation` (D3).
   const trackLocked = trackMutation.isPending || pauseLocked;
+  // En pausa el back rechaza cualquier reporte (409 ROADMAP_PAUSED), así que las lecciones se
+  // deshabilitan igual que «Marcar como completado», que ya lo hace con `isPaused`.
+  const lessonsLocked = trackLocked || isPaused;
   const pendingLessonKey =
     trackMutation.isPending && trackMutation.variables?.kind === "lesson"
       ? `${trackMutation.variables.roadmapItemId}:${trackMutation.variables.lessonId}`
@@ -388,7 +391,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         itemHeadingIdPrefix={itemHeadingIdPrefix}
         completeDisabled={trackLocked}
         onToggleLesson={handleLessonToggle}
-        lessonTracking={{ locked: trackLocked, pendingKey: pendingLessonKey }}
+        lessonTracking={{ locked: lessonsLocked, pendingKey: pendingLessonKey }}
       />
       <ConfirmCompleteDialog
         item={itemToComplete}
