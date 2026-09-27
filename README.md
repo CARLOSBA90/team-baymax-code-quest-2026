@@ -14,6 +14,7 @@ Stack: NestJS (Monolito Modular) en el backend, React 19 + Vite en el frontend.
 - [Estructura del Repositorio](#estructura-del-repositorio)
 - [Prerrequisitos](#prerrequisitos)
 - [Inicializacion del Proyecto](#inicializacion-del-proyecto)
+  - [Puesta en marcha rapida (pasos obligatorios)](#puesta-en-marcha-rapida-pasos-obligatorios)
   - [Backend (NestJS)](#backend-nestjs)
   - [Frontend (React + Vite)](#frontend-react--vite)
 - [Variables de Entorno](#variables-de-entorno)
@@ -129,7 +130,6 @@ CodeQuest es un complemento para estudiantes suscritos a DevTalles. El flujo pri
 ```
 codequest/
 +-- README.md
-+-- docker-compose.yml
 +-- backend/                          # NestJS (Monolito Modular, ESM)
 |   +-- src/
 |   |   +-- main.ts                   # Bootstrap: CORS, ValidationPipe, prefijo api/v1
@@ -190,6 +190,54 @@ pnpm --version
 ---
 
 ## Inicializacion del Proyecto
+
+### Puesta en marcha rapida (pasos obligatorios)
+
+Requisitos: Node 22+, pnpm 9+, una base PostgreSQL (Neon gratuita o local) y una app de Discord
+(Developer Portal → OAuth2) con el Redirect URI `http://localhost:3001/api/auth/callback/discord`.
+
+**Backend**
+
+```bash
+cd backend
+pnpm install
+cp .env.example .env        # copiar COMPLETO: el backend no arranca si faltan variables
+```
+
+Editar en `.env` solo estas cinco; el resto puede quedar como está:
+
+| Variable | Valor |
+|---|---|
+| `DATABASE_URL` | cadena de Neon con `-pooler` (o `postgresql://postgres:postgres@localhost:5432/codequest?sslmode=disable` con Postgres local) |
+| `DIRECT_URL` | la misma cadena sin `-pooler` (con Postgres local, igual a `DATABASE_URL`) |
+| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | de la app de Discord |
+
+```bash
+npx prisma migrate deploy   # crea las tablas (usa DIRECT_URL)
+npx prisma generate         # genera el cliente Prisma (obligatorio antes del seed)
+pnpm db:seed                # preguntas del cuestionario + 74 cursos activos de DevTalles con temario
+pnpm start:dev              # http://localhost:3001
+```
+
+El seed no necesita usuario, sesión ni `ADMIN_EMAILS`. Se puede repetir sin duplicar cursos;
+cada ejecución de la importación crea un nuevo registro `CatalogImport`.
+Verificar: `curl "http://localhost:3001/api/v1/catalog/courses?limit=1"` debe devolver `"total": 74`.
+
+**Frontend**
+
+```bash
+cd frontend
+pnpm install
+cp .env.example .env        # VITE_API_URL=http://localhost:3001
+pnpm dev                    # http://localhost:5173
+```
+
+Opcional: Google/GitHub como login (`GOOGLE_*`, `GITHUB_*`), correos reales (`MAIL_*`, cuenta gratuita de Brevo)
+y generación de rutas con IA (`ROADMAP_GENERATOR_PROVIDER=NVIDIA` + `NVIDIA_API_KEY`).
+Sin nada de eso la app funciona completa: login con Discord y rutas por reglas.
+
+---
 
 Clonar el repositorio:
 
@@ -282,7 +330,7 @@ curl http://localhost:3001/api/v1/health
 - **AuthModule** instala un guard global: todo endpoint nuevo queda protegido por defecto. Usar `@AllowAnonymous()` para rutas publicas o `@OptionalAuth()` para rutas con autenticacion opcional.
 - Better Auth maneja `/api/auth/*` con su propio prefijo. El prefijo global `api/v1` aplica solo a los modulos propios.
 - Para el login con Discord, registrar el siguiente Redirect URI en el Discord Developer Portal: `http://localhost:3001/api/auth/callback/discord`.
-- En desarrollo, el header de respuesta `X-Verification-Url` contiene el enlace de verificacion de email, permitiendo confirmar cuentas sin configurar un mailer.
+- La verificacion de email esta desactivada por defecto (`REQUIRE_EMAIL_VERIFICATION=false`). Con `MAIL_*` configurado se envian correos reales de verificacion y recuperacion de contrasena.
 
 ---
 
@@ -339,21 +387,27 @@ La aplicacion queda disponible en `http://localhost:5173`.
 
 ### Backend (`backend/.env`)
 
-| Variable | Descripcion | Ejemplo |
-|----------|-------------|---------|
-| `DATABASE_URL` | URL de conexion pooled a PostgreSQL | `postgresql://user:pass@host/db?sslmode=require` |
-| `DIRECT_URL` | URL de conexion directa (para migraciones) | `postgresql://user:pass@host/db?sslmode=require` |
-| `BETTER_AUTH_SECRET` | Secreto para firmar sesiones (minimo 32 caracteres) | generado aleatoriamente |
-| `BETTER_AUTH_URL` | URL publica del backend | `http://localhost:3001` |
-| `PORT` | Puerto del servidor | `3001` |
-| `DISCORD_CLIENT_ID` | Client ID de la app en Discord Developer Portal | requerido para OAuth Discord |
-| `DISCORD_CLIENT_SECRET` | Client Secret de Discord | requerido para OAuth Discord |
-| `GOOGLE_CLIENT_ID` | Client ID de Google OAuth | opcional |
-| `GOOGLE_CLIENT_SECRET` | Client Secret de Google | opcional |
-| `GITHUB_CLIENT_ID` | Client ID de GitHub OAuth | opcional |
-| `GITHUB_CLIENT_SECRET` | Client Secret de GitHub | opcional |
+Copiar `.env.example` completo: el backend valida al arrancar que existan las variables de correo (`MAIL_*`), aunque queden vacias.
 
-Los proveedores OAuth se habilitan automaticamente si sus variables de entorno estan presentes.
+| Variable | Descripcion | Obligatoria |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Conexion pooled a PostgreSQL (runtime) | Si |
+| `DIRECT_URL` | Conexion directa (migraciones) | Si |
+| `BETTER_AUTH_SECRET` | Secreto de sesiones, minimo 32 caracteres | Si |
+| `BETTER_AUTH_URL` | URL publica del backend | Si (default `http://localhost:3001`) |
+| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | OAuth de Discord | Si |
+| `TRUSTED_ORIGINS` | Origenes permitidos para CORS, separados por coma | Si (default `http://localhost:5173`) |
+| `PORT` | Puerto del servidor | default `3001` |
+| `NODE_ENV` | `production` activa cookies `SameSite=None; Secure` | default `development` |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USER` / `MAIL_PASSWORD` | SMTP para correos. Deben existir en `.env` aunque queden vacias | Si (pueden ir vacias) |
+| `MAIL_SENDER_NAME` / `MAIL_SENDER_EMAIL` / `FRONTEND_URL` | Remitente y URL del frontend en los correos | Opcional |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` exige verificar el correo para iniciar sesion | default `false` |
+| `EXPOSE_VERIFICATION_URL` | Solo desarrollo: devuelve la URL de verificacion en un header | default `false` |
+| `ADMIN_EMAILS` | Correos con permiso para `POST /catalog/import`, separados por coma | Opcional |
+| `ROADMAP_GENERATOR_PROVIDER` / `ROADMAP_GENERATOR_FALLBACKS` | `RULES` (sin servicios externos) o `NVIDIA` | default `RULES` |
+| `NVIDIA_API_KEY` / `NVIDIA_MODELS` / `NVIDIA_*` | Solo si el generador es `NVIDIA` | Opcional |
+| `GOOGLE_*` / `GITHUB_*` | OAuth adicionales; se habilitan si estan presentes | Opcional |
+| `CHALLENGE_UPLOAD_DIR` | Carpeta local para archivos de retos | default `.data/challenge-submissions` |
 
 ### Frontend (`frontend/.env`)
 
