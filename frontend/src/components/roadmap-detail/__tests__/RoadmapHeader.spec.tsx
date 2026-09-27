@@ -125,9 +125,16 @@ describe("RoadmapHeader", () => {
     });
   });
 
-  it("no tiene botones (sin menú ⋯)", () => {
+  it("no tiene botones: el menú ⋯ lo coloca el compositor fuera de la cabecera", () => {
     renderHeader();
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("añade `className` al <header> (colocación en el grid) sin perder sus clases", () => {
+    renderHeader({ className: "[grid-area:header]" });
+
+    const header = screen.getByRole("heading", { level: 1 }).closest("header");
+    expect(header).toHaveClass("[grid-area:header]", "flex", "flex-col", "items-start", "gap-3");
   });
 });

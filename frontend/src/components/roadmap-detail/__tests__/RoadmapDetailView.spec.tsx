@@ -361,7 +361,7 @@ describe("RoadmapDetailView", () => {
         expect(buttons.length).toBeGreaterThan(0);
         for (const button of buttons) {
           if (completeButtons === "described") {
-            // PAUSED: deshabilitados y descritos por el banner; «Reanudar ruta» también disabled.
+            // PAUSED: deshabilitados y descritos por el banner; «Reanudar ruta» habilitado.
             expect(button).toBeDisabled();
             expect(button).toHaveAccessibleDescription(/no se registra tu avance/);
           } else {
@@ -370,7 +370,7 @@ describe("RoadmapDetailView", () => {
             expect(button).not.toHaveAttribute("aria-describedby");
           }
         }
-        if (completeButtons === "described") expect(resume).toBeDisabled();
+        if (completeButtons === "described") expect(resume).toBeEnabled();
         else expect(resume).not.toBeInTheDocument();
       });
     },
@@ -428,7 +428,7 @@ describe("RoadmapDetailView", () => {
       screen.getByRole("heading", { level: 2, name: "Esta ruta está en pausa" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/^La pausaste el 3 de septiembre\./)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeEnabled();
 
     // Sin atenuar: el siguiente paso conserva su chip (#224 Q1).
     const items = within(screen.getByRole("list", { name: "Pasos de la ruta" })).getAllByRole(

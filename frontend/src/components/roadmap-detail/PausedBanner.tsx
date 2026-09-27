@@ -8,17 +8,28 @@ export interface PausedBannerProps {
   descriptionId: string;
   /** Id del h2: nombra la región y es destino de foco (`tabIndex={-1}`) tras un 409. */
   headingId: string;
+  /** «Reanudar ruta»: el compositor lanza la reanudación (misma mutación que el menú ⋯). */
+  onResume: () => void;
+  /** Reanudación en curso (desde aquí o desde el ⋯): botón deshabilitado con «Reanudando…». */
+  resuming: boolean;
 }
 
 const PAUSED_EFFECT = "Mientras esté pausada no se registra tu avance.";
 
 /**
- * Banner estático de ruta en pausa (solo PAUSED): título ámbar, desde cuándo está pausada y
- * «Reanudar ruta» deshabilitado hasta el slice 5. No es una alerta: se lee en orden normal.
+ * Banner de ruta en pausa (solo PAUSED): título ámbar, desde cuándo está pausada y «Reanudar ruta»
+ * (`onResume`; mientras `resuming`, deshabilitado con «Reanudando…»). Los errores de reanudar no
+ * van aquí sino en el Notice superior del compositor. No es una alerta: se lee en orden normal.
  * Mobile-first: en móvil el botón (`variant="form"`, h-12 w-full) baja a su propia línea a ancho
  * completo; desde `sm:` se ajusta a su contenido (`sm:w-fit sm:px-6`, equivalente a `cta`).
  */
-export function PausedBanner({ pausedAt, descriptionId, headingId }: PausedBannerProps) {
+export function PausedBanner({
+  pausedAt,
+  descriptionId,
+  headingId,
+  onResume,
+  resuming,
+}: PausedBannerProps) {
   const pausedOn = pausedAt ? formatLongDate(pausedAt) : "";
   const description = pausedOn ? `La pausaste el ${pausedOn}. ${PAUSED_EFFECT}` : PAUSED_EFFECT;
 
@@ -42,7 +53,13 @@ export function PausedBanner({ pausedAt, descriptionId, headingId }: PausedBanne
           {description}
         </p>
       </div>
-      <PrimaryButton variant="form" disabled className="ml-auto sm:w-fit sm:px-6">
+      <PrimaryButton
+        variant="form"
+        onClick={onResume}
+        loading={resuming}
+        loadingLabel="Reanudando…"
+        className="ml-auto sm:w-fit sm:px-6"
+      >
         <PlayIcon className="size-4" />
         Reanudar ruta
       </PrimaryButton>

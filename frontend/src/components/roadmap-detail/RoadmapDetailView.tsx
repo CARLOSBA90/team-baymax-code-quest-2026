@@ -158,6 +158,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           pausedAt={roadmap.pausedAt}
           descriptionId={pausedDescriptionId}
           headingId={pausedHeadingId}
+          onResume={() => {}}
+          resuming={false}
         />
       ) : null}
       {roadmap.status === "COMPLETED" ? (
