@@ -50,6 +50,7 @@ vi.mock("@/api/services", async (importOriginal) => ({
   getAssessmentQuestions: vi.fn(),
   getRoadmap: vi.fn(),
   getRoadmaps: vi.fn(),
+  setRoadmapPaused: vi.fn(),
   submitAssessment: vi.fn(),
   trackItemCompletion: vi.fn(),
 }));
