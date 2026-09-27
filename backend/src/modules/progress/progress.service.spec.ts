@@ -453,8 +453,45 @@ describe('ProgressService.track lessons', () => {
     const data = tx.progress.update.mock.calls[0][0].data;
     expect(data.percentage).toBe(100);
     expect(data.completedAt).toBeInstanceOf(Date);
-    expect(data.trackingState.completedLessons).toEqual(['l1', 'l2', 'l3', 'l4']);
+    expect(data.trackingState.completedLessons).toEqual([
+      'l1',
+      'l2',
+      'l3',
+      'l4',
+    ]);
     expect(data.trackingState.lastLessonId).toBe('l4');
+  });
+
+  it('completes the lessons still pending without duplicating the marked ones', async () => {
+    const { service, tx } = setup(
+      lessons({ completedLessons: ['l2'], lastLessonId: 'l2' }, 25),
+    );
+
+    await service.track(USER_ID, report({ completed: true }));
+
+    const data = tx.progress.update.mock.calls[0][0].data;
+    expect(data.percentage).toBe(100);
+    expect(data.trackingState.completedLessons).toEqual([
+      'l1',
+      'l2',
+      'l3',
+      'l4',
+    ]);
+    expect(data.trackingState.lastLessonId).toBe('l4');
+  });
+
+  it('treats a repeated bulk complete as a no-op', async () => {
+    const { service, tx } = setup(
+      lessons(
+        { completedLessons: ['l1', 'l2', 'l3', 'l4'], lastLessonId: 'l4' },
+        100,
+      ),
+    );
+
+    await service.track(USER_ID, report({ completed: true }));
+
+    expect(tx.progress.update).not.toHaveBeenCalled();
+    expect(tx.roadmap.update).not.toHaveBeenCalled();
   });
 
   it('resets all lessons at once back to 0 % with { completed: false }', async () => {

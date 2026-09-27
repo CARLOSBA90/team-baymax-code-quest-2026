@@ -1549,6 +1549,20 @@ describe("RoadmapDetailView — checklist de lecciones", () => {
     expect(menuTrigger).not.toHaveAttribute("aria-disabled");
   });
 
+  it("en pausa: todas las lecciones quedan deshabilitadas y no se puede marcar ninguna", async () => {
+    const paused = buildLessonsRoadmap();
+    const user = renderFlow({ ...paused, status: "PAUSED", pausedAt: PAUSED_AT });
+    await expandChecklist(user, ITEM_NAME);
+
+    const pending = lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME);
+    expect(pending).toBeDisabled();
+    expect(lessonCheckbox("Variables y tipos de datos", ITEM_NAME)).toBeDisabled();
+
+    await user.click(pending);
+
+    expect(trackLessonCompletion).not.toHaveBeenCalled();
+  });
+
   describe("atajo «Marcar curso completo»", () => {
     function bulkButton(itemName: string) {
       return screen.getByRole("button", { name: `Marcar curso completo ${itemName}` });

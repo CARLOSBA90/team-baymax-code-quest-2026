@@ -67,7 +67,8 @@ function toSubmission({ obj }: { obj: Record<string, unknown> }): unknown {
  * The client only says which item and what happened. The backend knows the
  * item's tracking type and checks that the right fields were sent:
  * COMPLETION/READING → completed: true, LESSONS → lesson_id + completed
- * (true marks, false unmarks), VIDEO → position_seconds,
+ * (true marks, false unmarks) or completed alone, without lesson_id, to
+ * mark/unmark the whole syllabus at once, VIDEO → position_seconds,
  * CHALLENGE → submission (plus a multipart file for FILE).
  */
 export class TrackProgressDto {
