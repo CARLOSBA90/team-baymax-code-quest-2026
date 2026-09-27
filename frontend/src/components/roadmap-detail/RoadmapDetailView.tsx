@@ -19,6 +19,8 @@ import {
   getDeleteRoadmapErrorMessage,
   getItemCompletedAnnouncement,
   getItemHeadingId,
+  getLessonToggledAnnouncement,
+  getLessonTrackErrorMessage,
   getNextStepItem,
   getPauseRoadmapErrorMessage,
   getPauseToggleAnnouncement,
@@ -35,7 +37,7 @@ import {
   shouldRefreshAfterTrackError,
   TRACKING_MISMATCH_TRACK_MESSAGE,
 } from "@/lib";
-import type { RoadmapDetail, RoadmapItem } from "@/types";
+import type { RoadmapDetail, RoadmapItem, SyllabusLesson } from "@/types";
 import { ConfirmCompleteDialog } from "./ConfirmCompleteDialog";
 import { NextStepCard } from "./NextStepCard";
 import { PausedBanner } from "./PausedBanner";
@@ -109,6 +111,14 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   // Pausar/reanudar en curso: ⋯, banner y completar bloqueados (sin carreras entre acciones).
   const pauseLocked = pauseMutation.isPending;
   const resuming = pauseLocked && pauseMutation.variables?.paused === false;
+  // Bloqueo amplio del checklist de lecciones y de «Marcar como completado»: cualquier mutación de
+  // progreso en curso (completar un ítem o marcar/desmarcar una lección de cualquier ítem) o
+  // pausar/reanudar bloquea todo, evitando llamadas concurrentes sobre `trackMutation` (D3).
+  const trackLocked = trackMutation.isPending || pauseLocked;
+  const pendingLessonKey =
+    trackMutation.isPending && trackMutation.variables?.kind === "lesson"
+      ? `${trackMutation.variables.roadmapItemId}:${trackMutation.variables.lessonId}`
+      : null;
   // 404 al borrar se trata como éxito (navega); el resto se queda dentro del diálogo.
   const deleteErrorMessage =
     deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
@@ -253,6 +263,51 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
     );
   };
 
+  // Marca/desmarca una lección directamente (sin diálogo, reversible): el checkbox nunca pierde el
+  // foco (D2), así que aquí nunca se llama a `requestFocus`; todo error visible pasa por el `Notice`
+  // superior (D4).
+  const handleLessonToggle = (item: RoadmapItem, lesson: SyllabusLesson) => {
+    clearFeedback();
+    const completed = !lesson.completed;
+    trackMutation.mutate(
+      { kind: "lesson", roadmapItemId: item.roadmapItemId, lessonId: lesson.lessonId, completed },
+      {
+        onSuccess: (outcome) => {
+          const fresh =
+            outcome.detail ??
+            applyTrackProgressResult(
+              roadmap,
+              {
+                kind: "lesson",
+                roadmapItemId: item.roadmapItemId,
+                lessonId: lesson.lessonId,
+                completed,
+              },
+              outcome.result,
+            );
+          const freshItem = fresh.items.find((i) => i.roadmapItemId === item.roadmapItemId);
+          setAnnouncement(
+            getLessonToggledAnnouncement({
+              lessonTitle: lesson.title,
+              marked: completed,
+              itemName: item.name,
+              itemProgress: freshItem?.progress ?? item.progress,
+              completedLessons: freshItem?.syllabus?.completedLessons ?? 0,
+              totalLessons: freshItem?.syllabus?.totalLessons ?? 0,
+              roadmapCompleted: fresh.status === "COMPLETED",
+            }),
+          );
+        },
+        onError: (error) => {
+          setNotice({
+            variant: shouldRefreshAfterTrackError(error) ? "info" : "error",
+            message: getLessonTrackErrorMessage(error),
+          });
+        },
+      },
+    );
+  };
+
   return (
     <div className="flex w-full max-w-detail flex-col gap-5.5">
       {notice ? <Notice variant={notice.variant}>{notice.message}</Notice> : null}
@@ -320,7 +375,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           stepNumber={nextStepItem.stepNumber}
           total={total}
           onComplete={handleCompleteRequest}
-          completeDisabled={pauseLocked}
+          completeDisabled={trackLocked}
         />
       ) : null}
       <RoadmapTimeline
@@ -331,7 +386,9 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         pausedDescriptionId={isPaused ? pausedDescriptionId : undefined}
         onComplete={handleCompleteRequest}
         itemHeadingIdPrefix={itemHeadingIdPrefix}
-        completeDisabled={pauseLocked}
+        completeDisabled={trackLocked}
+        onToggleLesson={handleLessonToggle}
+        lessonTracking={{ locked: trackLocked, pendingKey: pendingLessonKey }}
       />
       <ConfirmCompleteDialog
         item={itemToComplete}
