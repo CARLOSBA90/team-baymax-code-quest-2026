@@ -193,3 +193,57 @@ CatalogImport
 3. **Semana 2+**: Si hay tiempo y autorizacion, agregar el adaptador de scraping.
 
 El catalogo de cursos es el cimiento de todo. Sin el, no hay rutas ni cuestionario que tenga sentido.
+
+---
+
+## Modelo de Tech Stack (implementado en `feat/backend-roadmap-stack-coherence`)
+
+### Clasificacion de cursos por ecosistema
+
+Cada curso pertenece a un `TechStack` basado en su slug. La logica de clasificacion vive en:
+- **Constantes**: `backend/src/modules/catalog/constants/tech-stack.constants.ts`
+- **Util**: `backend/src/modules/catalog/utils/tech-stack.util.ts`
+
+```typescript
+export enum TechStack {
+  // Frontend
+  VUE, REACT, ANGULAR, ASTRO, QWIK,
+  // Backend
+  NODE, PYTHON, JAVA, GO, PHP, DOTNET,
+  // Mobile
+  FLUTTER, REACT_NATIVE,
+  // Transversal
+  DEVOPS_CORE, DATABASE_CORE, CROSS_CUTTING,
+}
+```
+
+### Grupos de stacks rivales
+
+Estas tres categorias contienen stacks **mutuamente excluyentes**: elegir uno bloquea a todos los demas del mismo grupo:
+
+| Dominio   | Stacks rivales                            |
+|-----------|-------------------------------------------|
+| Frontend  | VUE, REACT, ANGULAR, ASTRO, QWIK          |
+| Backend   | NODE, PYTHON, JAVA, GO, PHP, DOTNET       |
+| Mobile    | FLUTTER, REACT_NATIVE                     |
+
+Los stacks `CROSS_CUTTING`, `DATABASE_CORE` y `DEVOPS_CORE` son **siempre compatibles** con cualquier stack primario (TypeScript, Git, SQL, Docker, etc.).
+
+### Prerrequisitos canonicos
+
+Las dependencias entre cursos se almacenan en `course_prerequisite` y se cargan desde `backend/prisma/seed/prerequisites.json` durante el seed.
+
+Ejemplos clave:
+
+```
+vue-cero-a-experto  →  nuxt
+vue-cero-a-experto  →  vue-intermedio
+python              →  fastapi
+python              →  django
+java                →  spring-boot
+spring-boot         →  kafka-springboot-event-driven
+golang-fundamentos  →  golang-backend-profesional
+golang-backend      →  go-microservicios
+dart                →  flutter-movil-cero-a-experto
+flutter             →  flutter-bloc / riverpod-con-anotaciones
+```
