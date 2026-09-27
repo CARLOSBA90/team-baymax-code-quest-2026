@@ -60,14 +60,35 @@ function patchSyllabusLesson(syllabus: Syllabus, lessonId: string, completed: bo
 }
 
 /**
+ * Marca TODAS las lecciones del temario (copia inmutable) para el atajo bulk: un `kind: "item"`
+ * sobre un ítem con temario significa «marcar el curso entero», y el back deja las lecciones
+ * completas. `completedLessons` toma `totalLessons` —el total del propio servidor— en vez de
+ * contar las filas, para que la etiqueta «N de N lecciones» no se contradiga con el ítem al 100 %.
+ */
+function markAllLessons(syllabus: Syllabus): Syllabus {
+  return {
+    ...syllabus,
+    completedLessons: syllabus.totalLessons,
+    nextLesson: null,
+    sections: syllabus.sections.map((section) => ({
+      ...section,
+      lessons: section.lessons.map((lesson) =>
+        lesson.completed ? lesson : { ...lesson, completed: true },
+      ),
+    })),
+  };
+}
+
+/**
  * Parche del detalle cacheado con la respuesta de `POST /progress/track` (datos del servidor, no
  * optimista); solo se usa si el refetch del detalle tras un 200 falla. El ítem toma el `progress`
  * de la respuesta y, si queda completado sin `completedAt`, `lastActivity` de la ruta (el POST no
  * trae `completed_at`); la ruta toma `progress`/`status`/`lastActivity`/`activityVersion`,
  * `pausedAt` pasa a `null` si queda COMPLETED y `nextStep` a `null` si apuntaba al ítem (el
- * siguiente no se puede calcular aquí). Con `variables.kind === "lesson"` y `syllabus` presente en
- * el ítem, además parchea la lección correspondiente con `patchSyllabusLesson`. Ítem ausente → solo
- * campos de ruta. Nunca muta `detail`.
+ * siguiente no se puede calcular aquí). Con `syllabus` presente en el ítem además parchea el
+ * temario: `kind: "lesson"` marca/desmarca esa lección (`patchSyllabusLesson`) y `kind: "item"`
+ * —el atajo bulk— marca todas (`markAllLessons`), para que el checklist no quede en «0 de 151»
+ * con el ítem al 100 %. Ítem ausente → solo campos de ruta. Nunca muta `detail`.
  */
 export function applyTrackProgressResult(
   detail: RoadmapDetail,
@@ -84,10 +105,11 @@ export function applyTrackProgressResult(
     pausedAt: roadmap.status === "COMPLETED" ? null : detail.pausedAt,
     items: detail.items.map((item) => {
       if (item.roadmapItemId !== variables.roadmapItemId) return item;
-      const syllabus =
-        variables.kind === "lesson" && item.syllabus
+      const syllabus = !item.syllabus
+        ? item.syllabus
+        : variables.kind === "lesson"
           ? patchSyllabusLesson(item.syllabus, variables.lessonId, variables.completed)
-          : item.syllabus;
+          : markAllLessons(item.syllabus);
       return {
         ...item,
         progress: result.progress,
