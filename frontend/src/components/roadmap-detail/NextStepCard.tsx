@@ -1,7 +1,12 @@
 import { useId } from "react";
-import { canTrack, getTrackingUnavailableMessage, isItemCompleted } from "@/lib";
+import {
+  canTrack,
+  getTrackingUnavailableMessage,
+  isItemCompleted,
+  isLessonChecklistItem,
+} from "@/lib";
 import type { RoadmapItem } from "@/types";
-import { CompleteButton } from "./CompleteButton";
+import { COMPLETE_ALL_LESSONS_LABEL, CompleteButton } from "./CompleteButton";
 import { ExternalCourseLink } from "./ExternalCourseLink";
 import { ItemMeta } from "./ItemMeta";
 import { ItemThumbnail } from "./ItemThumbnail";
@@ -82,6 +87,9 @@ export function NextStepCard({
           {showCompleteButton ? (
             <CompleteButton
               itemName={item.name}
+              // Aquí no hay checklist, así que el botón va solo: con temario usa la etiqueta del
+              // atajo bulk para no prometer «este paso» cuando marca el curso entero.
+              label={isLessonChecklistItem(item) ? COMPLETE_ALL_LESSONS_LABEL : undefined}
               size="md"
               disabled={completeDisabled}
               onClick={() => onComplete(item)}

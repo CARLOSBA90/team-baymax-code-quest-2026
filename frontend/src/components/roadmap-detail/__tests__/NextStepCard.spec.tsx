@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { NextStepCard } from "@/components/roadmap-detail";
-import { buildRoadmapItem, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
+import { buildRoadmapItem, buildSyllabus, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 const NEXT_ITEM = ROADMAP_DETAIL.items[1];
@@ -90,18 +90,36 @@ describe("NextStepCard", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("tracking por lecciones (LESSONS) → mensaje por lección y sin botón", () => {
+  it("tracking por lecciones (LESSONS) con temario → botón del atajo bulk y sin mensaje", async () => {
     const item = buildRoadmapItem({
       name: "Curso por lecciones",
+      tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+      syllabus: buildSyllabus(),
+    });
+    const onComplete = vi.fn();
+    renderWithProviders(
+      <NextStepCard item={item} stepNumber={1} total={3} onComplete={onComplete} />,
+    );
+
+    // Aquí no hay checklist, así que el botón va solo: la etiqueta dice que marca el curso entero.
+    const button = screen.getByRole("button", { name: /^Marcar curso completo/ });
+    expect(button).toBeInTheDocument();
+    expect(screen.queryByText(/se registra por lección/)).not.toBeInTheDocument();
+
+    await userEvent.setup().click(button);
+    expect(onComplete).toHaveBeenCalledWith(item);
+  });
+
+  it("LESSONS sin temario → sigue el botón genérico, no el del atajo bulk", () => {
+    const item = buildRoadmapItem({
+      name: "Curso sin temario",
       tracking: { type: "LESSONS", enabled: true, disabledReason: null },
     });
     renderWithProviders(<NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />);
 
+    expect(screen.getByRole("button", { name: /^Marcar como completado/ })).toBeInTheDocument();
     expect(
-      screen.getByText("El avance de este curso se registra por lección."),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /^Marcar como completado/ }),
+      screen.queryByRole("button", { name: /^Marcar curso completo/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -242,11 +260,12 @@ describe("NextStepCard", () => {
       }
     });
 
-    it("LESSONS → mensaje por lección tras el enlace y sin botón", () => {
+    it("LESSONS con temario → el botón del atajo bulk va tras el enlace", () => {
       const item = buildRoadmapItem({
         name: "Curso por lecciones",
         url: "https://example.com/lessons",
         tracking: { type: "LESSONS", enabled: true, disabledReason: null },
+        syllabus: buildSyllabus(),
       });
       renderWithProviders(
         <NextStepCard item={item} stepNumber={1} total={3} onComplete={vi.fn()} />,
@@ -255,10 +274,8 @@ describe("NextStepCard", () => {
       const link = screen.getByRole("link", {
         name: "Ir al curso Curso por lecciones (se abre en una pestaña nueva)",
       });
-      const message = screen.getByText("El avance de este curso se registra por lección.");
-      expect(follows(link, message)).toBe(true);
-      expect(message).toHaveClass("min-w-0");
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
+      const button = screen.getByRole("button", { name: /^Marcar curso completo/ });
+      expect(follows(link, button)).toBe(true);
     });
   });
 

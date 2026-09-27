@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { GhostButton, Modal, Notice, PrimaryButton } from "@/components/ui";
+import { getLessonsCountLabel, isLessonChecklistItem } from "@/lib";
 import type { RoadmapItem } from "@/types";
 import { ItemThumbnail } from "./ItemThumbnail";
 import { CheckIcon } from "./RoadmapDetailIcons";
@@ -32,6 +33,9 @@ export function ConfirmCompleteDialog({
 }: ConfirmCompleteDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
+  // Un curso con temario se marca con el atajo bulk y sigue siendo reversible (desmarcar una
+  // lección lo baja del 100 %), al contrario que COMPLETION/READING, donde completar es terminal.
+  const isLessonItem = item !== null && isLessonChecklistItem(item);
 
   return (
     <Modal
@@ -47,7 +51,9 @@ export function ConfirmCompleteDialog({
             <CheckIcon className="size-5" />
           </span>
           <h2 id={titleId} className="font-display text-xl font-semibold text-text-primary">
-            ¿Marcar este paso como completado?
+            {isLessonItem
+              ? "¿Marcar el curso entero como completado?"
+              : "¿Marcar este paso como completado?"}
           </h2>
           <div className="flex items-center gap-3 rounded-2xl border border-border-item bg-bg-item p-3">
             <ItemThumbnail key={item.image ?? "none"} src={item.image} type={item.type} size="md" />
@@ -56,8 +62,20 @@ export function ConfirmCompleteDialog({
             </p>
           </div>
           <p id={descriptionId} className="font-body text-sm text-text-secondary">
-            Esta acción{" "}
-            <strong className="font-semibold text-text-primary">no se puede deshacer</strong>.
+            {isLessonItem && item.syllabus ? (
+              <>
+                Se marcarán las{" "}
+                <strong className="font-semibold text-text-primary">
+                  {getLessonsCountLabel(item.syllabus.totalLessons)}
+                </strong>{" "}
+                del temario. Podrás desmarcar las que quieras después.
+              </>
+            ) : (
+              <>
+                Esta acción{" "}
+                <strong className="font-semibold text-text-primary">no se puede deshacer</strong>.
+              </>
+            )}
           </p>
           {errorMessage ? <Notice variant="error">{errorMessage}</Notice> : null}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
