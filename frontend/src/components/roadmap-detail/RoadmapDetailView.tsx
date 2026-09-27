@@ -1,22 +1,36 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
-import { Link } from "react-router-dom";
-import { applyTrackProgressResult, roadmapsKeys, useTrackProgress } from "@/api/queries/roadmaps";
+import { useEffect, useId, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  applyTrackProgressResult,
+  roadmapsKeys,
+  useDeleteRoadmap,
+  usePauseRoadmap,
+  useTrackProgress,
+} from "@/api/queries/roadmaps";
+import { DeleteRoadmapDialog } from "@/components/roadmaps";
 import { Notice } from "@/components/ui";
 import { useFocusRequest } from "@/hooks";
 import {
+  buildRoadmapDeletedState,
   getCompletedCount,
   getCompleteItemErrorMessage,
+  getDeleteRoadmapErrorMessage,
   getItemCompletedAnnouncement,
   getItemHeadingId,
   getNextStepItem,
+  getPauseRoadmapErrorMessage,
+  getPauseToggleAnnouncement,
   getRemainingMinutes,
   getTotalMinutes,
   isRoadmapItemNotFoundError,
+  isRoadmapNotFoundError,
   isRoadmapPausedError,
+  isRoadmapUpdatedElsewhereError,
   isTrackingMismatchError,
   ROADMAP_ITEM_NOT_FOUND_MESSAGE,
   ROADMAP_PAUSED_TRACK_MESSAGE,
+  ROADMAP_UPDATED_ELSEWHERE_MESSAGE,
   shouldRefreshAfterTrackError,
   TRACKING_MISMATCH_TRACK_MESSAGE,
 } from "@/lib";
@@ -25,6 +39,7 @@ import { ConfirmCompleteDialog } from "./ConfirmCompleteDialog";
 import { NextStepCard } from "./NextStepCard";
 import { PausedBanner } from "./PausedBanner";
 import { RoadmapCompletedPanel } from "./RoadmapCompletedPanel";
+import { RoadmapDetailMenu } from "./RoadmapDetailMenu";
 import { RoadmapHeader } from "./RoadmapHeader";
 import { RoadmapProgress } from "./RoadmapProgress";
 import { RoadmapTimeline } from "./RoadmapTimeline";
@@ -33,11 +48,25 @@ export interface RoadmapDetailViewProps {
   roadmap: RoadmapDetail;
 }
 
+/** Aviso superior de la vista: `info` (neutro, `role="status"`) o `error` (`role="alert"`). */
+interface DetailNotice {
+  variant: "info" | "error";
+  message: string;
+}
+
 /**
  * Compositor del detalle: calcula una vez los derivados (pasos, minutos, ids de a11y) y los baja
- * a piezas presentacionales dentro de la columna de 920px. También es dueño del flujo «Marcar como
- * completado»: diálogo de confirmación, anuncio en la live region, aviso 404 y foco final (las
- * piezas solo emiten `onComplete(item)`).
+ * a piezas presentacionales dentro de la columna de 920px. Es dueño de todos los flujos (las piezas
+ * solo emiten callbacks) y de su feedback: un único hueco de `Notice` arriba, una live region
+ * siempre montada y el foco final (`useFocusRequest`). Cualquier acción nueva limpia primero el
+ * feedback anterior (`clearFeedback`).
+ * - «Marcar como completado»: diálogo de confirmación, anuncio, aviso 404 (`info`) y foco.
+ * - Pausar/reanudar (⋯ y banner): anuncio según el estado devuelto (COMPLETED → sin anuncio), foco
+ *   al h2 del banner (PAUSED) o al h1; 409 de conflicto/transición → `info` + h1; otros errores →
+ *   `error` sin mover el foco. Mientras está en curso se bloquean el ⋯, el banner y completar.
+ * - Eliminar (⋯): `DeleteRoadmapDialog`; 200/404 navega a Mis Rutas (`replace` + state de borrado)
+ *   con el diálogo en «Eliminando…» hasta desmontar, y el detalle sale de la caché al desmontar
+ *   (nunca con el observador vivo, que volvería a pedir la ruta borrada).
  */
 export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const { items } = roadmap;
@@ -47,10 +76,17 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const completedHeadingId = useId();
   const itemHeadingIdPrefix = useId();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const trackMutation = useTrackProgress(roadmap.id);
+  const pauseMutation = usePauseRoadmap(roadmap.id);
+  const deleteMutation = useDeleteRoadmap({ removeDetail: false });
   const [itemToComplete, setItemToComplete] = useState<RoadmapItem | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<DetailNotice | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const deletedRef = useRef(false);
+  const roadmapId = roadmap.id;
   // Foco final tras cerrar el diálogo: espera al detalle recargado si la caché ya tiene uno
   // distinto del pintado; si el destino no existe (p. ej. 409 sin banner porque el refetch falló),
   // cae al h1.
@@ -68,21 +104,96 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
     trackMutation.isError && !shouldRefreshAfterTrackError(trackMutation.error)
       ? getCompleteItemErrorMessage(trackMutation.error)
       : null;
+  // Pausar/reanudar en curso: ⋯, banner y completar bloqueados (sin carreras entre acciones).
+  const pauseLocked = pauseMutation.isPending;
+  const resuming = pauseLocked && pauseMutation.variables?.paused === false;
+  // 404 al borrar se trata como éxito (navega); el resto se queda dentro del diálogo.
+  const deleteErrorMessage =
+    deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
+      ? getDeleteRoadmapErrorMessage(deleteMutation.error)
+      : null;
 
-  const handleCompleteRequest = (item: RoadmapItem) => {
-    trackMutation.reset();
+  // Tras borrar, el detalle sale de la caché al desmontar la vista (la página ya no observa).
+  // StrictMode no afecta: en el doble montaje `deletedRef` sigue a `false`.
+  useEffect(
+    () => () => {
+      if (deletedRef.current) {
+        queryClient.removeQueries({ queryKey: roadmapsKeys.detail(roadmapId), exact: true });
+      }
+    },
+    [queryClient, roadmapId],
+  );
+
+  const getCachedDetail = () =>
+    queryClient.getQueryData<RoadmapDetail>(roadmapsKeys.detail(roadmap.id));
+
+  /** Limpia anuncio, aviso y foco pendiente al empezar cualquier acción. */
+  const clearFeedback = () => {
     setAnnouncement("");
     setNotice(null);
     cancelFocus();
+  };
+
+  const handleCompleteRequest = (item: RoadmapItem) => {
+    trackMutation.reset();
+    clearFeedback();
     setItemToComplete(item);
+  };
+
+  // Sin confirmación ni guard de `isPending`: el ⋯ y el banner están deshabilitados mientras tanto.
+  const handlePauseToggle = (paused: boolean) => {
+    clearFeedback();
+    pauseMutation.mutate(
+      { paused, expectedActivityVersion: roadmap.activityVersion },
+      {
+        onSuccess: (fresh) => {
+          // Back idempotente: se anuncia el estado devuelto, no la acción pedida.
+          const message = getPauseToggleAnnouncement(fresh.status);
+          if (message) setAnnouncement(message);
+          requestFocus(fresh.status === "PAUSED" ? pausedHeadingId : headingId, fresh);
+        },
+        onError: (error) => {
+          if (isRoadmapUpdatedElsewhereError(error)) {
+            // Sin anuncio: el Notice ya es `role="status"`. El detalle ya está refrescado.
+            setNotice({ variant: "info", message: ROADMAP_UPDATED_ELSEWHERE_MESSAGE });
+            requestFocus(headingId, getCachedDetail());
+          } else if (!isRoadmapNotFoundError(error)) {
+            // 404: el refetch da 404 y la página pinta «No encontramos esta ruta».
+            setNotice({ variant: "error", message: getPauseRoadmapErrorMessage(error, paused) });
+          }
+        },
+      },
+    );
+  };
+
+  const handleDeleteRequest = () => {
+    clearFeedback();
+    deleteMutation.reset();
+    setDeleteOpen(true);
+  };
+
+  const leave = (notFound: boolean) => {
+    deletedRef.current = true;
+    setLeaving(true);
+    navigate("/dashboard/roadmaps", {
+      replace: true,
+      state: buildRoadmapDeletedState(roadmap.name, notFound),
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteMutation.mutate(roadmap.id, {
+      onSuccess: () => leave(false),
+      onError: (error) => {
+        if (isRoadmapNotFoundError(error)) leave(true);
+      },
+    });
   };
 
   const handleConfirm = () => {
     const item = itemToComplete;
     if (!item) return;
     const itemHeadingId = getItemHeadingId(itemHeadingIdPrefix, item.roadmapItemId);
-    const getCachedDetail = () =>
-      queryClient.getQueryData<RoadmapDetail>(roadmapsKeys.detail(roadmap.id));
 
     // Sin guard de `isPending`: el botón está deshabilitado mientras tanto.
     trackMutation.mutate(item.roadmapItemId, {
@@ -116,7 +227,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         } else if (isRoadmapItemNotFoundError(error)) {
           // Sin anuncio: el Notice ya es `role="status"` (evita la doble lectura).
           setItemToComplete(null);
-          setNotice(ROADMAP_ITEM_NOT_FOUND_MESSAGE);
+          setNotice({ variant: "info", message: ROADMAP_ITEM_NOT_FOUND_MESSAGE });
           requestFocus(headingId, cached);
         }
         // Otros errores: el diálogo sigue abierto con `errorMessage`.
@@ -126,24 +237,39 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
 
   return (
     <div className="flex w-full max-w-detail flex-col gap-5.5">
-      {notice ? <Notice variant="info">{notice}</Notice> : null}
-      {/* Fila de la miga: `justify-between` deja sitio al menú ⋯ de móvil (slice 5). */}
-      <div className="flex items-center justify-between gap-3">
+      {notice ? <Notice variant={notice.variant}>{notice.message}</Notice> : null}
+      {/*
+       * Miga, cabecera y ⋯ en un grid con áreas (una sola instancia del ⋯): en móvil el ⋯ va en la
+       * fila de la miga; desde `sm:` junto al h1. DOM miga → cabecera → ⋯ (mismatch visual aceptado
+       * en móvil; el Tab sigue miga → ⋯ porque la cabecera no tiene tabulables).
+       */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-5.5 [grid-template-areas:'back_menu'_'header_header'] sm:[grid-template-areas:'back_back'_'header_menu']">
         <Link
           to="/dashboard/roadmaps"
-          className="flex w-fit items-center gap-1.5 rounded-md font-body font-semibold text-sm text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-ring-focus"
+          className="flex w-fit items-center gap-1.5 self-center rounded-md font-body font-semibold text-sm text-text-secondary outline-none transition-colors [grid-area:back] hover:text-text-primary focus-visible:shadow-ring-focus"
         >
           <span aria-hidden="true">‹</span>
           Mis Rutas
         </Link>
+        <RoadmapHeader
+          name={roadmap.name}
+          summary={roadmap.summary}
+          status={roadmap.status}
+          lastActivity={roadmap.lastActivity}
+          headingId={headingId}
+          className="[grid-area:header]"
+        />
+        <div className="self-center [grid-area:menu] sm:self-start">
+          <RoadmapDetailMenu
+            roadmapName={roadmap.name}
+            status={roadmap.status}
+            disabled={pauseLocked}
+            onPause={() => handlePauseToggle(true)}
+            onResume={() => handlePauseToggle(false)}
+            onDelete={handleDeleteRequest}
+          />
+        </div>
       </div>
-      <RoadmapHeader
-        name={roadmap.name}
-        summary={roadmap.summary}
-        status={roadmap.status}
-        lastActivity={roadmap.lastActivity}
-        headingId={headingId}
-      />
       <RoadmapProgress
         progress={roadmap.progress}
         status={roadmap.status}
@@ -158,8 +284,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           pausedAt={roadmap.pausedAt}
           descriptionId={pausedDescriptionId}
           headingId={pausedHeadingId}
-          onResume={() => {}}
-          resuming={false}
+          onResume={() => handlePauseToggle(false)}
+          resuming={resuming}
         />
       ) : null}
       {roadmap.status === "COMPLETED" ? (
@@ -175,6 +301,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           stepNumber={nextStepItem.stepNumber}
           total={total}
           onComplete={handleCompleteRequest}
+          completeDisabled={pauseLocked}
         />
       ) : null}
       <RoadmapTimeline
@@ -185,6 +312,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         pausedDescriptionId={isPaused ? pausedDescriptionId : undefined}
         onComplete={handleCompleteRequest}
         itemHeadingIdPrefix={itemHeadingIdPrefix}
+        completeDisabled={pauseLocked}
       />
       <ConfirmCompleteDialog
         item={itemToComplete}
@@ -192,6 +320,14 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
         errorMessage={errorMessage}
         onCancel={() => setItemToComplete(null)}
         onConfirm={handleConfirm}
+      />
+      {/* Tras 200/404 sigue abierto en «Eliminando…» (`leaving`) hasta que el router desmonta. */}
+      <DeleteRoadmapDialog
+        roadmap={deleteOpen ? roadmap : null}
+        pending={deleteMutation.isPending || leaving}
+        errorMessage={deleteErrorMessage}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={handleDeleteConfirm}
       />
       {/* Siempre montada (una live region que aparece con texto no se anuncia de forma fiable). */}
       <p

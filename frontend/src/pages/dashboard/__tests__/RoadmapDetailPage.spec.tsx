@@ -22,7 +22,12 @@ import { createTestQueryClient, renderWithProviders } from "@/test/renderWithPro
 import { byTextContent } from "@/test/textContent";
 import type { RoadmapDetail } from "@/types";
 
-vi.mock("@/api/services", () => ({ getRoadmap: vi.fn(), trackItemCompletion: vi.fn() }));
+vi.mock("@/api/services", () => ({
+  deleteRoadmap: vi.fn(),
+  getRoadmap: vi.fn(),
+  setRoadmapPaused: vi.fn(),
+  trackItemCompletion: vi.fn(),
+}));
 
 const ID = ROADMAP_DETAIL.id;
 

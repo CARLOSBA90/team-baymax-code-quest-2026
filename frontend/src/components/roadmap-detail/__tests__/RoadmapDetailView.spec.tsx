@@ -1,7 +1,10 @@
+import { QueryClient } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { trackItemCompletion } from "@/api/services";
+import { roadmapsKeys } from "@/api/queries/roadmaps";
+import { deleteRoadmap, getRoadmap, setRoadmapPaused, trackItemCompletion } from "@/api/services";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
@@ -18,11 +21,23 @@ import {
   buildRoadmapItem,
   ROADMAP_DETAIL,
 } from "@/test/fixtures/roadmap-detail";
+import {
+  buildInvalidRoadmapTransitionError,
+  buildPausedRoadmapDetailResult,
+  buildResumedRoadmapDetail,
+  buildRoadmapNotFoundError,
+  buildRoadmapVersionConflictError,
+} from "@/test/fixtures/roadmap-pause";
 import { renderWithProviders } from "@/test/renderWithProviders";
 import { byTextContent } from "@/test/textContent";
 import type { RoadmapDetail, TrackProgressResult } from "@/types";
 
-vi.mock("@/api/services", () => ({ trackItemCompletion: vi.fn(), getRoadmap: vi.fn() }));
+vi.mock("@/api/services", () => ({
+  deleteRoadmap: vi.fn(),
+  getRoadmap: vi.fn(),
+  setRoadmapPaused: vi.fn(),
+  trackItemCompletion: vi.fn(),
+}));
 
 const CONTEXTUAL_BLOCKS = [
   "Continúa aquí",
@@ -58,17 +73,33 @@ describe("RoadmapDetailView", () => {
   });
 
   describe("móvil (base) / tablet (sm:)", () => {
-    it("la miga «Mis Rutas» va en una fila `justify-between` lista para el ⋯, sin botón aún", () => {
+    it("miga, cabecera y ⋯ comparten un grid con áreas: ⋯ en la fila de la miga y desde sm: junto al h1", () => {
       renderWithProviders(<RoadmapDetailView roadmap={ROADMAP_DETAIL} />);
 
       const link = screen.getByRole("link", { name: "Mis Rutas" });
-      const row = link.parentElement;
-      expect(row?.tagName).toBe("DIV");
-      expect(row).toHaveClass("flex", "items-center", "justify-between");
+      const heading = screen.getByRole("heading", { level: 1, name: ROADMAP_DETAIL.name });
+      const trigger = screen.getByRole("button", {
+        name: `Más acciones para ${ROADMAP_DETAIL.name}`,
+      });
+      const grid = link.parentElement;
+      expect(grid).toHaveClass(
+        "grid",
+        "grid-cols-[minmax(0,1fr)_auto]",
+        "[grid-template-areas:'back_menu'_'header_header']",
+        "sm:[grid-template-areas:'back_back'_'header_menu']",
+      );
+      expect(link).toHaveClass("[grid-area:back]", "self-center");
+      const header = heading.closest("header");
+      expect(header).toHaveClass("[grid-area:header]");
+      expect(header?.parentElement).toBe(grid);
+      const menuCell = trigger.closest(".\\[grid-area\\:menu\\]");
+      expect(menuCell).toHaveClass("self-center", "sm:self-start");
+      expect(menuCell?.parentElement).toBe(grid);
+      // DOM: miga → h1 → ⋯ (el h1 se lee antes que «Más acciones»).
+      expect(link.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(
-        screen.queryByRole("button", { name: /^(Más opciones|Opciones de la ruta)/ }),
-      ).not.toBeInTheDocument();
-      expect(document.querySelector("[aria-haspopup]")).toBeNull();
+        heading.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     });
 
     it("orden de lectura: miga → h1 → resumen → badge → actividad → barra → bloque → pasos", () => {
@@ -159,7 +190,11 @@ describe("RoadmapDetailView", () => {
       for (const indicator of indicators) {
         expect(indicator).toHaveAttribute("aria-hidden", "true");
       }
-      expect(document.querySelector("[aria-haspopup]")).toBeNull();
+      // Un único ⋯ (una sola instancia para todos los anchos).
+      expect(document.querySelectorAll("[aria-haspopup]")).toHaveLength(1);
+      expect(
+        screen.getAllByRole("button", { name: `Más acciones para ${roadmap.name}` }),
+      ).toHaveLength(1);
     }
 
     it("en curso con 5 pasos: un h1, un h3 por paso, un enlace por paso y otro en «Continúa aquí»", () => {
@@ -269,6 +304,7 @@ describe("RoadmapDetailView", () => {
   describe.each([
     {
       status: "IN_PROGRESS",
+      menuItems: ["Pausar ruta", "Eliminar ruta"],
       build: () => ROADMAP_DETAIL,
       badge: "Empezada",
       block: "Continúa aquí",
@@ -279,6 +315,7 @@ describe("RoadmapDetailView", () => {
     },
     {
       status: "NOT_STARTED",
+      menuItems: ["Eliminar ruta"],
       build: buildNotStartedRoadmapDetail,
       badge: "Sin empezar",
       block: "Continúa aquí",
@@ -289,6 +326,7 @@ describe("RoadmapDetailView", () => {
     },
     {
       status: "PAUSED",
+      menuItems: ["Reanudar ruta", "Eliminar ruta"],
       build: buildPausedRoadmapDetail,
       badge: "En pausa",
       block: "Esta ruta está en pausa",
@@ -299,6 +337,7 @@ describe("RoadmapDetailView", () => {
     },
     {
       status: "COMPLETED",
+      menuItems: ["Eliminar ruta"],
       build: buildCompletedRoadmapDetail,
       badge: "Completada",
       block: "Completaste la ruta",
@@ -309,7 +348,7 @@ describe("RoadmapDetailView", () => {
     },
   ] as const)(
     "estado $status (tabla «Comportamiento por estado»)",
-    ({ build, badge, block, fill, percent, percentClass, completeButtons }) => {
+    ({ build, badge, block, fill, percent, percentClass, completeButtons, menuItems }) => {
       it(`muestra el badge «${badge}» y solo el bloque contextual «${block}»`, () => {
         renderWithProviders(<RoadmapDetailView roadmap={build()} />);
 
@@ -335,11 +374,20 @@ describe("RoadmapDetailView", () => {
         expect(screen.getByText(percent)).toHaveClass(percentClass);
       });
 
-      it("sin menú ⋯ y con una única live region polite, vacía", () => {
-        renderWithProviders(<RoadmapDetailView roadmap={build()} />);
+      it(`un solo ⋯ habilitado con ${menuItems.join(" + ")} y una única live region vacía`, async () => {
+        const user = userEvent.setup();
+        const roadmap = build();
+        renderWithProviders(<RoadmapDetailView roadmap={roadmap} />);
 
-        expect(document.querySelector('[aria-haspopup="menu"]')).toBeNull();
-        expect(screen.queryByRole("button", { name: /opciones/i })).not.toBeInTheDocument();
+        const triggers = screen.getAllByRole("button", {
+          name: `Más acciones para ${roadmap.name}`,
+        });
+        expect(triggers).toHaveLength(1);
+        expect(triggers[0]).not.toHaveAttribute("aria-disabled");
+        await user.click(triggers[0]);
+        const items = within(screen.getByRole("menu")).getAllByRole("menuitem");
+        expect(items.map((item) => item.textContent)).toEqual(menuItems);
+
         const regions = document.querySelectorAll('[aria-live="polite"]');
         expect(regions).toHaveLength(1);
         expect(regions[0]).toBe(screen.getByTestId("roadmap-detail-announcer"));
@@ -777,5 +825,332 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
       screen.queryByText("Este paso ya no existe. Hemos actualizado la ruta."),
     ).not.toBeInTheDocument();
     expect(announcer()).toBeEmptyDOMElement();
+  });
+});
+
+describe("RoadmapDetailView — pausar, reanudar y eliminar", () => {
+  const NAME = ROADMAP_DETAIL.name;
+  const TRIGGER_NAME = `Más acciones para ${NAME}`;
+  const NETWORK_MESSAGE =
+    "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
+  const UPDATED_ELSEWHERE =
+    "Alguien actualizó esta ruta desde otro lugar. Ya tienes la versión más reciente.";
+
+  function trigger() {
+    return screen.getByRole("button", { name: TRIGGER_NAME });
+  }
+
+  function mainHeading() {
+    return screen.getByRole("heading", { level: 1, name: NAME });
+  }
+
+  function announcer() {
+    return screen.getByTestId("roadmap-detail-announcer");
+  }
+
+  function completeButtons() {
+    return screen.getAllByRole("button", { name: /^Marcar como completado/ });
+  }
+
+  /** Muestra la ubicación actual para comprobar la navegación tras borrar. */
+  function LocationProbe() {
+    const location = useLocation();
+    return (
+      <output data-testid="location">
+        {location.pathname} {JSON.stringify(location.state)}
+      </output>
+    );
+  }
+
+  function renderView(roadmap: RoadmapDetail = ROADMAP_DETAIL, queryClient?: QueryClient) {
+    const user = userEvent.setup();
+    const result = renderWithProviders(
+      <>
+        <RoadmapDetailView roadmap={roadmap} />
+        <LocationProbe />
+      </>,
+      { route: `/dashboard/roadmaps/${roadmap.id}`, queryClient },
+    );
+    return { user, ...result };
+  }
+
+  async function selectMenuItem(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.click(trigger());
+    await user.click(screen.getByRole("menuitem", { name: label }));
+  }
+
+  function deferred<T>() {
+    let resolve: (value: T) => void = () => {};
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  afterEach(() => {
+    document.documentElement.classList.remove("overflow-hidden");
+  });
+
+  it("pausar desde ⋯ envía la versión y, sin conexión, muestra la alerta arriba sin mover el foco", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildNetworkError());
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(NETWORK_MESSAGE);
+    expect(alert.parentElement?.firstElementChild).toBe(alert);
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][0]).toBe(ROADMAP_DETAIL.id);
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][1]).toEqual({
+      paused: true,
+      expectedActivityVersion: ROADMAP_DETAIL.activityVersion,
+    });
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+    expect(getRoadmap).not.toHaveBeenCalled();
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(trigger()).toHaveFocus();
+    expect(trigger()).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("500 al reanudar desde el banner: copy genérico de reanudar, nunca el `message` del back", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildAxiosError(500, "Backend says no"));
+    const { user } = renderView(buildPausedRoadmapDetail());
+
+    await user.click(screen.getByRole("button", { name: "Reanudar ruta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo reanudar la ruta. Inténtalo de nuevo.",
+    );
+    expect(vi.mocked(setRoadmapPaused).mock.calls[0][1]).toMatchObject({ paused: false });
+    expect(screen.queryByText(/Backend says no/)).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeEnabled();
+  });
+
+  it.each([
+    ["ROADMAP_VERSION_CONFLICT", buildRoadmapVersionConflictError],
+    ["INVALID_ROADMAP_TRANSITION", buildInvalidRoadmapTransitionError],
+  ])("409 %s: aviso neutro (status, sin alerta), sin anuncio y foco en el h1", async (_, build) => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(build());
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    const notice = await screen.findByText(UPDATED_ELSEWHERE);
+    expect(notice).toHaveAttribute("role", "status");
+    expect(notice).toHaveClass("bg-notice-info-bg");
+    expect(notice.parentElement?.firstElementChild).toBe(notice);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+  });
+
+  it("404 al pausar: sin aviso ni anuncio en la vista (la página pinta «No encontramos»)", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapNotFoundError());
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    await waitFor(() => expect(trigger()).not.toHaveAttribute("aria-disabled"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(UPDATED_ELSEWHERE)).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it("mientras pausa: ⋯ y todos los «Marcar como completado» bloqueados, una sola petición", async () => {
+    const pending = deferred<RoadmapDetail>();
+    vi.mocked(setRoadmapPaused).mockReturnValue(pending.promise);
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    await waitFor(() => expect(trigger()).toHaveAttribute("aria-disabled", "true"));
+    for (const button of completeButtons()) expect(button).toBeDisabled();
+    await user.click(trigger());
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+
+    pending.resolve(buildPausedRoadmapDetailResult());
+
+    await waitFor(() => expect(trigger()).not.toHaveAttribute("aria-disabled"));
+    for (const button of completeButtons()) expect(button).toBeEnabled();
+  });
+
+  it.each([
+    ["el banner", "banner"],
+    ["el ⋯", "menu"],
+  ] as const)("mientras reanuda desde %s: banner «Reanudando…» y ⋯ bloqueados", async (_, from) => {
+    const pending = deferred<RoadmapDetail>();
+    vi.mocked(setRoadmapPaused).mockReturnValue(pending.promise);
+    const { user } = renderView(buildPausedRoadmapDetail());
+
+    if (from === "banner") await user.click(screen.getByRole("button", { name: "Reanudar ruta" }));
+    else await selectMenuItem(user, "Reanudar ruta");
+
+    const banner = screen.getByRole("region", { name: "Esta ruta está en pausa" });
+    const resuming = await within(banner).findByRole("button", { name: "Reanudando…" });
+    expect(resuming).toBeDisabled();
+    expect(trigger()).toHaveAttribute("aria-disabled", "true");
+    for (const button of completeButtons()) expect(button).toBeDisabled();
+    await user.click(resuming);
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
+
+    pending.resolve(buildResumedRoadmapDetail());
+    await waitFor(() => expect(trigger()).not.toHaveAttribute("aria-disabled"));
+  });
+
+  it("200 sin observador: anuncia la pausa y el foco no se queda en ⋯ (cota de espera → h1)", async () => {
+    vi.mocked(setRoadmapPaused).mockResolvedValue(buildPausedRoadmapDetailResult());
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    await waitFor(() =>
+      expect(announcer()).toHaveTextContent(
+        "Ruta pausada. Mientras esté pausada no se registra tu avance.",
+      ),
+    );
+    // La prop no cambia (sin página): el banner no llega y, pasada la cota, cae al h1.
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()), { timeout: 2500 });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("reanudar → 200 COMPLETED: sin anuncio y foco en el h1", async () => {
+    vi.mocked(setRoadmapPaused).mockResolvedValue(buildCompletedRoadmapDetail());
+    const { user } = renderView(buildPausedRoadmapDetail());
+
+    await user.click(screen.getByRole("button", { name: "Reanudar ruta" }));
+
+    await waitFor(() => expect(document.activeElement).toBe(mainHeading()), { timeout: 2500 });
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it.each([
+    ["abrir completar", "complete"],
+    ["abrir eliminar", "delete"],
+    ["volver a pausar", "pause"],
+  ] as const)("con una alerta de pausa visible, %s la limpia", async (_, action) => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildNetworkError());
+    const { user } = renderView();
+    await selectMenuItem(user, "Pausar ruta");
+    await screen.findByRole("alert");
+
+    if (action === "complete") await user.click(completeButtons()[0]);
+    else if (action === "delete") await selectMenuItem(user, "Eliminar ruta");
+    else {
+      vi.mocked(setRoadmapPaused).mockReturnValue(new Promise(() => {}));
+      await selectMenuItem(user, "Pausar ruta");
+    }
+
+    expect(screen.queryByText(NETWORK_MESSAGE)).not.toBeInTheDocument();
+  });
+
+  it("con el aviso neutro de conflicto visible, abrir eliminar lo limpia", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapVersionConflictError());
+    const { user } = renderView();
+    await selectMenuItem(user, "Pausar ruta");
+    await screen.findByText(UPDATED_ELSEWHERE);
+
+    await selectMenuItem(user, "Eliminar ruta");
+
+    expect(screen.queryByText(UPDATED_ELSEWHERE)).not.toBeInTheDocument();
+  });
+
+  it("⋯ → «Eliminar ruta» abre la confirmación; Cancelar no borra y devuelve el foco al ⋯", async () => {
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Eliminar ruta");
+
+    const dialog = screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` });
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(deleteRoadmap).not.toHaveBeenCalled();
+    expect(trigger()).toHaveFocus();
+  });
+
+  it("error de red al borrar: alerta dentro del diálogo, que sigue abierto", async () => {
+    vi.mocked(deleteRoadmap).mockRejectedValue(buildNetworkError());
+    const { user } = renderView();
+
+    await selectMenuItem(user, "Eliminar ruta");
+    const dialog = screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` });
+    await user.click(within(dialog).getByRole("button", { name: "Eliminar ruta" }));
+
+    expect(await within(dialog).findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Eliminar ruta" })).toBeEnabled();
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      `/dashboard/roadmaps/${ROADMAP_DETAIL.id}`,
+    );
+  });
+
+  it.each([
+    ["200", false],
+    ["404", true],
+  ] as const)(
+    "%s al borrar: navega a Mis Rutas con replace y el state de borrado; el diálogo sigue en «Eliminando…»",
+    async (_status, notFound) => {
+      if (notFound) vi.mocked(deleteRoadmap).mockRejectedValue(buildRoadmapNotFoundError());
+      else vi.mocked(deleteRoadmap).mockResolvedValue({ id: ROADMAP_DETAIL.id });
+      const { user } = renderView();
+
+      await selectMenuItem(user, "Eliminar ruta");
+      const dialog = screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` });
+      await user.click(within(dialog).getByRole("button", { name: "Eliminar ruta" }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId("location")).toHaveTextContent(
+          `/dashboard/roadmaps ${JSON.stringify({ roadmapDeleted: { name: NAME, notFound } })}`,
+        ),
+      );
+      expect(vi.mocked(deleteRoadmap).mock.calls[0][0]).toBe(ROADMAP_DETAIL.id);
+      // Sin <Routes>, la vista sigue montada: el diálogo se queda bloqueado en «Eliminando…».
+      expect(within(dialog).getByRole("button", { name: "Eliminando…" })).toBeDisabled();
+      expect(within(dialog).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+      expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
+
+  it("tras borrar, el detalle sigue en caché con la vista montada y sale al desmontarla", async () => {
+    vi.mocked(deleteRoadmap).mockResolvedValue({ id: ROADMAP_DETAIL.id });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const detailKey = roadmapsKeys.detail(ROADMAP_DETAIL.id);
+    const otherKey = roadmapsKeys.detail("otra-ruta");
+    queryClient.setQueryData(detailKey, ROADMAP_DETAIL);
+    queryClient.setQueryData(otherKey, ROADMAP_DETAIL);
+    const { user, unmount } = renderView(ROADMAP_DETAIL, queryClient);
+
+    await selectMenuItem(user, "Eliminar ruta");
+    await user.click(
+      within(screen.getByRole("dialog", { name: `¿Eliminar ${NAME}?` })).getByRole("button", {
+        name: "Eliminar ruta",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(/^\/dashboard\/roadmaps /),
+    );
+
+    expect(queryClient.getQueryData(detailKey)).toBe(ROADMAP_DETAIL);
+    expect(queryClient.getQueryState(detailKey)?.isInvalidated).toBe(false);
+    unmount();
+    expect(queryClient.getQueryState(detailKey)).toBeUndefined();
+    expect(queryClient.getQueryData(otherKey)).toBe(ROADMAP_DETAIL);
+  });
+
+  it("desmontar sin haber borrado no toca la caché del detalle", () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+    });
+    const detailKey = roadmapsKeys.detail(ROADMAP_DETAIL.id);
+    queryClient.setQueryData(detailKey, ROADMAP_DETAIL);
+    const { unmount } = renderView(ROADMAP_DETAIL, queryClient);
+
+    unmount();
+
+    expect(queryClient.getQueryData(detailKey)).toBe(ROADMAP_DETAIL);
   });
 });
