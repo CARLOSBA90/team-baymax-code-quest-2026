@@ -561,7 +561,9 @@ describe("getNextStepItem", () => {
   );
 
   it("resuelve el ítem del siguiente paso con su posición 1-based", () => {
-    expect(getNextStepItem(items, { roadmapItemId: "c", name: "Paso c", url: null })).toEqual({
+    expect(
+      getNextStepItem(items, { roadmapItemId: "c", name: "Paso c", url: null, lesson: null }),
+    ).toEqual({
       item: items[2],
       stepNumber: 3,
     });
@@ -572,7 +574,9 @@ describe("getNextStepItem", () => {
   });
 
   it("id huérfano (no está en los ítems) → null", () => {
-    expect(getNextStepItem(items, { roadmapItemId: "zz", name: "X", url: null })).toBeNull();
+    expect(
+      getNextStepItem(items, { roadmapItemId: "zz", name: "X", url: null, lesson: null }),
+    ).toBeNull();
   });
 });
 

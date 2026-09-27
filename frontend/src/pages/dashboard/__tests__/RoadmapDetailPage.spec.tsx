@@ -224,6 +224,7 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
         roadmapItemId: "item-3",
         name: ITEM_NAME,
         url: "https://react.dev/reference/react/hooks",
+        lesson: null,
       },
       ...overrides,
     });
@@ -346,7 +347,7 @@ describe("RoadmapDetailPage — «Marcar como completado» (refetch real)", () =
       items: completed.items.map((item) =>
         item.roadmapItemId === "item-3" ? { ...item, progress: 0, completedAt: null } : item,
       ),
-      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null },
+      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null, lesson: null },
     };
     vi.mocked(getRoadmap).mockResolvedValueOnce(lastPending).mockResolvedValueOnce(completed);
     vi.mocked(trackItemCompletion).mockResolvedValue(

@@ -1,4 +1,106 @@
-import type { RoadmapDetail, RoadmapDetailDto, RoadmapItem } from "@/types";
+import type {
+  RoadmapDetail,
+  RoadmapDetailDto,
+  RoadmapItem,
+  Syllabus,
+  SyllabusDto,
+  SyllabusLesson,
+  SyllabusLessonDto,
+} from "@/types";
+
+/** Lección de `syllabus.sections[]` en el cable, para tests. */
+export function buildSyllabusLessonDto(
+  overrides: Partial<SyllabusLessonDto> = {},
+): SyllabusLessonDto {
+  return {
+    lesson_id: "lesson-1",
+    title: "Variables y tipos de datos",
+    type: "video",
+    free_preview: false,
+    completed: false,
+    position_seconds: null,
+    ...overrides,
+  };
+}
+
+/** Lección de `Syllabus.sections[]` ya mapeada a camelCase, para tests. */
+export function buildSyllabusLesson(overrides: Partial<SyllabusLesson> = {}): SyllabusLesson {
+  return {
+    lessonId: "lesson-1",
+    title: "Variables y tipos de datos",
+    type: "video",
+    freePreview: false,
+    completed: false,
+    positionSeconds: null,
+    ...overrides,
+  };
+}
+
+/** `content[].syllabus` en el cable, para tests: 2 secciones con 2 lecciones cada una. */
+export function buildSyllabusDto(overrides: Partial<SyllabusDto> = {}): SyllabusDto {
+  return {
+    total_lessons: 4,
+    completed_lessons: 0,
+    last_lesson_id: null,
+    next_lesson: {
+      lesson_id: "lesson-1",
+      title: "Variables y tipos de datos",
+      section_title: "Fundamentos",
+      position: 1,
+      position_seconds: null,
+    },
+    sections: [
+      {
+        title: "Fundamentos",
+        lessons: [
+          buildSyllabusLessonDto({ lesson_id: "lesson-1", title: "Variables y tipos de datos" }),
+          buildSyllabusLessonDto({ lesson_id: "lesson-2", title: "Operadores y expresiones" }),
+        ],
+      },
+      {
+        title: "Funciones y control de flujo",
+        lessons: [
+          buildSyllabusLessonDto({ lesson_id: "lesson-3", title: "Declaración de funciones" }),
+          buildSyllabusLessonDto({ lesson_id: "lesson-4", title: "Condicionales y bucles" }),
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+/** `Syllabus` ya mapeado a camelCase, para tests: 2 secciones con 2 lecciones cada una. */
+export function buildSyllabus(overrides: Partial<Syllabus> = {}): Syllabus {
+  return {
+    totalLessons: 4,
+    completedLessons: 0,
+    lastLessonId: null,
+    nextLesson: {
+      lessonId: "lesson-1",
+      title: "Variables y tipos de datos",
+      sectionTitle: "Fundamentos",
+      position: 1,
+      positionSeconds: null,
+    },
+    sections: [
+      {
+        title: "Fundamentos",
+        lessons: [
+          buildSyllabusLesson({ lessonId: "lesson-1", title: "Variables y tipos de datos" }),
+          buildSyllabusLesson({ lessonId: "lesson-2", title: "Operadores y expresiones" }),
+        ],
+      },
+      {
+        title: "Funciones y control de flujo",
+        lessons: [
+          buildSyllabusLesson({ lessonId: "lesson-3", title: "Declaración de funciones" }),
+          buildSyllabusLesson({ lessonId: "lesson-4", title: "Condicionales y bucles" }),
+        ],
+      },
+    ],
+    ...overrides,
+  };
+}
 
 // Fixture de tests: respuesta de `GET /roadmaps/:id` en el cable (snake_case) y resultado de
 // `getRoadmap()` ya mapeado a camelCase.
@@ -36,6 +138,43 @@ export const ROADMAP_DETAIL_DTO: RoadmapDetailDto = {
       tracking: { type: "LESSONS", enabled: true, disabled_reason: null },
       started_at: "2026-09-10T09:00:00.000Z",
       completed_at: "2026-09-15T17:00:00.000Z",
+      syllabus: buildSyllabusDto({
+        completed_lessons: 4,
+        last_lesson_id: "lesson-4",
+        next_lesson: null,
+        sections: [
+          {
+            title: "Fundamentos",
+            lessons: [
+              buildSyllabusLessonDto({
+                lesson_id: "lesson-1",
+                title: "Variables y tipos de datos",
+                completed: true,
+              }),
+              buildSyllabusLessonDto({
+                lesson_id: "lesson-2",
+                title: "Operadores y expresiones",
+                completed: true,
+              }),
+            ],
+          },
+          {
+            title: "Funciones y control de flujo",
+            lessons: [
+              buildSyllabusLessonDto({
+                lesson_id: "lesson-3",
+                title: "Declaración de funciones",
+                completed: true,
+              }),
+              buildSyllabusLessonDto({
+                lesson_id: "lesson-4",
+                title: "Condicionales y bucles",
+                completed: true,
+              }),
+            ],
+          },
+        ],
+      }),
     },
     {
       roadmap_item_id: "item-2",
@@ -52,6 +191,7 @@ export const ROADMAP_DETAIL_DTO: RoadmapDetailDto = {
       tracking: { type: "VIDEO", enabled: true, disabled_reason: null },
       started_at: "2026-09-18T10:00:00.000Z",
       completed_at: null,
+      syllabus: null,
     },
     {
       roadmap_item_id: "item-3",
@@ -68,6 +208,7 @@ export const ROADMAP_DETAIL_DTO: RoadmapDetailDto = {
       tracking: { type: "READING", enabled: true, disabled_reason: null },
       started_at: null,
       completed_at: null,
+      syllabus: null,
     },
     {
       roadmap_item_id: "item-4",
@@ -88,12 +229,14 @@ export const ROADMAP_DETAIL_DTO: RoadmapDetailDto = {
       },
       started_at: null,
       completed_at: null,
+      syllabus: null,
     },
   ],
   next_step: {
     roadmap_item_id: "item-2",
     name: "Introducción a React",
     url: "https://example.com/courses/react-intro",
+    lesson: null,
   },
 };
 
@@ -127,6 +270,43 @@ export const ROADMAP_DETAIL: RoadmapDetail = {
       tracking: { type: "LESSONS", enabled: true, disabledReason: null },
       startedAt: "2026-09-10T09:00:00.000Z",
       completedAt: "2026-09-15T17:00:00.000Z",
+      syllabus: buildSyllabus({
+        completedLessons: 4,
+        lastLessonId: "lesson-4",
+        nextLesson: null,
+        sections: [
+          {
+            title: "Fundamentos",
+            lessons: [
+              buildSyllabusLesson({
+                lessonId: "lesson-1",
+                title: "Variables y tipos de datos",
+                completed: true,
+              }),
+              buildSyllabusLesson({
+                lessonId: "lesson-2",
+                title: "Operadores y expresiones",
+                completed: true,
+              }),
+            ],
+          },
+          {
+            title: "Funciones y control de flujo",
+            lessons: [
+              buildSyllabusLesson({
+                lessonId: "lesson-3",
+                title: "Declaración de funciones",
+                completed: true,
+              }),
+              buildSyllabusLesson({
+                lessonId: "lesson-4",
+                title: "Condicionales y bucles",
+                completed: true,
+              }),
+            ],
+          },
+        ],
+      }),
     },
     {
       roadmapItemId: "item-2",
@@ -143,6 +323,7 @@ export const ROADMAP_DETAIL: RoadmapDetail = {
       tracking: { type: "VIDEO", enabled: true, disabledReason: null },
       startedAt: "2026-09-18T10:00:00.000Z",
       completedAt: null,
+      syllabus: null,
     },
     {
       roadmapItemId: "item-3",
@@ -159,6 +340,7 @@ export const ROADMAP_DETAIL: RoadmapDetail = {
       tracking: { type: "READING", enabled: true, disabledReason: null },
       startedAt: null,
       completedAt: null,
+      syllabus: null,
     },
     {
       roadmapItemId: "item-4",
@@ -179,12 +361,14 @@ export const ROADMAP_DETAIL: RoadmapDetail = {
       },
       startedAt: null,
       completedAt: null,
+      syllabus: null,
     },
   ],
   nextStep: {
     roadmapItemId: "item-2",
     name: "Introducción a React",
     url: "https://example.com/courses/react-intro",
+    lesson: null,
   },
 };
 
@@ -209,6 +393,7 @@ export function buildRoadmapItem(overrides: Partial<RoadmapItem> = {}): RoadmapI
     tracking: { type: "COMPLETION", enabled: true, disabledReason: null },
     startedAt: null,
     completedAt: null,
+    syllabus: null,
     ...overrides,
   };
 }
@@ -225,7 +410,12 @@ export function buildNotStartedRoadmapDetail(): RoadmapDetail {
     status: "NOT_STARTED",
     progress: 0,
     items: base.items.map((item) => ({ ...item, progress: 0, startedAt: null, completedAt: null })),
-    nextStep: { roadmapItemId: first.roadmapItemId, name: first.name, url: first.url },
+    nextStep: {
+      roadmapItemId: first.roadmapItemId,
+      name: first.name,
+      url: first.url,
+      lesson: null,
+    },
   };
 }
 

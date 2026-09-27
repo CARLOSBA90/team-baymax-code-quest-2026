@@ -198,13 +198,12 @@ describe("getRoadmap", () => {
       reason: "Recommended because…",
       generator: { model: "x" },
       courses: [{ id: "c1" }],
-      next_step: dto.next_step && { ...dto.next_step, lesson: { id: "l1", name: "Lección" } },
+      next_step: dto.next_step,
       content: dto.content.map((item) => ({
         ...item,
         reason: "Recommended because…",
         details: { foo: 1 },
-        syllabus: ["a"],
-        resume: { lesson: "l1" },
+        resume: { lesson_id: "l1" },
         progress_version: 4,
         tracking: { ...item.tracking, report_interval_seconds: 30 },
       })),
@@ -220,16 +219,74 @@ describe("getRoadmap", () => {
       "generator",
       "courses",
       "details",
-      "syllabus",
       "resume",
       "progress_version",
       "progressVersion",
-      "lesson",
       "report_interval_seconds",
       "reportIntervalSeconds",
     ]) {
       expect(keys).not.toContain(ignored);
     }
+  });
+
+  it("mapea syllabus campo a campo sin spread, y lo preserva null cuando el DTO lo trae null", async () => {
+    const [lessonsItem, noSyllabusItem] = ROADMAP_DETAIL_DTO.content;
+    mockDetailResponse(buildRoadmapDetailDto({ content: [lessonsItem, noSyllabusItem] }));
+
+    const result = await getRoadmap("rm-frontend-react");
+
+    expect(result.items[0].syllabus).toEqual({
+      totalLessons: lessonsItem.syllabus?.total_lessons,
+      completedLessons: lessonsItem.syllabus?.completed_lessons,
+      lastLessonId: lessonsItem.syllabus?.last_lesson_id,
+      nextLesson: lessonsItem.syllabus?.next_lesson,
+      sections: lessonsItem.syllabus?.sections.map((section) => ({
+        title: section.title,
+        lessons: section.lessons.map((lesson) => ({
+          lessonId: lesson.lesson_id,
+          title: lesson.title,
+          type: lesson.type,
+          freePreview: lesson.free_preview,
+          completed: lesson.completed,
+          positionSeconds: lesson.position_seconds,
+        })),
+      })),
+    });
+    expect(result.items[1].syllabus).toBeNull();
+    const syllabusKeys = collectKeys(result.items[0].syllabus);
+    for (const key of ["total_lessons", "completed_lessons", "last_lesson_id", "lesson_id"]) {
+      expect(syllabusKeys).not.toContain(key);
+    }
+  });
+
+  it("mapea next_step.lesson cuando el próximo paso es LESSONS, y null en otro caso", async () => {
+    const withLesson = buildRoadmapDetailDto({
+      next_step: {
+        roadmap_item_id: "item-1",
+        name: "Fundamentos de JavaScript",
+        url: null,
+        lesson: {
+          lesson_id: "lesson-2",
+          title: "Operadores y expresiones",
+          section_title: "Fundamentos",
+          position: 2,
+          position_seconds: null,
+        },
+      },
+    });
+    mockDetailResponse(withLesson);
+    const withLessonResult = await getRoadmap("rm-frontend-react");
+    expect(withLessonResult.nextStep?.lesson).toEqual({
+      lessonId: "lesson-2",
+      title: "Operadores y expresiones",
+      sectionTitle: "Fundamentos",
+      position: 2,
+      positionSeconds: null,
+    });
+
+    mockDetailResponse(buildRoadmapDetailDto());
+    const withoutLessonResult = await getRoadmap("rm-frontend-react");
+    expect(withoutLessonResult.nextStep?.lesson).toBeNull();
   });
 
   it("next_step null → nextStep null", async () => {

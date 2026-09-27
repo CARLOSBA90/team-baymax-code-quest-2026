@@ -149,6 +149,7 @@ describe("RoadmapDetailView", () => {
         roadmapItemId: "item-3",
         name: "Curso número 3",
         url: "https://example.com/courses/3",
+        lesson: null,
       },
     });
 
@@ -460,7 +461,7 @@ describe("RoadmapDetailView", () => {
     renderWithProviders(
       <RoadmapDetailView
         roadmap={buildRoadmapDetail({
-          nextStep: { roadmapItemId: "item-x", name: "Fantasma", url: null },
+          nextStep: { roadmapItemId: "item-x", name: "Fantasma", url: null, lesson: null },
         })}
       />,
     );
@@ -534,6 +535,7 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
         roadmapItemId: "item-3",
         name: ITEM_NAME,
         url: "https://react.dev/reference/react/hooks",
+        lesson: null,
       },
     };
   }
@@ -659,7 +661,7 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
       items: completed.items.map((item) =>
         item.roadmapItemId === "item-3" ? { ...item, progress: 0, completedAt: null } : item,
       ),
-      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null },
+      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null, lesson: null },
     };
     vi.mocked(trackItemCompletion).mockResolvedValue(
       buildTrackProgressResult({
