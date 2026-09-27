@@ -1,11 +1,20 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { trackItemCompletion } from "@/api/services";
+import { trackItemCompletion, trackLessonCompletion } from "@/api/services";
 import { isRoadmapNotFoundError, shouldRefreshAfterTrackError } from "@/lib";
 import type { RoadmapDetail, TrackProgressResult } from "@/types";
 import { roadmapsKeys } from "./keys";
 import { invalidateRoadmapsList, refreshRoadmapDetail } from "./refresh-detail";
 import { applyTrackProgressResult } from "./roadmaps-cache";
+
+/**
+ * Variable de la mutación de `useTrackProgress`: completar un ítem (COMPLETION/READING,
+ * irreversible) o marcar/desmarcar una lección de un ítem `LESSONS` (reversible). Una sola
+ * mutación lógica «trackear progreso de esta ruta», compartida entre ambos flujos.
+ */
+export type TrackProgressVariables =
+  | { kind: "item"; roadmapItemId: string }
+  | { kind: "lesson"; roadmapItemId: string; lessonId: string; completed: boolean };
 
 export interface TrackItemCompletionOutcome {
   result: TrackProgressResult;
@@ -27,19 +36,26 @@ export interface TrackItemCompletionOutcome {
  */
 export function useTrackProgress(
   roadmapId: string,
-): UseMutationResult<TrackItemCompletionOutcome, Error, string> {
+): UseMutationResult<TrackItemCompletionOutcome, Error, TrackProgressVariables> {
   const queryClient = useQueryClient();
   const detailKey = roadmapsKeys.detail(roadmapId);
 
   const refreshDetail = () => refreshRoadmapDetail(queryClient, roadmapId);
   const invalidateList = () => invalidateRoadmapsList(queryClient);
 
-  return useMutation<TrackItemCompletionOutcome, Error, string>({
+  return useMutation<TrackItemCompletionOutcome, Error, TrackProgressVariables>({
     mutationKey: [...roadmapsKeys.all, "track", roadmapId],
-    mutationFn: async (roadmapItemId) => {
+    mutationFn: async (variables) => {
       let result: TrackProgressResult;
       try {
-        result = await trackItemCompletion(roadmapItemId);
+        result =
+          variables.kind === "item"
+            ? await trackItemCompletion(variables.roadmapItemId)
+            : await trackLessonCompletion(
+                variables.roadmapItemId,
+                variables.lessonId,
+                variables.completed,
+              );
       } catch (error) {
         if (shouldRefreshAfterTrackError(error)) {
           await refreshDetail();
@@ -52,7 +68,7 @@ export function useTrackProgress(
       if (!refresh.ok && !isRoadmapNotFoundError(refresh.error)) {
         queryClient.setQueryData<RoadmapDetail>(
           detailKey,
-          (old) => old && applyTrackProgressResult(old, roadmapItemId, result),
+          (old) => old && applyTrackProgressResult(old, variables, result),
         );
         // Marca stale sin refetch: el próximo mount/focus lo vuelve a pedir.
         void queryClient.invalidateQueries({

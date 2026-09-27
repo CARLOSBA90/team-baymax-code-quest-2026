@@ -206,43 +206,51 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
     const itemHeadingId = getItemHeadingId(itemHeadingIdPrefix, item.roadmapItemId);
 
     // Sin guard de `isPending`: el botón está deshabilitado mientras tanto.
-    trackMutation.mutate(item.roadmapItemId, {
-      onSuccess: (outcome) => {
-        // Sin entrada en caché (sin observador) se reconstruye desde la respuesta del POST.
-        const fresh =
-          outcome.detail ?? applyTrackProgressResult(roadmap, item.roadmapItemId, outcome.result);
-        const roadmapCompleted = fresh.status === "COMPLETED";
-        setItemToComplete(null);
-        setAnnouncement(
-          getItemCompletedAnnouncement({
-            name: item.name,
-            progress: fresh.progress,
-            completed: getCompletedCount(fresh.items),
-            total: fresh.items.length,
-            roadmapCompleted,
-          }),
-        );
-        requestFocus(roadmapCompleted ? completedHeadingId : itemHeadingId, outcome.detail);
+    trackMutation.mutate(
+      { kind: "item", roadmapItemId: item.roadmapItemId },
+      {
+        onSuccess: (outcome) => {
+          // Sin entrada en caché (sin observador) se reconstruye desde la respuesta del POST.
+          const fresh =
+            outcome.detail ??
+            applyTrackProgressResult(
+              roadmap,
+              { kind: "item", roadmapItemId: item.roadmapItemId },
+              outcome.result,
+            );
+          const roadmapCompleted = fresh.status === "COMPLETED";
+          setItemToComplete(null);
+          setAnnouncement(
+            getItemCompletedAnnouncement({
+              name: item.name,
+              progress: fresh.progress,
+              completed: getCompletedCount(fresh.items),
+              total: fresh.items.length,
+              roadmapCompleted,
+            }),
+          );
+          requestFocus(roadmapCompleted ? completedHeadingId : itemHeadingId, outcome.detail);
+        },
+        onError: (error) => {
+          const cached = getCachedDetail();
+          if (isRoadmapPausedError(error)) {
+            setItemToComplete(null);
+            setAnnouncement(ROADMAP_PAUSED_TRACK_MESSAGE);
+            requestFocus(pausedHeadingId, cached);
+          } else if (isTrackingMismatchError(error)) {
+            setItemToComplete(null);
+            setAnnouncement(TRACKING_MISMATCH_TRACK_MESSAGE);
+            requestFocus(itemHeadingId, cached);
+          } else if (isRoadmapItemNotFoundError(error)) {
+            // Sin anuncio: el Notice ya es `role="status"` (evita la doble lectura).
+            setItemToComplete(null);
+            setNotice({ variant: "info", message: ROADMAP_ITEM_NOT_FOUND_MESSAGE });
+            requestFocus(headingId, cached);
+          }
+          // Otros errores: el diálogo sigue abierto con `errorMessage`.
+        },
       },
-      onError: (error) => {
-        const cached = getCachedDetail();
-        if (isRoadmapPausedError(error)) {
-          setItemToComplete(null);
-          setAnnouncement(ROADMAP_PAUSED_TRACK_MESSAGE);
-          requestFocus(pausedHeadingId, cached);
-        } else if (isTrackingMismatchError(error)) {
-          setItemToComplete(null);
-          setAnnouncement(TRACKING_MISMATCH_TRACK_MESSAGE);
-          requestFocus(itemHeadingId, cached);
-        } else if (isRoadmapItemNotFoundError(error)) {
-          // Sin anuncio: el Notice ya es `role="status"` (evita la doble lectura).
-          setItemToComplete(null);
-          setNotice({ variant: "info", message: ROADMAP_ITEM_NOT_FOUND_MESSAGE });
-          requestFocus(headingId, cached);
-        }
-        // Otros errores: el diálogo sigue abierto con `errorMessage`.
-      },
-    });
+    );
   };
 
   return (
