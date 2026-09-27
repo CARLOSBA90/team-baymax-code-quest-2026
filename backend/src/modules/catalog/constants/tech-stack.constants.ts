@@ -76,6 +76,10 @@ export const STACK_BY_SLUG_FRAGMENT: ReadonlyArray<
   ['nuxt', TechStack.VUE],
   ['pinia', TechStack.VUE],
 
+  // React Native ecosystem (must come before React to avoid false matches)
+  ['react-native', TechStack.REACT_NATIVE],
+  ['expo', TechStack.REACT_NATIVE],
+
   // React ecosystem
   ['react', TechStack.REACT],
   ['nextjs', TechStack.REACT],
@@ -132,9 +136,6 @@ export const STACK_BY_SLUG_FRAGMENT: ReadonlyArray<
   ['riverpod', TechStack.FLUTTER],
   ['bloc', TechStack.FLUTTER],
 
-  // React Native ecosystem
-  ['react-native', TechStack.REACT_NATIVE],
-  ['expo', TechStack.REACT_NATIVE],
 
   // DevOps
   ['docker', TechStack.DEVOPS_CORE],
