@@ -8,6 +8,21 @@ import { AuthValidator } from './auth.validator.js';
 
 const logger = new Logger('Auth');
 
+// ─── Mail bridge ─────────────────────────────────────────────────────────────
+// auth.ts se ejecuta fuera del ciclo de vida del DI container de Nest, por lo
+// que MailService no puede inyectarse directamente aquí. MailBridgeService llama
+// a registerMailService() en onModuleInit para dejar disponible la referencia.
+
+type MailServiceRef = {
+  sendPasswordResetEmail: (to: string, name: string, url: string) => Promise<void>;
+};
+
+let mailServiceRef: MailServiceRef | null = null;
+
+export function registerMailService(svc: MailServiceRef): void {
+  mailServiceRef = svc;
+}
+
 /** Orígenes de TRUSTED_ORIGINS, compartidos con el CORS de Nest. */
 export const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? '')
   .split(',')
@@ -100,6 +115,22 @@ export const auth = betterAuth({
     minPasswordLength: 6,
     // Solo 'true' la activa; cualquier otro valor o su ausencia la desactiva.
     requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION === 'true',
+    sendResetPassword: async ({ user, url }) => {
+      if (!mailServiceRef) {
+        logger.warn(
+          'MailService no registrado — el email de reset de contraseña no será enviado. ' +
+          'Verificar que MailModule esté importado en AppModule.',
+        );
+        return;
+      }
+      // Fire-and-forget: Better Auth ya generó y persistió el token.
+      // No bloqueamos la respuesta del endpoint por el envío del email.
+      mailServiceRef
+        .sendPasswordResetEmail(user.email, user.name ?? 'Usuario', url)
+        .catch((err: Error) =>
+          logger.error(`Error enviando email de reset a ${user.email}: ${err.message}`, err.stack),
+        );
+    },
   },
 
   emailVerification: {
