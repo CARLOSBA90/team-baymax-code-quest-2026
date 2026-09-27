@@ -37,6 +37,17 @@ export interface SubmitAssessmentInput {
   answers: AssessmentAnswer[];
 }
 
+/** Resultado de la auto-generación de la ruta al enviar el cuestionario. */
+export type RoadmapGenerationStatus = "GENERATED" | "EXISTS" | "FAILED";
+
+/** `roadmap` de `POST /assessments/submit`: `id` llega salvo con `FAILED` (entonces `message`). */
+export interface RoadmapGenerationResult {
+  status: RoadmapGenerationStatus;
+  id?: string;
+  message?: string;
+}
+
+/** `data` de `POST /assessments/submit`. `id` es el del assessment; el de la ruta va en `roadmap.id`. */
 export interface AssessmentResult {
   id: string;
   userId: string;
@@ -45,4 +56,5 @@ export interface AssessmentResult {
   profileScores: Record<string, number> | null;
   completedAt: string | null;
   createdAt: string;
+  roadmap?: RoadmapGenerationResult;
 }

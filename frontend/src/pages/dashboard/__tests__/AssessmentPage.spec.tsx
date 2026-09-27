@@ -6,7 +6,12 @@ import { ASSESSMENT_QUESTIONS_STALE_TIME, assessmentsKeys } from "@/api/queries/
 import { getAssessmentQuestions, getRoadmaps, submitAssessment } from "@/api/services";
 import { AssessmentPage, RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
-import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
+import {
+  ASSESSMENT_QUESTIONS_MOCK,
+  buildAssessmentResultFailedMock,
+  buildAssessmentResultMock,
+  MOCK_GENERATED_ROADMAP_ID,
+} from "@/test/fixtures/assessments";
 import { EMPTY_ROADMAPS_RESULT } from "@/test/fixtures/roadmaps";
 import { createTestQueryClient, renderWithProviders } from "@/test/renderWithProviders";
 import type { AssessmentResult } from "@/types";
@@ -28,8 +33,10 @@ const NEUTRAL_SUBTITLE =
 const EMPTY_MESSAGE = "Todavía no hay preguntas disponibles. Vuelve a intentarlo más tarde.";
 const NETWORK_MESSAGE =
   "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
-const SUCCESS_NOTICE =
-  "¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.";
+const FAILED_NOTICE =
+  "Guardamos tus respuestas del cuestionario, pero no pudimos generar tu ruta. Vuelve a intentarlo en unos minutos.";
+const DETAIL_PATH = `/dashboard/roadmaps/${MOCK_GENERATED_ROADMAP_ID}`;
+const DETAIL_STUB = "Detalle de la ruta";
 const SUBMIT_NAME = "Descubrir mi ruta de aprendizaje";
 
 function LocationProbe() {
@@ -53,6 +60,8 @@ function renderPage(options: RenderOptions = { route: "/dashboard/roadmaps/new" 
       <Routes>
         <Route path="/dashboard/roadmaps" element={<RoadmapsPage />} />
         <Route path="/dashboard/roadmaps/new" element={<AssessmentPage />} />
+        {/* Stub: el detalle real tiene su propio spec; aquí solo importa llegar a la URL. */}
+        <Route path="/dashboard/roadmaps/:id" element={<p>{DETAIL_STUB}</p>} />
       </Routes>
       <LocationProbe />
       <BackButton />
@@ -317,7 +326,7 @@ describe("AssessmentPage", () => {
   });
 
   describe("envío correcto", () => {
-    it("manda { answers } en orden (con una respuesta cambiada) y navega a Mis Rutas con aviso", async () => {
+    it("manda { answers } en orden (con una respuesta cambiada) y navega al detalle de la ruta generada", async () => {
       const consoleSpies = (["log", "info", "warn", "error"] as const).map((method) =>
         vi.spyOn(console, method),
       );
@@ -341,11 +350,8 @@ describe("AssessmentPage", () => {
           optionId: question.options[index === 0 ? 1 : 0].id,
         })),
       });
-      expect(
-        await screen.findByRole("heading", { level: 1, name: "Mis Rutas" }),
-      ).toBeInTheDocument();
-      expect(location()).toBe("/dashboard/roadmaps");
-      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
+      expect(location()).toBe(DETAIL_PATH);
       for (const spy of consoleSpies) {
         expect(spy).not.toHaveBeenCalled();
       }
@@ -369,11 +375,11 @@ describe("AssessmentPage", () => {
 
       await act(async () => request.resolve(buildAssessmentResultMock({ answers: [] })));
 
-      expect(await screen.findByText(SUCCESS_NOTICE)).toBeInTheDocument();
-      expect(location()).toBe("/dashboard/roadmaps");
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
+      expect(location()).toBe(DETAIL_PATH);
     });
 
-    it("tras el envío, volver atrás no regresa al cuestionario ni muestra el aviso (la entrada /new se reemplazó)", async () => {
+    it("tras el envío, volver atrás desde el detalle no regresa al cuestionario (la entrada /new se reemplazó)", async () => {
       const { user } = renderPage({
         initialEntries: ["/dashboard/roadmaps", "/dashboard/roadmaps/new"],
         initialIndex: 1,
@@ -382,20 +388,69 @@ describe("AssessmentPage", () => {
       await screen.findByRole("group", { name: FIRST.text });
       await answerAll(user);
       await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
-      expect(await screen.findByText(SUCCESS_NOTICE)).toBeInTheDocument();
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Atrás" }));
 
       expect(location()).toBe("/dashboard/roadmaps");
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(FAILED_NOTICE)).not.toBeInTheDocument();
       expect(screen.queryByRole("group", { name: FIRST.text })).not.toBeInTheDocument();
       expect(submitAssessment).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["FAILED", buildAssessmentResultFailedMock],
+      [
+        "sin roadmap en la respuesta",
+        (input: Parameters<typeof buildAssessmentResultMock>[0]): AssessmentResult => {
+          const { roadmap: _roadmap, ...rest } = buildAssessmentResultMock(input);
+          return rest;
+        },
+      ],
+      [
+        "FAILED aunque traiga id",
+        (input: Parameters<typeof buildAssessmentResultMock>[0]): AssessmentResult => ({
+          ...buildAssessmentResultMock(input),
+          roadmap: { status: "FAILED", id: MOCK_GENERATED_ROADMAP_ID },
+        }),
+      ],
+    ])("si la ruta no se generó (%s) navega a Mis Rutas con el aviso", async (_label, build) => {
+      vi.mocked(submitAssessment).mockImplementation((input) => Promise.resolve(build(input)));
+      const { user } = renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+
+      expect(
+        await screen.findByRole("heading", { level: 1, name: "Mis Rutas" }),
+      ).toBeInTheDocument();
+      expect(location()).toBe("/dashboard/roadmaps");
+      expect(screen.getByText(FAILED_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.queryByText(DETAIL_STUB)).not.toBeInTheDocument();
+    });
+
+    it("con status EXISTS e id también navega al detalle", async () => {
+      vi.mocked(submitAssessment).mockImplementation((input) =>
+        Promise.resolve({
+          ...buildAssessmentResultMock(input),
+          roadmap: { status: "EXISTS", id: MOCK_GENERATED_ROADMAP_ID },
+        }),
+      );
+      const { user } = renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
+      expect(location()).toBe(DETAIL_PATH);
     });
   });
 
   describe("error de envío", () => {
-    it("con 400 muestra el mensaje, conserva las respuestas y reenviar navega", async () => {
+    it("con 400 muestra el mensaje, conserva las respuestas y reenviar navega al detalle", async () => {
       vi.mocked(submitAssessment).mockRejectedValueOnce(
         buildAxiosError(400, "Faltan respuestas del cuestionario"),
       );
@@ -421,10 +476,10 @@ describe("AssessmentPage", () => {
 
       await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
 
-      expect(await screen.findByText(SUCCESS_NOTICE)).toBeInTheDocument();
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
       expect(submitAssessment).toHaveBeenCalledTimes(2);
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-      expect(location()).toBe("/dashboard/roadmaps");
+      expect(location()).toBe(DETAIL_PATH);
     });
 
     it("con un error de red muestra el mensaje de red y sigue en el cuestionario", async () => {

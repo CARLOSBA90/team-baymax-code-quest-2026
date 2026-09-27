@@ -22,8 +22,8 @@ vi.mock("@/api/services", () => ({ getRoadmaps: vi.fn(), deleteRoadmap: vi.fn() 
 // Solo lo usa el `DashboardLayout` del test de la pill del sidebar.
 vi.mock("@/api/queries/auth", () => ({ useSession: vi.fn(), useLogout: vi.fn() }));
 
-const SUCCESS_NOTICE =
-  "¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.";
+const ASSESSMENT_NOTICE =
+  "Guardamos tus respuestas del cuestionario, pero no pudimos generar tu ruta. Vuelve a intentarlo en unos minutos.";
 
 const FE = "Frontend moderno con React";
 const BE = "Backend con Node y NestJS";
@@ -156,7 +156,7 @@ function renderHarness(previous = "/dashboard/roadmaps/new") {
 }
 
 function notice() {
-  return screen.getByText(SUCCESS_NOTICE);
+  return screen.getByText(ASSESSMENT_NOTICE);
 }
 
 /** Espera a que `RoadmapsPage` limpie el `state` de la entrada con `replace`. */
@@ -449,7 +449,7 @@ describe("RoadmapsPage", () => {
       });
 
       await waitForList();
-      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.getByText(ASSESSMENT_NOTICE)).toHaveAttribute("role", "status");
       expect(tableNames()).toEqual(ALL_NAMES);
     });
   });
@@ -760,7 +760,7 @@ describe("RoadmapsPage", () => {
   describe("aviso de cuestionario completado", () => {
     it("sin state no muestra el aviso", () => {
       renderWithProviders(<RoadmapsPage />, { route: "/dashboard/roadmaps" });
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("con el state de cuestionario completado muestra el aviso y después limpia el state", async () => {
@@ -785,7 +785,7 @@ describe("RoadmapsPage", () => {
       renderWithProviders(<RoadmapsPage />, {
         route: { pathname: "/dashboard/roadmaps", state },
       });
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("al remontar sobre la misma entrada (≈ recarga) no vuelve a mostrar el aviso", async () => {
@@ -796,7 +796,7 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Remontar" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("con atrás y adelante no vuelve a mostrar el aviso", async () => {
@@ -809,7 +809,7 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Adelante" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
       expect(screen.getByTestId("location-state")).toHaveTextContent("null");
     });
 
@@ -823,18 +823,18 @@ describe("RoadmapsPage", () => {
 
       await user.click(screen.getByRole("button", { name: "Atrás" }));
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Adelante" }));
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("si llega el state con la página ya montada, muestra el aviso y limpia el state", async () => {
       const user = renderHarness("/dashboard/roadmaps");
       await expectStateCleared();
       await user.click(screen.getByRole("button", { name: "Atrás" }));
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Completar" }));
 
@@ -854,7 +854,7 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Salir" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
   });
 
@@ -962,7 +962,7 @@ describe("RoadmapsPage", () => {
     it("el state de cuestionario completado sigue mostrando su aviso sin mover el foco", async () => {
       renderArrival(ASSESSMENT_COMPLETED_STATE);
 
-      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.getByText(ASSESSMENT_NOTICE)).toHaveAttribute("role", "status");
       await expectStateCleared();
       await waitForList();
       expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
