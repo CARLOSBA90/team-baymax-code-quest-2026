@@ -927,6 +927,59 @@ describe("RoadmapDetailView — pausar, reanudar y eliminar", () => {
     expect(screen.getByRole("button", { name: "Reanudar ruta" })).toBeEnabled();
   });
 
+  it("error al reanudar desde el banner: el foco vuelve a su «Reanudar ruta» aunque el navegador lo soltara", async () => {
+    let reject: (reason: unknown) => void = () => {};
+    vi.mocked(setRoadmapPaused).mockReturnValue(
+      new Promise((_, rej) => {
+        reject = rej;
+      }),
+    );
+    const { user } = renderView(buildPausedRoadmapDetail());
+    const banner = screen.getByRole("region", { name: "Esta ruta está en pausa" });
+
+    await user.click(within(banner).getByRole("button", { name: "Reanudar ruta" }));
+    const pendingButton = within(banner).getByRole("button", { name: "Reanudando…" });
+    expect(pendingButton).toBeDisabled();
+    // Chromium suelta en `<body>` el foco de un botón que pasa a `disabled`; jsdom no (y su `blur()`
+    // ignora elementos no enfocables): se simula enfocando un elemento temporal y quitándolo.
+    const sink = document.createElement("input");
+    document.body.append(sink);
+    sink.focus();
+    sink.remove();
+    expect(document.activeElement).toBe(document.body);
+
+    reject(buildNetworkError());
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+    const resumeButton = within(banner).getByRole("button", { name: "Reanudar ruta" });
+    await waitFor(() => expect(document.activeElement).toBe(resumeButton));
+    expect(resumeButton).toBeEnabled();
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it("error al reanudar desde ⋯: el foco sigue en el ⋯ (aria-disabled, nunca `disabled` nativo)", async () => {
+    let reject: (reason: unknown) => void = () => {};
+    vi.mocked(setRoadmapPaused).mockReturnValue(
+      new Promise((_, rej) => {
+        reject = rej;
+      }),
+    );
+    const { user } = renderView(buildPausedRoadmapDetail());
+
+    await selectMenuItem(user, "Reanudar ruta");
+    expect(trigger()).toHaveAttribute("aria-disabled", "true");
+    expect(trigger()).not.toBeDisabled();
+    expect(trigger()).toHaveFocus();
+
+    reject(buildAxiosError(500, "Backend says no"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo reanudar la ruta. Inténtalo de nuevo.",
+    );
+    expect(trigger()).not.toHaveAttribute("aria-disabled");
+    expect(document.activeElement).toBe(trigger());
+  });
+
   it.each([
     ["ROADMAP_VERSION_CONFLICT", buildRoadmapVersionConflictError],
     ["INVALID_ROADMAP_TRANSITION", buildInvalidRoadmapTransitionError],

@@ -73,6 +73,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const headingId = useId();
   const pausedDescriptionId = useId();
   const pausedHeadingId = useId();
+  const resumeButtonId = useId();
   const completedHeadingId = useId();
   const itemHeadingIdPrefix = useId();
   const queryClient = useQueryClient();
@@ -141,7 +142,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   };
 
   // Sin confirmación ni guard de `isPending`: el ⋯ y el banner están deshabilitados mientras tanto.
-  const handlePauseToggle = (paused: boolean) => {
+  // `fromBanner`: la acción salió del botón del banner, al que vuelve el foco si falla.
+  const handlePauseToggle = (paused: boolean, fromBanner = false) => {
     clearFeedback();
     pauseMutation.mutate(
       { paused, expectedActivityVersion: roadmap.activityVersion },
@@ -160,6 +162,10 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           } else if (!isRoadmapNotFoundError(error)) {
             // 404: el refetch da 404 y la página pinta «No encontramos esta ruta».
             setNotice({ variant: "error", message: getPauseRoadmapErrorMessage(error, paused) });
+            // El foco no se mueve de donde estaba el usuario: el ⋯ lo conserva (`aria-disabled`),
+            // pero el botón del banner es `disabled` nativo mientras está pendiente y el navegador
+            // puede soltarlo en `<body>`: se le devuelve (sin caché que esperar → siguiente commit).
+            if (fromBanner) requestFocus(resumeButtonId, undefined);
           }
         },
       },
@@ -284,7 +290,8 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           pausedAt={roadmap.pausedAt}
           descriptionId={pausedDescriptionId}
           headingId={pausedHeadingId}
-          onResume={() => handlePauseToggle(false)}
+          resumeButtonId={resumeButtonId}
+          onResume={() => handlePauseToggle(false, true)}
           resuming={resuming}
         />
       ) : null}

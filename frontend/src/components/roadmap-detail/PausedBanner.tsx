@@ -8,6 +8,11 @@ export interface PausedBannerProps {
   descriptionId: string;
   /** Id del h2: nombra la región y es destino de foco (`tabIndex={-1}`) tras un 409. */
   headingId: string;
+  /**
+   * Id del botón «Reanudar ruta»: destino de foco del compositor tras un error al reanudar desde
+   * aquí (el botón está `disabled` mientras está pendiente y el navegador puede soltar el foco).
+   */
+  resumeButtonId: string;
   /** «Reanudar ruta»: el compositor lanza la reanudación (misma mutación que el menú ⋯). */
   onResume: () => void;
   /** Reanudación en curso (desde aquí o desde el ⋯): botón deshabilitado con «Reanudando…». */
@@ -27,6 +32,7 @@ export function PausedBanner({
   pausedAt,
   descriptionId,
   headingId,
+  resumeButtonId,
   onResume,
   resuming,
 }: PausedBannerProps) {
@@ -54,6 +60,7 @@ export function PausedBanner({
         </p>
       </div>
       <PrimaryButton
+        id={resumeButtonId}
         variant="form"
         onClick={onResume}
         loading={resuming}

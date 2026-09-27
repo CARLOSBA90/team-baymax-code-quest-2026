@@ -5,6 +5,7 @@ import { renderWithProviders } from "@/test/renderWithProviders";
 
 const DESCRIPTION_ID = "paused-description";
 const HEADING_ID = "paused-heading";
+const RESUME_BUTTON_ID = "paused-resume";
 
 function renderBanner(props: Partial<PausedBannerProps> = {}) {
   const onResume = vi.fn();
@@ -13,6 +14,7 @@ function renderBanner(props: Partial<PausedBannerProps> = {}) {
       pausedAt="2026-09-03T12:00:00.000Z"
       descriptionId={DESCRIPTION_ID}
       headingId={HEADING_ID}
+      resumeButtonId={RESUME_BUTTON_ID}
       onResume={onResume}
       resuming={false}
       {...props}
