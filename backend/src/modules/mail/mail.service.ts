@@ -13,37 +13,140 @@ export class MailService {
     private readonly mailer: MailerService,
     private readonly config: ConfigService,
   ) {
-    this.frontendUrl = this.config.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:5173',
-    );
-    this.senderName = this.config.get<string>('MAIL_SENDER_NAME', 'CodeQuest');
-    this.senderEmail = this.config.getOrThrow<string>('MAIL_SENDER_EMAIL');
+    this.frontendUrl = this.resolveFrontendUrl();
+    const user = (this.config.get<string>('MAIL_USER') ?? '').trim().replace(/^["']+|["']+$/g, '');
+    const rawSenderEmail = (
+      this.config.get<string>('MAIL_SENDER_EMAIL')?.trim() || user
+    ).replace(/^["'<]+|["'>]+$/g, '').trim();
+
+    this.senderEmail = rawSenderEmail;
+    this.senderName = (
+      this.config.get<string>('MAIL_SENDER_NAME', 'CodeQuest')?.trim() || 'CodeQuest'
+    ).replace(/^["']+|["']+$/g, '').trim();
+  }
+
+  /**
+   * Determina la URL base del frontend.
+   * En producción (NODE_ENV === 'production') apunta a https://cepr0.com/codequest.
+   * En desarrollo apunta a http://localhost:5173.
+   * Puede sobreescribirse explícitamente con la variable de entorno FRONTEND_URL.
+   */
+  private resolveFrontendUrl(): string {
+    const rawConfigUrl = this.config.get<string>('FRONTEND_URL');
+    const isProd =
+      this.config.get<string>('NODE_ENV') === 'production' ||
+      process.env.NODE_ENV === 'production';
+
+    if (rawConfigUrl && rawConfigUrl.trim()) {
+      let url = rawConfigUrl.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        url = `https://${url}`;
+      }
+      return url.replace(/\/+$/, '');
+    }
+
+    return isProd ? 'https://cepr0.com/codequest' : 'http://localhost:5173';
+  }
+
+  /** Retorna la URL base del frontend resuelta. */
+  getFrontendUrl(): string {
+    return this.frontendUrl;
+  }
+
+  /**
+   * Resuelve y asegura que la URL de reseteo apunte a la aplicación frontend
+   * (en producción https://cepr0.com/codequest, en dev http://localhost:5173).
+   *
+   * Si la URL viene de Better Auth con otro host (ej. host del backend o localhost:3001),
+   * extrae el token / parámetros y la ruta, y la monta sobre el frontendUrl configurado.
+   */
+  resolveResetUrl(rawUrl: string): string {
+    const base = this.frontendUrl;
+
+    try {
+      const parsed = new URL(rawUrl);
+      const baseParsed = new URL(base);
+
+      const search = parsed.search; // Preserva ?token=... y demás query params
+      let resetPath = parsed.pathname;
+
+      // Normaliza si Better Auth incluyera el prefijo del backend
+      if (resetPath.startsWith('/api/auth/')) {
+        resetPath = resetPath.replace('/api/auth/', '/auth/');
+      }
+
+      // Si baseParsed tiene sub-ruta (como /codequest en cepr0.com/codequest)
+      const baseSubPath = baseParsed.pathname.replace(/\/+$/, '');
+      if (baseSubPath && !resetPath.startsWith(baseSubPath)) {
+        resetPath = `${baseSubPath}${resetPath.startsWith('/') ? '' : '/'}${resetPath}`;
+      }
+
+      return `${baseParsed.origin}${resetPath}${search}`;
+    } catch {
+      const cleanBase = base.replace(/\/+$/, '');
+      const cleanPath = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+      return `${cleanBase}${cleanPath}`;
+    }
   }
 
   /**
    * Envía el email de recuperación de contraseña.
-   * La URL con el token es generada por Better Auth y se recibe ya armada.
+   * La URL con el token es generada por Better Auth y se normaliza para asegurar
+   * que apunte al frontend (en producción https://cepr0.com/codequest).
    *
    * @param to      Email del destinatario
    * @param name    Nombre del usuario (para personalizar el saludo)
-   * @param url     URL completa de reset generada por Better Auth
+   * @param url     URL de reset (Better Auth o manual)
    */
   async sendPasswordResetEmail(
     to: string,
     name: string,
     url: string,
   ): Promise<void> {
-    this.logger.log(`Enviando email de recuperacion de contrasena a: ${to}`);
+    const cleanTo = to.replace(/^["'<]+|["'>]+$/g, '').trim();
 
-    await this.mailer.sendMail({
-      to,
-      from: `"${this.senderName}" <${this.senderEmail}>`,
-      subject: 'Restablecer tu contraseña — CodeQuest',
-      html: this.buildPasswordResetHtml(name, url),
-    });
+    if (!this.senderEmail) {
+      throw new Error(
+        'No se ha configurado MAIL_SENDER_EMAIL ni MAIL_USER en .env. ' +
+        'Configura una dirección de email válida verificada en Brevo.',
+      );
+    }
 
-    this.logger.log(`Email de recuperacion enviado exitosamente a: ${to}`);
+    const finalResetUrl = this.resolveResetUrl(url);
+
+    this.logger.log(
+      `Enviando email de recuperacion de contrasena de <${this.senderEmail}> a: <${cleanTo}> (URL: ${finalResetUrl})`,
+    );
+
+    try {
+      await this.mailer.sendMail({
+        to: cleanTo,
+        from: {
+          name: this.senderName,
+          address: this.senderEmail,
+        },
+        envelope: {
+          from: this.senderEmail,
+          to: [cleanTo],
+        },
+        subject: 'Restablecer tu contraseña — CodeQuest',
+        html: this.buildPasswordResetHtml(name, finalResetUrl),
+      });
+
+      this.logger.log(`Email de recuperacion enviado exitosamente a: ${cleanTo}`);
+    } catch (error: any) {
+      if (
+        error?.response?.includes('Invalid from') ||
+        error?.responseCode === 451
+      ) {
+        this.logger.error(
+          `[Brevo SMTP 451 Invalid from] El remitente '${this.senderEmail}' no está autorizado en Brevo. ` +
+          `Configura MAIL_SENDER_EMAIL en tu .env con el email exacto de tu cuenta de Brevo ` +
+          `o agrega un remitente verificado en https://app.brevo.com/senders`,
+        );
+      }
+      throw error;
+    }
   }
 
   // ─── Templates HTML inline ────────────────────────────────────────────────

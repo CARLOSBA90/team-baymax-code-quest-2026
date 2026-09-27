@@ -18,10 +18,20 @@ import { MailService } from './mail.service.js';
       useFactory: (config: ConfigService) => {
         const host = config.getOrThrow<string>('MAIL_HOST');
         const port = config.get<number>('MAIL_PORT', 587);
-        const user = config.getOrThrow<string>('MAIL_USER');
-        const pass = config.getOrThrow<string>('MAIL_PASSWORD');
+        const rawUser = config.getOrThrow<string>('MAIL_USER').trim();
+        const user = rawUser.replace(/^["']+|["']+$/g, '');
+        const pass = config.getOrThrow<string>('MAIL_PASSWORD').trim();
         // Puerto 465 requiere TLS directo; 587 usa STARTTLS
         const secure = port === 465;
+
+        // Fallback a MAIL_USER si MAIL_SENDER_EMAIL no está definido o está vacío
+        const rawSenderEmail = (
+          config.get<string>('MAIL_SENDER_EMAIL')?.trim() || user
+        ).replace(/^["'<]+|["'>]+$/g, '').trim();
+
+        const rawSenderName = (
+          config.get<string>('MAIL_SENDER_NAME', 'CodeQuest')?.trim() || 'CodeQuest'
+        ).replace(/^["']+|["']+$/g, '').trim();
 
         return {
           transport: {
@@ -36,7 +46,10 @@ import { MailService } from './mail.service.js';
             },
           },
           defaults: {
-            from: `"${config.get<string>('MAIL_SENDER_NAME', 'CodeQuest')}" <${config.getOrThrow<string>('MAIL_SENDER_EMAIL')}>`,
+            from: {
+              name: rawSenderName,
+              address: rawSenderEmail,
+            },
           },
         };
       },
