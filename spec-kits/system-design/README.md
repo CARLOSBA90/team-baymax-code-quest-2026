@@ -1,7 +1,7 @@
-# Spec-Kit: Diseno del Sistema — CodeQuest Learning Paths
+﻿# Spec-Kit: Diseno del Sistema — CodeQuest Learning Paths
 
-> Documento de arquitectura conceptual y diseno del sistema para la hackathon DevTalles CODE QUEST 2026.
-> Backend: NestJS (Monolito Modular). Frontend: React + Vite.
+Documento de arquitectura conceptual y diseno del sistema para la hackathon DevTalles CODE QUEST 2026.
+Backend: NestJS (Monolito Modular). Frontend: React 19 + Vite.
 
 ---
 
@@ -9,14 +9,11 @@
 
 1. [Requerimientos del Brief](./01-requerimientos.md)
 2. [Dos Caminos de Implementacion](./02-dos-caminos.md)
-3. [Catalogo de Cursos: Ingestion y Scraping](./03-catalogo-cursos.md)
+3. [Catalogo de Cursos: Ingestion](./03-catalogo-cursos.md)
 4. [Modelo de Datos y Entidades](./04-entidades.md)
 5. [Algoritmo de Generacion de Rutas](./05-algoritmo-rutas.md)
 6. [Cuestionario y Evaluacion](./06-cuestionario.md)
 7. [Progreso del Usuario](./07-progreso.md)
-8. [Autenticacion con Better Auth](./08-auth.md)
-9. [Plan de Desarrollo Paralelo (Backend + Frontend)](./09-plan-paralelo.md)
-10. [Modelo de Flujo NestJS: Controller -> Service -> DB](./10-modelo-flujo-nestjs.md)
 
 ---
 
@@ -25,11 +22,11 @@
 CodeQuest es un complemento para estudiantes suscritos a DevTalles. Su objetivo es facilitar el aprendizaje mediante:
 
 - Cuestionario de diagnostico de habilidades e intereses
-- Generacion dinamica de rutas de aprendizaje personalizadas
+- Generacion dinamica de rutas de aprendizaje personalizadas a partir del catalogo de DevTalles
 - Seguimiento del progreso por curso y por ruta
-- Registro e inicio de sesion obligatorio con Discord (requerimiento del brief)
+- Autenticacion con email/password y proveedores OAuth (Discord, Google, GitHub)
 
-El backend se desarrolla en **NestJS como Monolito Modular**. La propuesta tecnica original mencionaba Spring Boot y Next.js, pero el stack del equipo es NestJS (backend) y React/Vite (frontend).
+El backend se desarrolla en NestJS como Monolito Modular. El frontend en React 19 + Vite.
 
 ---
 
@@ -37,7 +34,7 @@ El backend se desarrolla en **NestJS como Monolito Modular**. La propuesta tecni
 
 ```
 src/modules/
-+-- auth/            -> Configuracion de Better Auth + Discord
++-- auth/            -> Configuracion de Better Auth + Discord/Google/GitHub
 +-- users/           -> Perfil, datos del usuario autenticado
 +-- catalog/         -> Cursos de DevTalles, skills, prerequisitos
 +-- assessments/     -> Preguntas, respuestas, perfil resultante
@@ -54,12 +51,11 @@ Los documentos estan ordenados por dependencia logica:
 ```
 01 (Requerimientos)
    -> 02 (Elegir un camino)
-      -> 03 (Catalogo: donde vienen los cursos)
+      -> 03 (Catalogo: de donde vienen los cursos)
       -> 04 (Entidades: que guardamos en DB)
       -> 05 (Algoritmo: como generamos rutas)
-      -> 06 (Cuestionario: como preguntamos)
-      -> 07 (Progreso: como registramos avance)
-      -> 08 (Auth: como autenticamos)
-         -> 09 (Plan paralelo: como trabajamos en equipo)
-            -> 10 (Flujo NestJS: modelo tecnico de referencia)
+      -> 06 (Cuestionario: como preguntamos y calculamos perfil)
+         -> 07 (Progreso: como registramos el avance)
 ```
+
+Para la configuracion tecnica de autenticacion, consultar el spec-kit [better-auth](../better-auth/README.md).
