@@ -20,8 +20,9 @@ export interface ModalProps {
 
 /**
  * Carcasa genérica y controlada sobre `<dialog>` nativo (`showModal()`): backdrop con blur,
- * panel y botón X (omitible con `hideCloseButton`). El consumidor aporta todo el contenido (heading, texto, botones) como
- * `children` y nombra el diálogo con `aria-labelledby` / `aria-label`.
+ * panel y botón X (omitible con `hideCloseButton`). El consumidor aporta todo el contenido
+ * (heading, texto, botones) como `children` y nombra el diálogo con `aria-labelledby` /
+ * `aria-label`.
  */
 export function Modal({
   open,

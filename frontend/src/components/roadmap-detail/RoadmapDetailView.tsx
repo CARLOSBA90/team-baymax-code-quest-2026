@@ -152,7 +152,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
 
   return (
     <div className="flex w-full max-w-detail flex-col gap-5.5">
-      {notice ? <Notice variant="success">{notice}</Notice> : null}
+      {notice ? <Notice variant="info">{notice}</Notice> : null}
       {/* Fila de la miga: `justify-between` deja sitio al menú ⋯ de móvil (slice 5). */}
       <div className="flex items-center justify-between gap-3">
         <Link

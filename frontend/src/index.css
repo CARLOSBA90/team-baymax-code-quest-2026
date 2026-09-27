@@ -100,6 +100,17 @@
   --color-done-halo: rgba(52, 211, 153, 0.16);
   --color-done-dots: rgba(52, 211, 153, 0.12);
 
+  /* Avisos (ui/Notice). error/success conservan los colores previos; info = violeta neutro. */
+  --color-notice-error-bg: rgba(248, 113, 113, 0.1);
+  --color-notice-error-border: rgba(248, 113, 113, 0.3);
+  --color-notice-error-text: #fca5a5;
+  --color-notice-success-bg: rgba(74, 222, 128, 0.1);
+  --color-notice-success-border: rgba(74, 222, 128, 0.3);
+  --color-notice-success-text: #86efac;
+  --color-notice-info-bg: rgba(139, 92, 246, 0.08);
+  --color-notice-info-border: rgba(167, 139, 250, 0.28);
+  --color-notice-info-text: var(--color-accent-soft); /* #c4b5fd ≈ 8.7:1 */
+
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Manrope", system-ui, sans-serif;
 

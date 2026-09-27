@@ -723,6 +723,9 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const notice = screen.getByText("Este paso ya no existe. Hemos actualizado la ruta.");
     expect(notice).toHaveAttribute("role", "status");
+    // Variante `info` (neutra), no `success`.
+    expect(notice).toHaveClass("bg-notice-info-bg");
+    expect(notice).not.toHaveClass("bg-notice-success-bg");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(announcer()).toBeEmptyDOMElement();
     expect(document.activeElement).toBe(mainHeading());
