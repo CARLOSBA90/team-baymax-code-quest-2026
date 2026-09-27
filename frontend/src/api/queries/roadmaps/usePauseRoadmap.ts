@@ -1,7 +1,7 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { setRoadmapPaused } from "@/api/services";
-import { shouldRefreshAfterPauseError } from "@/lib";
+import { type PauseRefetchError, shouldRefreshAfterPauseError } from "@/lib";
 import type { RoadmapDetail, SetRoadmapPausedBody } from "@/types";
 import { roadmapsKeys } from "./keys";
 import { invalidateRoadmapsList, refreshRoadmapDetail } from "./refresh-detail";
@@ -15,7 +15,9 @@ import { invalidateRoadmapsList, refreshRoadmapDetail } from "./refresh-detail";
  *   lo cacheado (200 idempotente), el structural sharing conserva la referencia previa, y el
  *   consumidor sabe que no hay re-render que esperar (`returned === roadmap`).
  * - 404 / 409 `ROADMAP_VERSION_CONFLICT` / 409 `INVALID_ROADMAP_TRANSITION` → espera al refetch
- *   exacto del detalle, invalida la lista y relanza el error original (aunque el refetch falle).
+ *   exacto del detalle, invalida la lista y relanza el error original (aunque el refetch falle). Si
+ *   ese refetch interno falla, el error relanzado queda marcado con `refetchFailed = true` (léelo
+ *   con `didPauseRefetchFail` de `@/lib`), sin alterar el resto de su forma.
  * - Red / 5xx / 401 / 400 / otros 409 → caché intacta y relanza.
  * Nunca invalida `roadmapsKeys.all` ni otros detalles.
  */
@@ -33,8 +35,11 @@ export function usePauseRoadmap(
         detail = await setRoadmapPaused(roadmapId, body);
       } catch (error) {
         if (shouldRefreshAfterPauseError(error)) {
-          await refreshRoadmapDetail(queryClient, roadmapId);
+          const outcome = await refreshRoadmapDetail(queryClient, roadmapId);
           invalidateRoadmapsList(queryClient);
+          if (!outcome.ok && error instanceof Error) {
+            (error as PauseRefetchError).refetchFailed = true;
+          }
         }
         throw error;
       }

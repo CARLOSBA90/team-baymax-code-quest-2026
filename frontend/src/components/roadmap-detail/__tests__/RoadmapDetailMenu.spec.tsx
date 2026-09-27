@@ -101,4 +101,31 @@ describe("RoadmapDetailMenu", () => {
     expect(trigger).toHaveFocus();
     for (const cb of [onPause, onResume, onDelete]) expect(cb).not.toHaveBeenCalled();
   });
+
+  it("disabled: muestra un spinner decorativo en vez del ⋯, estático con motion-reduce", () => {
+    const { trigger } = renderMenu({ disabled: true });
+
+    const icon = trigger.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon).toHaveClass("animate-spin", "motion-reduce:animate-none", "size-5");
+  });
+
+  it("habilitado: no muestra el spinner, solo el icono ⋯", () => {
+    const { trigger } = renderMenu({ disabled: false });
+
+    const icon = trigger.querySelector("svg");
+    expect(icon).not.toHaveClass("animate-spin");
+  });
+
+  it("disabled: anuncia el estado pendiente a lectores de pantalla", () => {
+    renderMenu({ disabled: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Actualizando el estado de la ruta…");
+  });
+
+  it("habilitado: no muestra el anuncio de estado pendiente", () => {
+    renderMenu({ disabled: false });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
 });

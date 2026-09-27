@@ -11,7 +11,7 @@ import {
   RoadmapsListSkeleton,
   RoadmapsTable,
 } from "@/components/roadmaps";
-import { Notice, PrimaryButton } from "@/components/ui";
+import { Notice, type NoticeVariant, PrimaryButton } from "@/components/ui";
 import { useDeleteRoadmapNotice, useLocationStateNotice } from "@/hooks";
 import {
   filterRoadmaps,
@@ -104,9 +104,9 @@ export const RoadmapsPage = () => {
     setRoadmapToDelete(roadmap);
   };
 
-  const finishDelete = (message: string) => {
+  const finishDelete = (message: string, variant: NoticeVariant = "success") => {
     setRoadmapToDelete(null);
-    deleteNotice.show(message);
+    deleteNotice.show(message, variant);
     setFocusHeading(true);
   };
 
@@ -118,7 +118,9 @@ export const RoadmapsPage = () => {
       onSuccess: () => finishDelete(getRoadmapDeletedMessage(name)),
       onError: (deleteError) => {
         // 404: ya no existía; el hook ya la quitó de la caché. Otros errores se quedan en el diálogo.
-        if (isRoadmapNotFoundError(deleteError)) finishDelete(ROADMAP_DELETE_NOT_FOUND_MESSAGE);
+        if (isRoadmapNotFoundError(deleteError)) {
+          finishDelete(ROADMAP_DELETE_NOT_FOUND_MESSAGE, "info");
+        }
       },
     });
   };
@@ -126,6 +128,12 @@ export const RoadmapsPage = () => {
   // Un borrado en esta página reemplaza al aviso de llegada.
   const deletedMessage =
     deleteNotice.message ?? (arrival?.kind === "roadmap-deleted" ? arrival.message : null);
+  const deletedVariant: NoticeVariant =
+    deleteNotice.message === null
+      ? arrival?.kind === "roadmap-deleted"
+        ? arrival.variant
+        : "success"
+      : deleteNotice.variant;
 
   const deleteErrorMessage =
     deleteMutation.isError && !isRoadmapNotFoundError(deleteMutation.error)
@@ -194,7 +202,7 @@ export const RoadmapsPage = () => {
           intentarlo en unos minutos.
         </Notice>
       )}
-      {deletedMessage !== null && <Notice variant="success">{deletedMessage}</Notice>}
+      {deletedMessage !== null && <Notice variant={deletedVariant}>{deletedMessage}</Notice>}
       {content}
       <DeleteRoadmapDialog
         roadmap={roadmapToDelete}

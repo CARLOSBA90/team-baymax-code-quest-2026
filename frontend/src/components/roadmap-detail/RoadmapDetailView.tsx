@@ -13,6 +13,7 @@ import { Notice } from "@/components/ui";
 import { useFocusRequest } from "@/hooks";
 import {
   buildRoadmapDeletedState,
+  didPauseRefetchFail,
   getCompletedCount,
   getCompleteItemErrorMessage,
   getDeleteRoadmapErrorMessage,
@@ -144,6 +145,7 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   // Sin confirmación ni guard de `isPending`: el ⋯ y el banner están deshabilitados mientras tanto.
   // `fromBanner`: la acción salió del botón del banner, al que vuelve el foco si falla.
   const handlePauseToggle = (paused: boolean, fromBanner = false) => {
+    pauseMutation.reset();
     clearFeedback();
     pauseMutation.mutate(
       { paused, expectedActivityVersion: roadmap.activityVersion },
@@ -155,12 +157,14 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
           requestFocus(fresh.status === "PAUSED" ? pausedHeadingId : headingId, fresh);
         },
         onError: (error) => {
-          if (isRoadmapUpdatedElsewhereError(error)) {
+          if (isRoadmapUpdatedElsewhereError(error) && !didPauseRefetchFail(error)) {
             // Sin anuncio: el Notice ya es `role="status"`. El detalle ya está refrescado.
             setNotice({ variant: "info", message: ROADMAP_UPDATED_ELSEWHERE_MESSAGE });
             requestFocus(headingId, getCachedDetail());
-          } else if (!isRoadmapNotFoundError(error)) {
-            // 404: el refetch da 404 y la página pinta «No encontramos esta ruta».
+          } else if (!isRoadmapNotFoundError(error) || didPauseRefetchFail(error)) {
+            // 404 con refetch interno exitoso: el refetch da 404 y la página pinta «No encontramos
+            // esta ruta», sin notice aquí. 404/409 con refetch interno fallido (red/5xx): la caché
+            // queda obsoleta, así que se tratan como cualquier otro error genérico.
             setNotice({ variant: "error", message: getPauseRoadmapErrorMessage(error, paused) });
             // El foco no se mueve de donde estaba el usuario: el ⋯ lo conserva (`aria-disabled`),
             // pero el botón del banner es `disabled` nativo mientras está pendiente y el navegador
