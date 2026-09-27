@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Link } from "react-router-dom";
 import { applyTrackProgressResult, roadmapsKeys, useTrackProgress } from "@/api/queries/roadmaps";
 import { Notice } from "@/components/ui";
+import { useFocusRequest } from "@/hooks";
 import {
   getCompletedCount,
   getCompleteItemErrorMessage,
@@ -33,18 +34,6 @@ export interface RoadmapDetailViewProps {
 }
 
 /**
- * Foco pendiente tras cerrar el diálogo. Los callbacks de `mutate` corren ANTES de que React pinte
- * el detalle recargado (la query notifica a sus observadores en una tarea posterior), así que si la
- * caché ya tiene un detalle distinto del pintado (`waitForUpdate`) el foco espera a que llegue
- * como prop; si no, se aplica en el mismo commit.
- */
-interface FocusRequest {
-  targetId: string;
-  from: RoadmapDetail;
-  waitForUpdate: boolean;
-}
-
-/**
  * Compositor del detalle: calcula una vez los derivados (pasos, minutos, ids de a11y) y los baja
  * a piezas presentacionales dentro de la columna de 920px. También es dueño del flujo «Marcar como
  * completado»: diálogo de confirmación, anuncio en la live region, aviso 404 y foco final (las
@@ -62,7 +51,10 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
   const [itemToComplete, setItemToComplete] = useState<RoadmapItem | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  // Foco final tras cerrar el diálogo: espera al detalle recargado si la caché ya tiene uno
+  // distinto del pintado; si el destino no existe (p. ej. 409 sin banner porque el refetch falló),
+  // cae al h1.
+  const { requestFocus, cancelFocus } = useFocusRequest(roadmap, headingId);
   const isPaused = roadmap.status === "PAUSED";
   const completed = getCompletedCount(items);
   const total = items.length;
@@ -77,29 +69,11 @@ export function RoadmapDetailView({ roadmap }: RoadmapDetailViewProps) {
       ? getCompleteItemErrorMessage(trackMutation.error)
       : null;
 
-  // Corre después del efecto de `Modal` (hijo): gana a su devolución del foco al botón. Si el
-  // destino no existe (p. ej. 409 sin banner porque el refetch falló), cae al h1.
-  useEffect(() => {
-    if (!focusRequest) return;
-    if (focusRequest.waitForUpdate && roadmap === focusRequest.from) return;
-    (document.getElementById(focusRequest.targetId) ?? document.getElementById(headingId))?.focus();
-    setFocusRequest(null);
-  }, [focusRequest, roadmap, headingId]);
-
-  /** Pide el foco en `targetId` cuando el detalle en caché (`cached`) ya esté pintado. */
-  const requestFocus = (targetId: string, cached: RoadmapDetail | undefined) => {
-    setFocusRequest({
-      targetId,
-      from: roadmap,
-      waitForUpdate: cached !== undefined && cached !== roadmap,
-    });
-  };
-
   const handleCompleteRequest = (item: RoadmapItem) => {
     trackMutation.reset();
     setAnnouncement("");
     setNotice(null);
-    setFocusRequest(null);
+    cancelFocus();
     setItemToComplete(item);
   };
 
