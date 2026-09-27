@@ -401,4 +401,82 @@ describe("RoadmapItem", () => {
     await user.click(button);
     expect(onComplete).not.toHaveBeenCalled();
   });
+
+  describe("checklist de lecciones", () => {
+    /** LESSONS habilitado pero sin temario real (`SYLLABUS_MISSING`): no califica para el checklist. */
+    const SYLLABUS_MISSING_ITEM = buildRoadmapItem({
+      name: "Curso sin temario",
+      tracking: { type: "LESSONS", enabled: false, disabledReason: "SYLLABUS_MISSING" },
+      syllabus: null,
+    });
+
+    it("LESSONS sin temario (SYLLABUS_MISSING): mensaje genérico, sin disclosure", () => {
+      renderItem({ item: SYLLABUS_MISSING_ITEM, stepNumber: 3, state: "pending" });
+
+      expect(
+        screen.getByText("Aún no podemos registrar el avance de este curso."),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Temario/ })).not.toBeInTheDocument();
+    });
+
+    it("LESSONS con temario real: disclosure visible incluso sin completar (in_progress)", () => {
+      renderItem({ item: COMPLETED_ITEM, stepNumber: 1, state: "in_progress" });
+
+      expect(screen.getByRole("button", { name: /Temario/ })).toBeInTheDocument();
+      expect(screen.queryByText(/registra|registrar/)).not.toBeInTheDocument();
+    });
+
+    it("clic en un checkbox del temario llama a onToggleLesson con el item y la lección", async () => {
+      const user = userEvent.setup();
+      const onToggleLesson = vi.fn();
+      renderItem({ item: COMPLETED_ITEM, stepNumber: 1, state: "completed", onToggleLesson });
+
+      await user.click(screen.getByRole("button", { name: /Temario/ }));
+      await user.click(screen.getByRole("checkbox", { name: /Variables y tipos de datos/ }));
+
+      expect(onToggleLesson).toHaveBeenCalledTimes(1);
+      const [item, lesson] = onToggleLesson.mock.calls[0];
+      expect(item).toBe(COMPLETED_ITEM);
+      expect(lesson).toMatchObject({ lessonId: "lesson-1", title: "Variables y tipos de datos" });
+    });
+
+    it("sin onToggleLesson: el clic en un checkbox no revienta (no-op)", async () => {
+      const user = userEvent.setup();
+      renderItem({ item: COMPLETED_ITEM, stepNumber: 1, state: "completed" });
+
+      await user.click(screen.getByRole("button", { name: /Temario/ }));
+      await user.click(screen.getByRole("checkbox", { name: /Variables y tipos de datos/ }));
+
+      // No lanza y el checklist sigue montado.
+      expect(screen.getByRole("button", { name: /Temario/ })).toBeInTheDocument();
+    });
+
+    it("lessonTracking.locked bloquea todos los checkboxes salvo pendingKey (reenviado tal cual)", async () => {
+      const user = userEvent.setup();
+      renderItem({
+        item: COMPLETED_ITEM,
+        stepNumber: 1,
+        state: "completed",
+        lessonTracking: { locked: true, pendingKey: "item-1:lesson-2" },
+      });
+
+      await user.click(screen.getByRole("button", { name: /Temario/ }));
+
+      const lesson1 = screen.getByRole("checkbox", { name: /Variables y tipos de datos/ });
+      const lesson2 = screen.getByRole("checkbox", { name: /Operadores y expresiones/ });
+      expect(lesson1).toBeDisabled();
+      expect(lesson2).not.toBeDisabled();
+      expect(lesson2).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("checklist en área de grid propia, debajo de las acciones en ambos breakpoints", () => {
+      const { container } = renderItem({ item: COMPLETED_ITEM, stepNumber: 1, state: "completed" });
+
+      const checklistWrapper = container.querySelector('[class*="[grid-area:lessons]"]');
+      expect(checklistWrapper).not.toBeNull();
+      const card = screen.getByTestId("timeline-card");
+      expect(card.className).toContain("'thumb_body'_'actions_actions'_'lessons_lessons'");
+      expect(card.className).toContain("'thumb_body'_'thumb_actions'_'lessons_lessons'");
+    });
+  });
 });
