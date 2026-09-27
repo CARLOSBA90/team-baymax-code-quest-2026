@@ -17,17 +17,30 @@ export function RoadmapDetailSkeleton() {
         data-testid="roadmap-detail-skeleton-blocks"
         className="flex animate-pulse flex-col gap-5.5 motion-reduce:animate-none"
       >
-        <div data-testid="skeleton-back-link" className="h-4 w-24 rounded-full bg-bg-ghost" />
-        <div className="flex flex-col gap-3">
+        {/*
+         * Mismo grid de áreas que `RoadmapDetailView` (miga/cabecera/⋯) para reservar el hueco de
+         * 44×44 del ⋯ real y evitar salto de layout al pasar del skeleton al contenido.
+         */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-5.5 [grid-template-areas:'back_menu'_'header_header'] sm:[grid-template-areas:'back_back'_'header_menu']">
           <div
-            data-testid="skeleton-title"
-            className="h-6.5 w-70 max-w-full rounded-full bg-bg-ghost-hover sm:h-7.5"
+            data-testid="skeleton-back-link"
+            className="h-4 w-24 self-center rounded-full bg-bg-ghost [grid-area:back]"
           />
+          <div className="flex flex-col gap-3 [grid-area:header]">
+            <div
+              data-testid="skeleton-title"
+              className="h-6.5 w-70 max-w-full rounded-full bg-bg-ghost-hover sm:h-7.5"
+            />
+            <div
+              data-testid="skeleton-summary"
+              className="hidden h-4 w-105 max-w-full rounded-full bg-bg-ghost sm:block"
+            />
+            <div data-testid="skeleton-badge" className="h-6.5 w-22.5 rounded-full bg-bg-ghost" />
+          </div>
           <div
-            data-testid="skeleton-summary"
-            className="hidden h-4 w-105 max-w-full rounded-full bg-bg-ghost sm:block"
+            data-testid="skeleton-menu"
+            className="size-11 self-center rounded-full bg-bg-ghost [grid-area:menu] sm:self-start"
           />
-          <div data-testid="skeleton-badge" className="h-6.5 w-22.5 rounded-full bg-bg-ghost" />
         </div>
         <div className="flex flex-col gap-2.5">
           <div

@@ -44,9 +44,12 @@ export function isRoadmapDeletedState(state: unknown): state is RoadmapDeletedSt
 /** Aviso de llegada a Mis Rutas derivado de `location.state`. */
 export type RoadmapsArrivalNotice =
   | { kind: "assessment-completed" }
-  | { kind: "roadmap-deleted"; message: string };
+  | { kind: "roadmap-deleted"; message: string; variant: "success" | "info" };
 
-/** `location.state` → aviso de llegada (o `null` si no es ninguno de los conocidos). Pura. */
+/**
+ * `location.state` → aviso de llegada (o `null` si no es ninguno de los conocidos). Pura.
+ * `notFound` (la ruta ya no existía) se muestra como `info`, un borrado real como `success`.
+ */
 export function parseRoadmapsArrivalState(state: unknown): RoadmapsArrivalNotice | null {
   if (isAssessmentCompletedState(state)) return { kind: "assessment-completed" };
   if (isRoadmapDeletedState(state)) {
@@ -54,6 +57,7 @@ export function parseRoadmapsArrivalState(state: unknown): RoadmapsArrivalNotice
     return {
       kind: "roadmap-deleted",
       message: notFound ? ROADMAP_DELETE_NOT_FOUND_MESSAGE : getRoadmapDeletedMessage(name),
+      variant: notFound ? "info" : "success",
     };
   }
   return null;

@@ -4,6 +4,7 @@ import type { PropsWithChildren } from "react";
 import { describe, expect, it, type MockInstance, vi } from "vitest";
 import { roadmapsKeys, usePauseRoadmap, useRoadmap, useRoadmaps } from "@/api/queries/roadmaps";
 import { getRoadmap, getRoadmaps, setRoadmapPaused } from "@/api/services";
+import { didPauseRefetchFail } from "@/lib";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import { buildRoadmapDetail, ROADMAP_DETAIL } from "@/test/fixtures/roadmap-detail";
 import {
@@ -229,23 +230,47 @@ describe("usePauseRoadmap", () => {
       expect(getDetail(queryClient)).toEqual(refreshed);
       expect(invalidatedKeys(invalidateSpy)).toContain(LIST_KEY);
       expect(invalidatedKeys(invalidateSpy)).not.toContain(ALL_KEY);
+      // El refetch interno tuvo éxito: el error no queda marcado.
+      expect(didPauseRefetchFail(result.current.pause.error)).toBe(false);
     },
   );
 
-  it("409 + refetch fallido: el error sigue siendo el original", async () => {
-    const error = buildRoadmapVersionConflictError();
+  it.each([
+    ["409 ROADMAP_VERSION_CONFLICT", buildRoadmapVersionConflictError()],
+    ["409 INVALID_ROADMAP_TRANSITION", buildInvalidRoadmapTransitionError()],
+    ["404 ROADMAP_NOT_FOUND", buildRoadmapNotFoundError()],
+  ])(
+    "%s + refetch fallido: el error sigue siendo el original y queda marcado con refetchFailed",
+    async (_label, error) => {
+      vi.mocked(getRoadmap)
+        .mockResolvedValueOnce(ROADMAP_DETAIL)
+        .mockRejectedValueOnce(buildAxiosError(500));
+      vi.mocked(setRoadmapPaused).mockRejectedValue(error);
+      const { result, invalidateSpy } = await renderWithDetail();
+
+      act(() => result.current.pause.mutate(PAUSE_BODY));
+
+      await waitFor(() => expect(result.current.pause.isError).toBe(true));
+      expect(result.current.pause.error).toBe(error);
+      expect(getRoadmap).toHaveBeenCalledTimes(2);
+      expect(invalidatedKeys(invalidateSpy)).toContain(LIST_KEY);
+      expect(didPauseRefetchFail(result.current.pause.error)).toBe(true);
+    },
+  );
+
+  it("404 + refetch fallido por red: también queda marcado con refetchFailed", async () => {
+    const error = buildRoadmapNotFoundError();
     vi.mocked(getRoadmap)
       .mockResolvedValueOnce(ROADMAP_DETAIL)
-      .mockRejectedValueOnce(buildAxiosError(500));
+      .mockRejectedValueOnce(buildNetworkError());
     vi.mocked(setRoadmapPaused).mockRejectedValue(error);
-    const { result, invalidateSpy } = await renderWithDetail();
+    const { result } = await renderWithDetail();
 
     act(() => result.current.pause.mutate(PAUSE_BODY));
 
     await waitFor(() => expect(result.current.pause.isError).toBe(true));
     expect(result.current.pause.error).toBe(error);
-    expect(getRoadmap).toHaveBeenCalledTimes(2);
-    expect(invalidatedKeys(invalidateSpy)).toContain(LIST_KEY);
+    expect(didPauseRefetchFail(result.current.pause.error)).toBe(true);
   });
 
   it.each([
@@ -269,5 +294,6 @@ describe("usePauseRoadmap", () => {
     expect(invalidateSpy).not.toHaveBeenCalled();
     expect(getDetail(queryClient)).toBe(before);
     expect(queryClient.getQueryData(roadmapsKeys.list())).toBe(listBefore);
+    expect(didPauseRefetchFail(result.current.pause.error)).toBe(false);
   });
 });

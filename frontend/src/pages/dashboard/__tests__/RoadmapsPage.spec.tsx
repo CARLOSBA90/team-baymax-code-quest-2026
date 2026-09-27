@@ -536,7 +536,9 @@ describe("RoadmapsPage", () => {
       await openDeleteDialog(user);
       await user.click(confirmButton());
 
-      expect(await screen.findByText(FE_DELETED_NOTICE)).toHaveAttribute("role", "status");
+      const deletedNotice = await screen.findByText(FE_DELETED_NOTICE);
+      expect(deletedNotice).toHaveAttribute("role", "status");
+      expect(deletedNotice).toHaveClass("bg-notice-success-bg");
       expect(deleteRoadmap).toHaveBeenCalledTimes(1);
       expect(vi.mocked(deleteRoadmap).mock.calls[0][0]).toBe(FE_ID);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -626,7 +628,9 @@ describe("RoadmapsPage", () => {
       await openDeleteDialog(user);
       await user.click(confirmButton());
 
-      expect(await screen.findByText(NOT_FOUND_NOTICE)).toHaveAttribute("role", "status");
+      const notFoundNotice = await screen.findByText(NOT_FOUND_NOTICE);
+      expect(notFoundNotice).toHaveAttribute("role", "status");
+      expect(notFoundNotice).toHaveClass("bg-notice-info-bg");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(tableNames()).not.toContain(FE);
       expect(screen.queryByText("Roadmap not found.")).not.toBeInTheDocument();
@@ -897,13 +901,21 @@ describe("RoadmapsPage", () => {
       expect(screen.getAllByText(DELETED_NOTICE)).toHaveLength(1);
     });
 
-    it("con notFound muestra el aviso neutro de 404 como success", async () => {
+    it("con notFound muestra el aviso neutro de 404 como info", async () => {
       renderArrival(buildRoadmapDeletedState(DELETED_NAME, true));
 
-      expect(screen.getByText(NOT_FOUND_NOTICE)).toHaveAttribute("role", "status");
+      const notFoundNotice = screen.getByText(NOT_FOUND_NOTICE);
+      expect(notFoundNotice).toHaveAttribute("role", "status");
+      expect(notFoundNotice).toHaveClass("bg-notice-info-bg");
       expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
       await waitFor(() => expect(heading()).toHaveFocus());
       await expectStateCleared();
+    });
+
+    it("un borrado real (200) muestra el aviso como success", () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+
+      expect(screen.getByText(DELETED_NOTICE)).toHaveClass("bg-notice-success-bg");
     });
 
     it("cambiar de filtro oculta el aviso y no vuelve", async () => {

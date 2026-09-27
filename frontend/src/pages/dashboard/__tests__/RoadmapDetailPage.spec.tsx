@@ -568,6 +568,8 @@ describe("RoadmapDetailPage — pausar, reanudar y eliminar (refetch real)", () 
     "Alguien actualizó esta ruta desde otro lugar. Ya tienes la versión más reciente.";
   const NETWORK_MESSAGE =
     "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
+  const PAUSE_GENERIC_MESSAGE = "No se pudo pausar la ruta. Inténtalo de nuevo.";
+  const RESUME_GENERIC_MESSAGE = "No se pudo reanudar la ruta. Inténtalo de nuevo.";
 
   /** Respuesta 200 de pausar `ROADMAP_DETAIL` (v12 → v13). */
   function buildPausedResponse(): RoadmapDetail {
@@ -765,18 +767,19 @@ describe("RoadmapDetailPage — pausar, reanudar y eliminar (refetch real)", () 
     expect(setRoadmapPaused).toHaveBeenCalledTimes(1);
   });
 
-  it("409 con el refetch fallido: se queda la vista previa, aviso neutro y foco en el h1", async () => {
+  it("409 con el refetch fallido: se queda la vista previa, alerta genérica (no el aviso neutro) y el foco no se mueve", async () => {
     vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapVersionConflictError());
     const { user } = await renderLoaded();
-    // Refetch tras el error.
+    // Refetch tras el error: falla por red, no confirma el conflicto de versión.
     vi.mocked(getRoadmap).mockRejectedValueOnce(buildAxiosError(500, "Internal server error"));
 
     await selectMenuItem(user, "Pausar ruta");
 
-    expect(await screen.findByText(UPDATED_ELSEWHERE)).toHaveAttribute("role", "status");
-    await waitFor(() => expect(document.activeElement).toBe(mainHeading()));
+    expect(await screen.findByRole("alert")).toHaveTextContent(PAUSE_GENERIC_MESSAGE);
+    expect(screen.queryByText(UPDATED_ELSEWHERE)).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
     expect(screen.queryByText("No pudimos cargar la ruta")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger());
     expect(getRoadmap).toHaveBeenCalledTimes(2);
   });
 
@@ -792,6 +795,64 @@ describe("RoadmapDetailPage — pausar, reanudar y eliminar (refetch real)", () 
       await screen.findByRole("heading", { level: 1, name: "No encontramos esta ruta" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Roadmap not found.")).not.toBeInTheDocument();
+  });
+
+  it("404 desde ⋯ con el refetch interno fallido: se queda la vista previa, alerta genérica y el foco no se mueve", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapNotFoundError());
+    const { user } = await renderLoaded();
+    // Refetch tras el error: falla por red, no confirma el 404. El Notice usa el error original
+    // (el 404 de pausar, que sí tiene respuesta), no el de la red.
+    vi.mocked(getRoadmap).mockRejectedValueOnce(buildNetworkError());
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(PAUSE_GENERIC_MESSAGE);
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "No encontramos esta ruta" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Continúa aquí" })).toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger());
+    expect(trigger()).not.toHaveAttribute("aria-disabled");
+    expect(announcer()).toBeEmptyDOMElement();
+    expect(getRoadmap).toHaveBeenCalledTimes(2);
+  });
+
+  it("404 desde el banner con el refetch interno fallido: alerta genérica y el foco vuelve a «Reanudar ruta»", async () => {
+    vi.mocked(setRoadmapPaused).mockRejectedValue(buildRoadmapNotFoundError());
+    const { user } = await renderLoaded(buildPausedRoadmapDetail());
+    // Refetch tras el error: falla por red, no confirma el 404.
+    vi.mocked(getRoadmap).mockRejectedValueOnce(buildNetworkError());
+
+    await user.click(within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(RESUME_GENERIC_MESSAGE);
+    const button = within(pausedRegion()).getByRole("button", { name: "Reanudar ruta" });
+    await waitFor(() => expect(document.activeElement).toBe(button));
+    expect(button).toBeEnabled();
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "No encontramos esta ruta" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("404 con refetch fallido, luego reintento con éxito: la alerta desaparece y sigue el flujo normal", async () => {
+    vi.mocked(setRoadmapPaused)
+      .mockRejectedValueOnce(buildRoadmapNotFoundError())
+      .mockResolvedValueOnce(buildPausedResponse());
+    const { user } = await renderLoaded();
+    vi.mocked(getRoadmap).mockRejectedValueOnce(buildNetworkError());
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(PAUSE_GENERIC_MESSAGE);
+
+    await selectMenuItem(user, "Pausar ruta");
+
+    expect(
+      await screen.findByRole("region", { name: "Esta ruta está en pausa" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(announcer()).toHaveTextContent(PAUSED_ANNOUNCEMENT);
+    expect(setRoadmapPaused).toHaveBeenCalledTimes(2);
   });
 
   it("sin conexión: alerta arriba, el foco sigue en ⋯ y un reintento correcto la limpia", async () => {

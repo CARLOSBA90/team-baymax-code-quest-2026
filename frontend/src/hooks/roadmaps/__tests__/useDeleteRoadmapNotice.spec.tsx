@@ -6,18 +6,22 @@ import { useDeleteRoadmapNotice } from "@/hooks";
 import { renderWithProviders } from "@/test/renderWithProviders";
 
 function Probe() {
-  const { message, show } = useDeleteRoadmapNotice();
+  const { message, variant, show } = useDeleteRoadmapNotice();
   const navigate = useNavigate();
   const location = useLocation();
   return (
     <>
       <p data-testid="notice">{message ?? "sin aviso"}</p>
+      <p data-testid="variant">{variant}</p>
       <p data-testid="location">{`${location.pathname}${location.search}`}</p>
       <button type="button" onClick={() => show("Ruta «A» eliminada")}>
         Aviso A
       </button>
       <button type="button" onClick={() => show("Ruta «B» eliminada")}>
         Aviso B
+      </button>
+      <button type="button" onClick={() => show("Ya no existía", "info")}>
+        Aviso info
       </button>
       <button type="button" onClick={() => navigate("/rutas?status=paused", { replace: true })}>
         Filtrar
@@ -48,12 +52,21 @@ describe("useDeleteRoadmapNotice", () => {
   it("empieza sin aviso", () => {
     renderProbe();
     expect(notice()).toHaveTextContent("sin aviso");
+    expect(screen.getByTestId("variant")).toHaveTextContent("success");
   });
 
   it("show muestra el mensaje en la entrada actual", async () => {
     const user = renderProbe();
     await user.click(screen.getByRole("button", { name: "Aviso A" }));
     expect(notice()).toHaveTextContent("Ruta «A» eliminada");
+    expect(screen.getByTestId("variant")).toHaveTextContent("success");
+  });
+
+  it("show con variant explícita la conserva", async () => {
+    const user = renderProbe();
+    await user.click(screen.getByRole("button", { name: "Aviso info" }));
+    expect(notice()).toHaveTextContent("Ya no existía");
+    expect(screen.getByTestId("variant")).toHaveTextContent("info");
   });
 
   it("un aviso nuevo reemplaza al anterior", async () => {

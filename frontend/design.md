@@ -849,6 +849,14 @@ Frontera: la de Tailwind. `sm` empieza en 640, así que a 640px exactos ya se ve
 
 Cuando llegue el tema claro, estos cinco hay que rehacerlos: los pasteles sobre blanco caen por debajo de 4.5:1 (orientativamente `#047857`, `#6D28D9`, `#B45309`, `#B91C1C`). **Define el riel y los nodos con tokens desde el principio**, no con blancos translúcidos, o habrá que reescribirlos.
 
+**Nota (fase 5/6) — accesibilidad de pausar/reanudar:** los errores de la acción de pausar/reanudar (⋯ y banner) se muestran siempre en el `Notice` superior de `RoadmapDetailView` (`role="alert"`), **nunca** como error local dentro de `PausedBanner` — el banner solo tiene su propio botón «Reanudar ruta» y, mientras está pendiente, «Reanudando…». El foco final tras la acción tiene tres destinos posibles:
+
+1. **h2 del banner** «Esta ruta está en pausa» — cuando el estado **devuelto** por el backend (no el pedido) es `PAUSED` (200 idempotente incluido).
+2. **h1 de la ruta** — en el resto de casos: reanudación con éxito, 409 `ROADMAP_VERSION_CONFLICT`/`INVALID_ROADMAP_TRANSITION` (con el detalle ya refrescado), `COMPLETED` por carrera, y — desde la fase 6 — un 404 cuyo refetch interno posterior también falló.
+3. **`resumeButtonId`** («Reanudar ruta») — cuando el error (de cualquier tipo, incluido el nuevo caso de fase 6) se originó en el propio banner (`fromBanner`); el botón es `disabled` nativo mientras está pendiente y el navegador puede soltar el foco a `<body>`, así que se le devuelve explícitamente.
+
+**Caso nuevo de fase 6 — 404 con refetch interno fallido:** `usePauseRoadmap` refetchea el detalle tras un 404/409 de conflicto/transición; si ese refetch interno (no el PATCH) falla por red o 5xx, la caché queda obsoleta y la vista **no puede** asumir que la página va a pintar «No encontramos esta ruta» (eso solo ocurre si el refetch confirmó el 404). Este caso se distingue del 404 «legítimo» (refetch exitoso, sin notice, la vista se desmonta) con `didPauseRefetchFail` (`@/lib`) y se trata como cualquier otro error genérico: `Notice` `error` con `getPauseRoadmapErrorMessage(error, paused)`, la vista sigue montada con los datos previos, y el foco sigue la regla 2/3 de arriba según el origen de la acción.
+
 ### 16.10 Componentes
 
 ```

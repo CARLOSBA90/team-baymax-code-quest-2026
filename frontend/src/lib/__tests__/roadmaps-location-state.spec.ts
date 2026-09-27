@@ -51,17 +51,19 @@ describe("buildRoadmapDeletedState / isRoadmapDeletedState", () => {
 });
 
 describe("parseRoadmapsArrivalState", () => {
-  it("borrado con éxito → mensaje con el nombre", () => {
+  it("borrado con éxito → mensaje con el nombre y variant success", () => {
     expect(parseRoadmapsArrivalState(buildRoadmapDeletedState("Frontend moderno", false))).toEqual({
       kind: "roadmap-deleted",
       message: "Ruta «Frontend moderno» eliminada",
+      variant: "success",
     });
   });
 
-  it("borrado con 404 → mensaje neutro", () => {
+  it("borrado con 404 → mensaje neutro y variant info", () => {
     expect(parseRoadmapsArrivalState(buildRoadmapDeletedState("Frontend moderno", true))).toEqual({
       kind: "roadmap-deleted",
       message: ROADMAP_DELETE_NOT_FOUND_MESSAGE,
+      variant: "info",
     });
   });
 

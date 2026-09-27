@@ -111,3 +111,20 @@ export function MoreIcon({ className }: RoadmapDetailIconProps) {
     </StrokeIcon>
   );
 }
+
+/**
+ * Spinner decorativo: sustituye al ⋯ en `RoadmapDetailMenu` mientras pausar/reanudar está en
+ * curso (`disabled`). El consumidor añade `animate-spin`; mismo trazo que `ui/PrimaryButton`.
+ */
+export function SpinnerIcon({ className }: RoadmapDetailIconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z"
+      />
+    </svg>
+  );
+}
