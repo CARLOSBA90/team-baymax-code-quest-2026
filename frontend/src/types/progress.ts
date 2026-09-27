@@ -6,6 +6,17 @@ export interface TrackItemCompletionBody {
   completed: true;
 }
 
+/**
+ * Cuerpo de `POST /progress/track` para marcar/desmarcar una lección de un ítem `LESSONS`
+ * (reversible, a diferencia de `TrackItemCompletionBody`). Interfaz separada a propósito: el
+ * backend rechaza combinaciones incorrectas con 422 `TRACKING_REPORT_MISMATCH`.
+ */
+export interface TrackLessonCompletionBody {
+  roadmap_item_id: string;
+  lesson_id: string;
+  completed: boolean;
+}
+
 /** `roadmap` de la respuesta de `POST /progress/track` en el cable. */
 export interface TrackProgressRoadmapDto {
   id: string;

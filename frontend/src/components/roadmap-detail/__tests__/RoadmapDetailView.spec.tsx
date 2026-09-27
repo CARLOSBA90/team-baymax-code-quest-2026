@@ -4,12 +4,20 @@ import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { roadmapsKeys } from "@/api/queries/roadmaps";
-import { deleteRoadmap, getRoadmap, setRoadmapPaused, trackItemCompletion } from "@/api/services";
+import {
+  deleteRoadmap,
+  getRoadmap,
+  setRoadmapPaused,
+  trackItemCompletion,
+  trackLessonCompletion,
+} from "@/api/services";
 import { RoadmapDetailView } from "@/components/roadmap-detail";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
+  buildLessonNotInItemError,
   buildRoadmapItemNotFoundError,
   buildRoadmapPausedError,
+  buildSyllabusMissingError,
   buildTrackingMismatchError,
   buildTrackProgressResult,
 } from "@/test/fixtures/progress";
@@ -19,6 +27,8 @@ import {
   buildPausedRoadmapDetail,
   buildRoadmapDetail,
   buildRoadmapItem,
+  buildSyllabus,
+  buildSyllabusLesson,
   ROADMAP_DETAIL,
 } from "@/test/fixtures/roadmap-detail";
 import {
@@ -37,6 +47,7 @@ vi.mock("@/api/services", () => ({
   getRoadmap: vi.fn(),
   setRoadmapPaused: vi.fn(),
   trackItemCompletion: vi.fn(),
+  trackLessonCompletion: vi.fn(),
 }));
 
 const CONTEXTUAL_BLOCKS = [
@@ -149,6 +160,7 @@ describe("RoadmapDetailView", () => {
         roadmapItemId: "item-3",
         name: "Curso número 3",
         url: "https://example.com/courses/3",
+        lesson: null,
       },
     });
 
@@ -460,7 +472,7 @@ describe("RoadmapDetailView", () => {
     renderWithProviders(
       <RoadmapDetailView
         roadmap={buildRoadmapDetail({
-          nextStep: { roadmapItemId: "item-x", name: "Fantasma", url: null },
+          nextStep: { roadmapItemId: "item-x", name: "Fantasma", url: null, lesson: null },
         })}
       />,
     );
@@ -534,6 +546,7 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
         roadmapItemId: "item-3",
         name: ITEM_NAME,
         url: "https://react.dev/reference/react/hooks",
+        lesson: null,
       },
     };
   }
@@ -659,7 +672,7 @@ describe("RoadmapDetailView — «Marcar como completado»", () => {
       items: completed.items.map((item) =>
         item.roadmapItemId === "item-3" ? { ...item, progress: 0, completedAt: null } : item,
       ),
-      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null },
+      nextStep: { roadmapItemId: "item-3", name: ITEM_NAME, url: null, lesson: null },
     };
     vi.mocked(trackItemCompletion).mockResolvedValue(
       buildTrackProgressResult({
@@ -1205,5 +1218,333 @@ describe("RoadmapDetailView — pausar, reanudar y eliminar", () => {
     unmount();
 
     expect(queryClient.getQueryData(detailKey)).toBe(ROADMAP_DETAIL);
+  });
+});
+
+describe("RoadmapDetailView — checklist de lecciones", () => {
+  const ITEM_NAME = "Fundamentos de JavaScript";
+  const OTHER_LESSON_ITEM_NAME = "Introducción a React";
+  const PENDING_LESSON_TITLE = "Condicionales y bucles";
+  const MEDIA_ITEM_NAME = "Guía de hooks de React";
+  const NETWORK_MESSAGE =
+    "No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
+
+  /** `syllabus` de item-1 con `completedLessons` de 4 lecciones marcadas (lesson-4 la última). */
+  function buildLessonSyllabus(completedLessons: number) {
+    return buildSyllabus({
+      completedLessons,
+      lastLessonId: completedLessons > 0 ? "lesson-3" : null,
+      nextLesson:
+        completedLessons < 4
+          ? {
+              lessonId: "lesson-4",
+              title: PENDING_LESSON_TITLE,
+              sectionTitle: "Funciones y control de flujo",
+              position: 4,
+              positionSeconds: null,
+            }
+          : null,
+      sections: [
+        {
+          title: "Fundamentos",
+          lessons: [
+            buildSyllabusLesson({
+              lessonId: "lesson-1",
+              title: "Variables y tipos de datos",
+              completed: completedLessons >= 1,
+            }),
+            buildSyllabusLesson({
+              lessonId: "lesson-2",
+              title: "Operadores y expresiones",
+              completed: completedLessons >= 2,
+            }),
+          ],
+        },
+        {
+          title: "Funciones y control de flujo",
+          lessons: [
+            buildSyllabusLesson({
+              lessonId: "lesson-3",
+              title: "Declaración de funciones",
+              completed: completedLessons >= 3,
+            }),
+            buildSyllabusLesson({
+              lessonId: "lesson-4",
+              title: PENDING_LESSON_TITLE,
+              completed: completedLessons >= 4,
+            }),
+          ],
+        },
+      ],
+    });
+  }
+
+  /**
+   * item-1 (LESSONS) con 3/4 lecciones completadas (lesson-4 pendiente) e item-2, también
+   * `LESSONS` con una lección propia pendiente, para poder probar el bloqueo cruzado D3 entre dos
+   * ítems con checklist. item-2 deja de mostrar «Marcar como completado» en «Continúa aquí» (LESSONS
+   * no es un tipo rastreable ahí), sin afectar al resto de la vista.
+   */
+  function buildLessonsRoadmap(completedLessons = 3): RoadmapDetail {
+    const base = buildRoadmapDetail();
+    return {
+      ...base,
+      status: "IN_PROGRESS",
+      items: base.items.map((item) => {
+        if (item.roadmapItemId === "item-1") {
+          return {
+            ...item,
+            progress: completedLessons * 25,
+            completedAt: completedLessons >= 4 ? item.completedAt : null,
+            syllabus: buildLessonSyllabus(completedLessons),
+          };
+        }
+        if (item.roadmapItemId === "item-2") {
+          return {
+            ...item,
+            tracking: { type: "LESSONS" as const, enabled: true, disabledReason: null },
+            progress: 0,
+            syllabus: buildSyllabus({
+              completedLessons: 0,
+              lastLessonId: null,
+              nextLesson: {
+                lessonId: "b1",
+                title: "Lección B1",
+                sectionTitle: "Sección B",
+                position: 1,
+                positionSeconds: null,
+              },
+              sections: [
+                {
+                  title: "Sección B",
+                  lessons: [
+                    buildSyllabusLesson({ lessonId: "b1", title: "Lección B1", completed: false }),
+                  ],
+                },
+              ],
+            }),
+          };
+        }
+        return item;
+      }),
+    };
+  }
+
+  function renderFlow(roadmap: RoadmapDetail = buildLessonsRoadmap()) {
+    const user = userEvent.setup();
+    renderWithProviders(<RoadmapDetailView roadmap={roadmap} />);
+    return user;
+  }
+
+  function announcer() {
+    return screen.getByTestId("roadmap-detail-announcer");
+  }
+
+  /** El h3 (nivel 3, solo timeline) identifica la tarjeta del ítem sin ambigüedad con el h2 de
+   * «Continúa aquí», que también puede contener el mismo nombre. */
+  async function expandChecklist(user: ReturnType<typeof userEvent.setup>, itemName: string) {
+    const heading = screen.getByRole("heading", { level: 3, name: new RegExp(itemName) });
+    const card = heading.closest('[data-testid="timeline-card"]') as HTMLElement;
+    await user.click(within(card).getByRole("button", { name: /Temario/ }));
+    return card;
+  }
+
+  function lessonCheckbox(lessonTitle: string, itemName: string) {
+    return screen.getByRole("checkbox", { name: `${lessonTitle}, ${itemName}` });
+  }
+
+  afterEach(() => {
+    document.documentElement.classList.remove("overflow-hidden");
+  });
+
+  it("marcar una lección pendiente (200): llama al servicio con el body exacto y anuncia el progreso nuevo", async () => {
+    vi.mocked(trackLessonCompletion).mockResolvedValue(
+      buildTrackProgressResult({
+        roadmapItemId: "item-1",
+        progress: 100,
+        completed: true,
+        roadmap: {
+          id: ROADMAP_DETAIL.id,
+          progress: 60,
+          status: "IN_PROGRESS",
+          lastActivity: "2026-09-25T11:00:00.000Z",
+          activityVersion: 13,
+        },
+      }),
+    );
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+
+    await user.click(lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME));
+
+    await waitFor(() => expect(trackLessonCompletion).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(trackLessonCompletion).mock.calls[0]).toEqual(["item-1", "lesson-4", true]);
+    await waitFor(() =>
+      expect(announcer()).toHaveTextContent(
+        `${PENDING_LESSON_TITLE} marcada como completada. 4 de 4 lecciones en ${ITEM_NAME}.`,
+      ),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("desmarcar una lección completada (200): «marcada como pendiente», nunca «Completaste»", async () => {
+    vi.mocked(trackLessonCompletion).mockResolvedValue(
+      buildTrackProgressResult({
+        roadmapItemId: "item-1",
+        progress: 50,
+        completed: false,
+        roadmap: {
+          id: ROADMAP_DETAIL.id,
+          progress: 20,
+          status: "IN_PROGRESS",
+          lastActivity: "2026-09-25T11:00:00.000Z",
+          activityVersion: 13,
+        },
+      }),
+    );
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+
+    await user.click(lessonCheckbox("Variables y tipos de datos", ITEM_NAME));
+
+    await waitFor(() => expect(trackLessonCompletion).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(trackLessonCompletion).mock.calls[0]).toEqual(["item-1", "lesson-1", false]);
+    await waitFor(() =>
+      expect(announcer()).toHaveTextContent(
+        `Variables y tipos de datos marcada como pendiente. 2 de 4 lecciones en ${ITEM_NAME}.`,
+      ),
+    );
+    expect(announcer()).not.toHaveTextContent(/Completaste/);
+  });
+
+  it("marcar la última lección pendiente completa la ruta (sin botón «completar»): el anuncio añade «Completaste la ruta.»", async () => {
+    vi.mocked(trackLessonCompletion).mockResolvedValue(
+      buildTrackProgressResult({
+        roadmapItemId: "item-1",
+        progress: 100,
+        completed: true,
+        roadmap: {
+          id: ROADMAP_DETAIL.id,
+          progress: 100,
+          status: "COMPLETED",
+          lastActivity: "2026-09-25T11:00:00.000Z",
+          activityVersion: 13,
+        },
+      }),
+    );
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+
+    await user.click(lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME));
+
+    await waitFor(() =>
+      expect(announcer()).toHaveTextContent(
+        `${PENDING_LESSON_TITLE} marcada como completada. 4 de 4 lecciones en ${ITEM_NAME}. Completaste la ruta.`,
+      ),
+    );
+    // Sin diálogo de confirmación en ningún momento (reversible, distinto de completar ítem).
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "ruta pausada (409 ROADMAP_PAUSED)",
+      buildRoadmapPausedError,
+      "Esta ruta está pausada. Reanúdala para registrar tu avance.",
+    ],
+    [
+      "campo incorrecto (422 TRACKING_REPORT_MISMATCH)",
+      buildTrackingMismatchError,
+      "Este paso ya no se puede marcar como completado desde aquí.",
+    ],
+    [
+      "temario ya no disponible (422 SYLLABUS_MISSING)",
+      buildSyllabusMissingError,
+      "Ya no podemos registrar el avance de este curso. Hemos actualizado la ruta.",
+    ],
+    [
+      "lección ya no pertenece al curso (422 LESSON_NOT_IN_ITEM)",
+      buildLessonNotInItemError,
+      "Esta lección ya no está disponible. Hemos actualizado la ruta.",
+    ],
+    [
+      "paso no encontrado (404)",
+      buildRoadmapItemNotFoundError,
+      "Este paso ya no existe. Hemos actualizado la ruta.",
+    ],
+  ] as const)(
+    "%s: Notice neutro (status) con el mensaje correcto, sin anuncio",
+    async (_, buildError, message) => {
+      vi.mocked(trackLessonCompletion).mockRejectedValue(buildError());
+      const user = renderFlow();
+      await expandChecklist(user, ITEM_NAME);
+
+      await user.click(lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME));
+
+      const notice = await screen.findByText(message);
+      expect(notice).toHaveAttribute("role", "status");
+      expect(notice).toHaveClass("bg-notice-info-bg");
+      expect(notice).not.toHaveClass("bg-notice-error-bg");
+      expect(announcer()).toBeEmptyDOMElement();
+    },
+  );
+
+  it("error de red: Notice de error (role alert) con el mensaje de conexión", async () => {
+    vi.mocked(trackLessonCompletion).mockRejectedValue(buildNetworkError());
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+
+    await user.click(lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent(NETWORK_MESSAGE);
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it("500: Notice de error genérico, nunca el `message` del back", async () => {
+    vi.mocked(trackLessonCompletion).mockRejectedValue(buildAxiosError(500, "Backend says no"));
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+
+    await user.click(lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("No se pudo marcar como completado. Inténtalo de nuevo.");
+    expect(screen.queryByText(/Backend says no/)).not.toBeInTheDocument();
+    expect(announcer()).toBeEmptyDOMElement();
+  });
+
+  it("mientras una lección está pendiente: el checkbox de OTRO ítem y «Marcar como completado» de OTRO ítem quedan bloqueados", async () => {
+    let resolve: (value: TrackProgressResult) => void = () => {};
+    vi.mocked(trackLessonCompletion).mockReturnValue(
+      new Promise<TrackProgressResult>((r) => {
+        resolve = r;
+      }),
+    );
+    const user = renderFlow();
+    await expandChecklist(user, ITEM_NAME);
+    await expandChecklist(user, OTHER_LESSON_ITEM_NAME);
+
+    const busyCheckbox = lessonCheckbox(PENDING_LESSON_TITLE, ITEM_NAME);
+    await user.click(busyCheckbox);
+
+    expect(busyCheckbox).toHaveAttribute("aria-busy", "true");
+    expect(busyCheckbox).not.toBeDisabled();
+    const otherItemCheckbox = lessonCheckbox("Lección B1", OTHER_LESSON_ITEM_NAME);
+    expect(otherItemCheckbox).toBeDisabled();
+    const mediaButton = screen.getByRole("button", {
+      name: `Marcar como completado ${MEDIA_ITEM_NAME}`,
+    });
+    expect(mediaButton).toBeDisabled();
+    const menuTrigger = screen.getByRole("button", { name: /Más acciones para/ });
+    expect(menuTrigger).toHaveAttribute("aria-disabled", "true");
+
+    resolve(buildTrackProgressResult({ roadmapItemId: "item-1" }));
+
+    await waitFor(() => expect(busyCheckbox).not.toHaveAttribute("aria-busy"));
+    expect(otherItemCheckbox).toBeEnabled();
+    expect(mediaButton).toBeEnabled();
+    expect(menuTrigger).not.toHaveAttribute("aria-disabled");
   });
 });

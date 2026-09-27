@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { post } from "@/api/client";
-import { toTrackProgressResult, trackItemCompletion } from "@/api/services";
+import { toTrackProgressResult, trackItemCompletion, trackLessonCompletion } from "@/api/services";
 import { buildRoadmapPausedError, buildTrackProgressResult } from "@/test/fixtures/progress";
 import type { TrackProgressResponseDto } from "@/types";
 
@@ -56,6 +56,48 @@ describe("trackItemCompletion", () => {
     await expect(trackItemCompletion("item-3")).rejects.toBe(error);
     expect(error.response?.status).toBe(409);
     expect(error.response?.data).toMatchObject({ code: "ROADMAP_PAUSED" });
+  });
+});
+
+describe("trackLessonCompletion", () => {
+  it("hace un único POST a /progress/track con el cuerpo exacto para marcar", async () => {
+    vi.mocked(post).mockResolvedValue(WIRE_RESPONSE);
+
+    await trackLessonCompletion("item-3", "lesson-2", true);
+
+    expect(post).toHaveBeenCalledTimes(1);
+    const [url, body] = vi.mocked(post).mock.calls[0];
+    expect(url).toBe("/progress/track");
+    expect(body).toEqual({ roadmap_item_id: "item-3", lesson_id: "lesson-2", completed: true });
+    expect(Object.keys(body as object).sort()).toEqual([
+      "completed",
+      "lesson_id",
+      "roadmap_item_id",
+    ]);
+  });
+
+  it("hace un único POST a /progress/track con el cuerpo exacto para desmarcar", async () => {
+    vi.mocked(post).mockResolvedValue(WIRE_RESPONSE);
+
+    await trackLessonCompletion("item-3", "lesson-2", false);
+
+    const [, body] = vi.mocked(post).mock.calls[0];
+    expect(body).toEqual({ roadmap_item_id: "item-3", lesson_id: "lesson-2", completed: false });
+  });
+
+  it("mapea la respuesta 200 campo a campo, igual que trackItemCompletion", async () => {
+    vi.mocked(post).mockResolvedValue(WIRE_RESPONSE);
+
+    const result = await trackLessonCompletion("item-3", "lesson-2", true);
+
+    expect(result).toEqual(buildTrackProgressResult());
+  });
+
+  it("propaga el AxiosError original", async () => {
+    const error = buildRoadmapPausedError();
+    vi.mocked(post).mockRejectedValue(error);
+
+    await expect(trackLessonCompletion("item-3", "lesson-2", true)).rejects.toBe(error);
   });
 });
 

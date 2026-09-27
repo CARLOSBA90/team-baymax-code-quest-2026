@@ -1,7 +1,7 @@
 import { useId } from "react";
 import { getItemHeadingId, getItemState, getStepsCompletedLabel } from "@/lib";
-import type { RoadmapItem as RoadmapItemData } from "@/types";
-import { RoadmapItem } from "./RoadmapItem";
+import type { RoadmapItem as RoadmapItemData, SyllabusLesson } from "@/types";
+import { type LessonTracking, RoadmapItem } from "./RoadmapItem";
 
 export interface RoadmapTimelineProps {
   items: RoadmapItemData[];
@@ -19,6 +19,10 @@ export interface RoadmapTimelineProps {
    * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
    */
   completeDisabled?: boolean;
+  /** Marca/desmarca una lección del temario; se reenvía sin transformar a cada `RoadmapItem`. */
+  onToggleLesson?: (item: RoadmapItemData, lesson: SyllabusLesson) => void;
+  /** Bloqueo/lección en curso del checklist, compartido por todos los ítems; sin transformar. */
+  lessonTracking?: LessonTracking;
 }
 
 /**
@@ -35,6 +39,8 @@ export function RoadmapTimeline({
   onComplete,
   itemHeadingIdPrefix,
   completeDisabled = false,
+  onToggleLesson,
+  lessonTracking,
 }: RoadmapTimelineProps) {
   const headingId = useId();
   const total = items.length;
@@ -69,6 +75,8 @@ export function RoadmapTimeline({
             onComplete={onComplete}
             headingId={getItemHeadingId(itemHeadingIdPrefix, item.roadmapItemId)}
             completeDisabled={completeDisabled}
+            onToggleLesson={onToggleLesson}
+            lessonTracking={lessonTracking}
           />
         ))}
       </ol>

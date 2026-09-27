@@ -91,9 +91,77 @@ export interface RoadmapItemTrackingDto {
   disabled_reason: string | null;
 }
 
+/** Lección de un `syllabus.sections[]` en el cable. */
+export interface SyllabusLessonDto {
+  lesson_id: string;
+  title: string;
+  type: string;
+  free_preview: boolean;
+  completed: boolean;
+  position_seconds: number | null;
+}
+
+/** Sección de un `syllabus.sections[]` en el cable. */
+export interface SyllabusSectionDto {
+  title: string;
+  lessons: SyllabusLessonDto[];
+}
+
+/** `syllabus.next_lesson` / `next_step.lesson` en el cable (misma forma). */
+export interface SyllabusNextLessonDto {
+  lesson_id: string;
+  title: string;
+  section_title: string;
+  position: number;
+  position_seconds: number | null;
+}
+
+/** `content[].syllabus` de `GET /roadmaps/:id` en el cable. `null` si no aplica. */
+export interface SyllabusDto {
+  total_lessons: number;
+  completed_lessons: number;
+  last_lesson_id: string | null;
+  next_lesson: SyllabusNextLessonDto | null;
+  sections: SyllabusSectionDto[];
+}
+
+/** Lección de un `Syllabus.sections[]`, mapeada a camelCase. */
+export interface SyllabusLesson {
+  lessonId: string;
+  title: string;
+  type: string;
+  freePreview: boolean;
+  completed: boolean;
+  positionSeconds: number | null;
+}
+
+/** Sección de un `Syllabus.sections[]`, mapeada a camelCase. */
+export interface SyllabusSection {
+  title: string;
+  lessons: SyllabusLesson[];
+}
+
+/** `Syllabus.nextLesson` / `RoadmapNextStep.lesson` (misma forma), mapeada a camelCase. */
+export interface SyllabusNextLesson {
+  lessonId: string;
+  title: string;
+  sectionTitle: string;
+  position: number;
+  positionSeconds: number | null;
+}
+
+/** Temario de un `RoadmapItem` de tipo `LESSONS`. `null` si no aplica. */
+export interface Syllabus {
+  totalLessons: number;
+  completedLessons: number;
+  lastLessonId: string | null;
+  nextLesson: SyllabusNextLesson | null;
+  sections: SyllabusSection[];
+}
+
 /**
  * Ítem de `content[]` de `GET /roadmaps/:id` en el cable. Solo los campos consumidos:
- * `reason`, `details`, `syllabus`, `resume` y `progress_version` se ignoran.
+ * `reason`, `details`, `resume` y `progress_version` se ignoran.
  */
 export interface RoadmapItemDto {
   roadmap_item_id: string;
@@ -110,19 +178,21 @@ export interface RoadmapItemDto {
   tracking: RoadmapItemTrackingDto;
   started_at: string | null;
   completed_at: string | null;
+  syllabus: SyllabusDto | null;
 }
 
-/** `next_step` de `GET /roadmaps/:id` en el cable. `lesson` se ignora. */
+/** `next_step` de `GET /roadmaps/:id` en el cable. */
 export interface RoadmapNextStepDto {
   roadmap_item_id: string;
   name: string;
   url: string | null;
+  lesson: SyllabusNextLessonDto | null;
 }
 
 /**
  * `data` de `GET /roadmaps/:id` en el cable (snake_case). Solo campos consumidos: `generator`,
- * `courses`, `reason`, `details`, `syllabus`, `resume`, `progress_version` y `next_step.lesson`
- * se ignoran. Solo la usa el service (y las fixtures de test); la UI consume `RoadmapDetail`.
+ * `courses`, `reason`, `details`, `resume` y `progress_version` se ignoran. Solo la usa el
+ * service (y las fixtures de test); la UI consume `RoadmapDetail`.
  */
 export interface RoadmapDetailDto {
   id: string;
@@ -159,12 +229,14 @@ export interface RoadmapItem {
   tracking: RoadmapItemTracking;
   startedAt: string | null;
   completedAt: string | null;
+  syllabus: Syllabus | null;
 }
 
 export interface RoadmapNextStep {
   roadmapItemId: string;
   name: string;
   url: string | null;
+  lesson: SyllabusNextLesson | null;
 }
 
 export interface RoadmapDetail {

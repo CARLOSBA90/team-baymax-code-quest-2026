@@ -101,6 +101,15 @@ export function PlayIcon({ className }: RoadmapDetailIconProps) {
   );
 }
 
+/** Chevron ↓ del disclosure de lecciones; el consumidor rota con `rotate-180` al expandir. */
+export function ChevronIcon({ className }: RoadmapDetailIconProps) {
+  return (
+    <StrokeIcon className={className}>
+      <polyline points="6 9 12 15 18 9" />
+    </StrokeIcon>
+  );
+}
+
 /** ⋯ horizontal del menú de acciones del detalle. */
 export function MoreIcon({ className }: RoadmapDetailIconProps) {
   return (

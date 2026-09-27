@@ -1,6 +1,7 @@
 import { post } from "@/api/client";
 import type {
   TrackItemCompletionBody,
+  TrackLessonCompletionBody,
   TrackProgressResponseDto,
   TrackProgressResult,
 } from "@/types";
@@ -25,13 +26,38 @@ export function toTrackProgressResult(dto: TrackProgressResponseDto): TrackProgr
 }
 
 /**
- * Marca un paso como completado: `POST /progress/track` con `{ roadmap_item_id, completed: true }`
- * (el back rechaza campos extra). Los errores (AxiosError) se propagan sin transformar.
+ * `POST /progress/track` compartido: envía el body exacto que se le pase y mapea la respuesta con
+ * `toTrackProgressResult`. Los errores (AxiosError) se propagan sin transformar.
  */
-export async function trackItemCompletion(roadmapItemId: string): Promise<TrackProgressResult> {
-  const dto = await post<TrackProgressResponseDto, TrackItemCompletionBody>("/progress/track", {
+function postTrackProgress<TBody extends TrackItemCompletionBody | TrackLessonCompletionBody>(
+  body: TBody,
+): Promise<TrackProgressResult> {
+  return post<TrackProgressResponseDto, TBody>("/progress/track", body).then(toTrackProgressResult);
+}
+
+/**
+ * Marca un paso como completado: `POST /progress/track` con `{ roadmap_item_id, completed: true }`
+ * (el back rechaza campos extra).
+ */
+export function trackItemCompletion(roadmapItemId: string): Promise<TrackProgressResult> {
+  return postTrackProgress<TrackItemCompletionBody>({
     roadmap_item_id: roadmapItemId,
     completed: true,
   });
-  return toTrackProgressResult(dto);
+}
+
+/**
+ * Marca o desmarca una lección de un ítem `LESSONS`: `POST /progress/track` con
+ * `{ roadmap_item_id, lesson_id, completed }` (reversible, a diferencia de `trackItemCompletion`).
+ */
+export function trackLessonCompletion(
+  roadmapItemId: string,
+  lessonId: string,
+  completed: boolean,
+): Promise<TrackProgressResult> {
+  return postTrackProgress<TrackLessonCompletionBody>({
+    roadmap_item_id: roadmapItemId,
+    lesson_id: lessonId,
+    completed,
+  });
 }

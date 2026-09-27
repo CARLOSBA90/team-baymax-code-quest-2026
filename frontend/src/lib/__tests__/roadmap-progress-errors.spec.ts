@@ -1,18 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
   getCompleteItemErrorMessage,
+  getLessonTrackErrorMessage,
+  isLessonNotInItemError,
   isRoadmapItemNotFoundError,
   isRoadmapPausedError,
+  isSyllabusMissingError,
   isTrackingMismatchError,
+  LESSON_NOT_IN_ITEM_TRACK_MESSAGE,
   ROADMAP_ITEM_NOT_FOUND_MESSAGE,
   ROADMAP_PAUSED_TRACK_MESSAGE,
+  SYLLABUS_MISSING_TRACK_MESSAGE,
   shouldRefreshAfterTrackError,
   TRACKING_MISMATCH_TRACK_MESSAGE,
 } from "@/lib";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
+  buildLessonNotInItemError,
   buildRoadmapItemNotFoundError,
   buildRoadmapPausedError,
+  buildSyllabusMissingError,
   buildTrackingMismatchError,
 } from "@/test/fixtures/progress";
 
@@ -150,5 +157,114 @@ describe("copy de desenlaces", () => {
     expect(TRACKING_MISMATCH_TRACK_MESSAGE).toBe(
       "Este paso ya no se puede marcar como completado desde aquí.",
     );
+    expect(SYLLABUS_MISSING_TRACK_MESSAGE).toBe(
+      "Ya no podemos registrar el avance de este curso. Hemos actualizado la ruta.",
+    );
+    expect(LESSON_NOT_IN_ITEM_TRACK_MESSAGE).toBe(
+      "Esta lección ya no está disponible. Hemos actualizado la ruta.",
+    );
+  });
+});
+
+interface LessonCase {
+  label: string;
+  error: unknown;
+  syllabusMissing: boolean;
+  lessonNotInItem: boolean;
+  refresh: boolean;
+  message: string;
+}
+
+const LESSON_CASES: LessonCase[] = [
+  {
+    label: "red (sin response)",
+    error: buildNetworkError(),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: false,
+    message: NETWORK_MESSAGE,
+  },
+  {
+    label: "409 ROADMAP_PAUSED",
+    error: buildRoadmapPausedError(),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: true,
+    message: ROADMAP_PAUSED_TRACK_MESSAGE,
+  },
+  {
+    label: "422 TRACKING_REPORT_MISMATCH",
+    error: buildTrackingMismatchError(),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: true,
+    message: TRACKING_MISMATCH_TRACK_MESSAGE,
+  },
+  {
+    label: "422 SYLLABUS_MISSING",
+    error: buildSyllabusMissingError(),
+    syllabusMissing: true,
+    lessonNotInItem: false,
+    refresh: true,
+    message: SYLLABUS_MISSING_TRACK_MESSAGE,
+  },
+  {
+    label: "422 LESSON_NOT_IN_ITEM",
+    error: buildLessonNotInItemError(),
+    syllabusMissing: false,
+    lessonNotInItem: true,
+    refresh: true,
+    message: LESSON_NOT_IN_ITEM_TRACK_MESSAGE,
+  },
+  {
+    label: "422 sin code",
+    error: buildAxiosError(422, BACKEND_MESSAGE),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: false,
+    message: GENERIC_MESSAGE,
+  },
+  {
+    label: "404 ROADMAP_ITEM_NOT_FOUND",
+    error: buildRoadmapItemNotFoundError(),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: true,
+    message: ROADMAP_ITEM_NOT_FOUND_MESSAGE,
+  },
+  {
+    label: "500",
+    error: buildAxiosError(500, BACKEND_MESSAGE),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: false,
+    message: GENERIC_MESSAGE,
+  },
+  {
+    label: "no Axios",
+    error: new Error("x"),
+    syllabusMissing: false,
+    lessonNotInItem: false,
+    refresh: false,
+    message: GENERIC_MESSAGE,
+  },
+];
+
+describe("clasificación de errores de lecciones", () => {
+  it.each(LESSON_CASES)(
+    "$label",
+    ({ error, syllabusMissing, lessonNotInItem, refresh, message }) => {
+      expect(isSyllabusMissingError(error)).toBe(syllabusMissing);
+      expect(isLessonNotInItemError(error)).toBe(lessonNotInItem);
+      expect(shouldRefreshAfterTrackError(error)).toBe(refresh);
+      expect(getLessonTrackErrorMessage(error)).toBe(message);
+      expect(getLessonTrackErrorMessage(error)).not.toContain(BACKEND_MESSAGE);
+    },
+  );
+
+  it("un 422 con code no string no cuenta como ninguno de los dos", () => {
+    const error = buildAxiosError(422, BACKEND_MESSAGE, { code: 42 });
+    expect(isSyllabusMissingError(error)).toBe(false);
+    expect(isLessonNotInItemError(error)).toBe(false);
   });
 });

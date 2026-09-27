@@ -4,6 +4,7 @@ import type {
   RoadmapItemTracking,
   RoadmapItemType,
   RoadmapNextStep,
+  SyllabusLesson,
 } from "@/types";
 import { ROADMAP_LEVEL_LABELS } from "./roadmap-labels";
 import { clampProgress } from "./roadmap-presentation";
@@ -314,4 +315,63 @@ export function getNextStepItem(
 /** Id estable del h3 de un paso del timeline (destino de foco): `${prefix}step-${id}`. */
 export function getItemHeadingId(prefix: string, roadmapItemId: string): string {
   return `${prefix}step-${roadmapItemId}`;
+}
+
+/**
+ * `true` solo si el ítem es `LESSONS` y tiene un `syllabus` real con al menos una lección.
+ * `LESSONS` con `syllabus: null` (p. ej. `SYLLABUS_MISSING`) u otro tipo de tracking → `false`
+ * (nunca un checklist vacío).
+ */
+export function isLessonChecklistItem(item: Pick<RoadmapItem, "tracking" | "syllabus">): boolean {
+  return (
+    item.tracking.type === "LESSONS" && item.syllabus !== null && item.syllabus.totalLessons > 0
+  );
+}
+
+/** «3 de 12 lecciones»; singular «lección» si el total es 1. */
+export function getLessonsProgressLabel(completed: number, total: number): string {
+  return `${completed} de ${total} ${total === 1 ? "lección" : "lecciones"}`;
+}
+
+/** `"completed"`/`"pending"` directo de `lesson.completed` (sin cálculo, a diferencia de `getItemState`). */
+export function getLessonState(lesson: Pick<SyllabusLesson, "completed">): "completed" | "pending" {
+  return lesson.completed ? "completed" : "pending";
+}
+
+/** Id estable del `<ul>` del checklist de lecciones: `${prefix}lessons-${id}`. */
+export function getLessonListId(prefix: string, roadmapItemId: string): string {
+  return `${prefix}lessons-${roadmapItemId}`;
+}
+
+export interface LessonToggledAnnouncementInput {
+  lessonTitle: string;
+  marked: boolean;
+  itemName: string;
+  /**
+   * Parte de la firma por paridad con `getItemCompletedAnnouncement`; no se usa en el texto
+   * actual (no se desestructura, así oxlint `noUnusedVariables` no se dispara).
+   */
+  itemProgress: number;
+  completedLessons: number;
+  totalLessons: number;
+  roadmapCompleted: boolean;
+}
+
+/**
+ * Anuncio (live region) tras marcar/desmarcar una lección: «{lessonTitle} marcada como
+ * completada. {getLessonsProgressLabel(...)} en {itemName}.», con « Completaste la ruta.» si se
+ * marcó (nunca al desmarcar) y la ruta quedó completada.
+ */
+export function getLessonToggledAnnouncement({
+  lessonTitle,
+  marked,
+  itemName,
+  completedLessons,
+  totalLessons,
+  roadmapCompleted,
+}: LessonToggledAnnouncementInput): string {
+  const progress = getLessonsProgressLabel(completedLessons, totalLessons);
+  const state = marked ? "completada" : "pendiente";
+  const base = `${lessonTitle} marcada como ${state}. ${progress} en ${itemName}.`;
+  return marked && roadmapCompleted ? `${base} Completaste la ruta.` : base;
 }
