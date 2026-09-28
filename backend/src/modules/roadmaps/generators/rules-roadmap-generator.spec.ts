@@ -371,4 +371,128 @@ describe('RulesRoadmapGenerator', () => {
     expect(ids).toContain('cuid-python');
     expect(ids).not.toContain('cuid-java');
   });
+
+  it('limits AI assistant CLI tools to at most one per roadmap', async () => {
+    const rulesGenerator = generator();
+    const input: RoadmapGeneratorContext = {
+      targetCategory: SkillCategory.BACKEND,
+      goalDescription: 'Quiero dominar Java',
+      declaredLevel: DeclaredLevel.BEGINNER,
+      profileScores: {},
+      weeklyHours: 10,
+      maximumItems: 5,
+      candidates: [
+        {
+          id: 'cuid-java',
+          slug: 'java',
+          title: 'Java desde cero',
+          description: null,
+          level: 1,
+          durationHours: 15,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-spring',
+          slug: 'spring-boot',
+          title: 'Spring Boot',
+          description: null,
+          level: 1,
+          durationHours: 30,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-codex',
+          slug: 'codex',
+          title: 'Codex CLI',
+          description: null,
+          level: 1,
+          durationHours: 5,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-opencode',
+          slug: 'open-code-guia-completa',
+          title: 'OpenCode Guia Completa',
+          description: null,
+          level: 1,
+          durationHours: 6,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-claude-code',
+          slug: 'claude-code-guia-completa',
+          title: 'Claude Code',
+          description: null,
+          level: 1,
+          durationHours: 5,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+      ],
+    };
+
+    const result = await rulesGenerator.generate(input);
+    const slugs = result.items.map(({ courseId }) => {
+      return input.candidates.find((c) => c.id === courseId)?.slug;
+    });
+
+    // Debe contener los cursos primarios de Java
+    expect(slugs).toContain('java');
+    expect(slugs).toContain('spring-boot');
+
+    // Debe contener a lo sumo UN asistente de IA (ej: codex), no los tres juntos
+    const aiAssistantsInRoadmap = slugs.filter((s) =>
+      ['codex', 'open-code-guia-completa', 'claude-code-guia-completa'].includes(
+        s ?? '',
+      ),
+    );
+    expect(aiAssistantsInRoadmap.length).toBe(1);
+  });
+
+  it('prioritizes primary tech stack courses over cross-cutting courses', async () => {
+    const rulesGenerator = generator();
+    const input: RoadmapGeneratorContext = {
+      targetCategory: SkillCategory.BACKEND,
+      goalDescription: 'Java backend',
+      declaredLevel: DeclaredLevel.BEGINNER,
+      profileScores: {},
+      weeklyHours: 10,
+      maximumItems: 2,
+      candidates: [
+        {
+          id: 'cuid-git',
+          slug: 'git-github',
+          title: 'Git y GitHub',
+          description: null,
+          level: 1,
+          durationHours: 10,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-java',
+          slug: 'java',
+          title: 'Java desde cero',
+          description: null,
+          level: 1,
+          durationHours: 15,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-spring',
+          slug: 'spring-boot',
+          title: 'Spring Boot',
+          description: null,
+          level: 1,
+          durationHours: 20,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+      ],
+    };
+
+    const result = await rulesGenerator.generate(input);
+    const ids = result.items.map(({ courseId }) => courseId);
+
+    // Los dos cupos deben ser ocupados por los cursos específicos de Java antes que por el transversal (git)
+    expect(ids).toEqual(['cuid-java', 'cuid-spring']);
+  });
 });
+

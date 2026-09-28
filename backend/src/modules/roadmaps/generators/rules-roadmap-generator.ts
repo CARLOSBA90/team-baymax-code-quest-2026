@@ -70,26 +70,54 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
           );
 
     // ── Step 4: Sort and select up to maximumItems ───────────────────────────
-    const selected = stackFiltered
-      .sort((left, right) => {
-        const leftWeight = this.targetWeight(left, context.targetCategory);
-        const rightWeight = this.targetWeight(right, context.targetCategory);
-        const leftDistance =
-          declaredLevel === null
-            ? EMPTY_COLLECTION_SIZE
-            : Math.abs(left.level - declaredLevel);
-        const rightDistance =
-          declaredLevel === null
-            ? EMPTY_COLLECTION_SIZE
-            : Math.abs(right.level - declaredLevel);
-        return (
-          rightWeight - leftWeight ||
-          leftDistance - rightDistance ||
-          left.level - right.level ||
-          left.id.localeCompare(right.id)
-        );
-      })
-      .slice(FIRST_COLLECTION_INDEX, context.maximumItems);
+    const sorted = [...stackFiltered].sort((left, right) => {
+      // Cursos que pertenecen directamente al stack primario tienen prioridad sobre los transversales
+      const leftPrimary =
+        primaryStack !== null && resolveTechStack(left.slug) === primaryStack
+          ? 1
+          : 0;
+      const rightPrimary =
+        primaryStack !== null && resolveTechStack(right.slug) === primaryStack
+          ? 1
+          : 0;
+      const primaryDiff = rightPrimary - leftPrimary;
+      if (primaryDiff !== 0) return primaryDiff;
+
+      const leftWeight = this.targetWeight(left, context.targetCategory);
+      const rightWeight = this.targetWeight(right, context.targetCategory);
+      const leftDistance =
+        declaredLevel === null
+          ? EMPTY_COLLECTION_SIZE
+          : Math.abs(left.level - declaredLevel);
+      const rightDistance =
+        declaredLevel === null
+          ? EMPTY_COLLECTION_SIZE
+          : Math.abs(right.level - declaredLevel);
+      return (
+        rightWeight - leftWeight ||
+        leftDistance - rightDistance ||
+        left.level - right.level ||
+        left.id.localeCompare(right.id)
+      );
+    });
+
+    const AI_ASSISTANT_SLUGS = new Set([
+      'claude-code-guia-completa',
+      'open-code-guia-completa',
+      'codex',
+      'vibe-coding',
+    ]);
+
+    let hasAiAssistant = false;
+    const selected: GeneratorCandidate[] = [];
+    for (const candidate of sorted) {
+      if (selected.length >= context.maximumItems) break;
+      if (AI_ASSISTANT_SLUGS.has(candidate.slug)) {
+        if (hasAiAssistant) continue; // Permite como máximo 1 herramienta de asistencia de IA
+        hasAiAssistant = true;
+      }
+      selected.push(candidate);
+    }
 
     return Promise.resolve({
       title: `Ruta de ${context.targetCategory.toLowerCase()}`,
