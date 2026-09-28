@@ -255,7 +255,14 @@ describe('AssessmentsService', () => {
 
       expect(roadmapGenerationMock.generate).toHaveBeenCalledExactlyOnceWith(
         'user-1',
-        { assessmentId: 'assm-1' },
+        {
+          assessmentId: 'assm-1',
+          goal: {
+            type: 'SKILL',
+            description: 'NestJS',
+          },
+          weeklyHours: undefined,
+        },
       );
       expect(result.data.roadmap).toEqual({
         status: 'GENERATED',

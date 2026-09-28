@@ -128,4 +128,23 @@ describe('orderForLearning', () => {
       'fastapi',  // phase 2
     ]);
   });
+
+  it('correctly uses slug instead of opaque cuid id for pedagogical phase ordering', () => {
+    const nuxt = { id: 'cuid-nuxt-123', slug: 'nuxt', level: 1, prerequisites: [] };
+    const vue = { id: 'cuid-vue-456', slug: 'vue-cero-a-experto', level: 1, prerequisites: [] };
+    const tailwind = { id: 'cuid-tw-789', slug: 'tailwindcss-para-desarrolladores', level: 1, prerequisites: [] };
+
+    const result = orderForLearning(
+      [nuxt, tailwind, vue],
+      [nuxt, tailwind, vue],
+      (c) => c.prerequisites,
+      10,
+    );
+
+    expect(result.map((c) => c.slug)).toEqual([
+      'vue-cero-a-experto',
+      'tailwindcss-para-desarrolladores',
+      'nuxt',
+    ]);
+  });
 });

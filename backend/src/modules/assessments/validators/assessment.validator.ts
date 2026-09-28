@@ -77,12 +77,20 @@ export class AssessmentValidator {
         );
       }
 
+      const isGoal = question.order === 1;
+      const isTechStack = question.order === 2;
+      const isTime =
+        question.order === 8 ||
+        (question.order === 7 && activeQuestions.length === 7);
+
       validatedAnswers.push({
         questionId: question.id,
         optionId: option.id,
         optionValue: option.value,
         questionCategory: question.category,
-        isGoalQuestion: question.order === 1,
+        isGoalQuestion: isGoal,
+        isTechStackQuestion: isTechStack,
+        isTimeQuestion: isTime,
         optionOrder: option.order,
       });
     }

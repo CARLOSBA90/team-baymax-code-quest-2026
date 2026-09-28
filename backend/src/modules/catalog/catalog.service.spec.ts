@@ -7,6 +7,7 @@ import {
 } from '../../generated/prisma/enums.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { CatalogService } from './catalog.service.js';
+import type { CatalogCacheService } from './catalog-cache.service.js';
 
 const HEADER = 'slug,title,url,description,level,tags,durationHours,imageUrl';
 const STARTED_AT = new Date('2026-09-21T10:00:00.000Z');
@@ -15,6 +16,9 @@ const csv = (...rows: string[]) => [HEADER, ...rows].join('\n');
 
 describe('CatalogService', () => {
   let service: CatalogService;
+  let catalogCacheMock: {
+    invalidate: ReturnType<typeof vi.fn>;
+  };
   let prismaMock: {
     catalogImport: {
       create: ReturnType<typeof vi.fn>;
@@ -34,6 +38,9 @@ describe('CatalogService', () => {
   const importUpdate = () => prismaMock.catalogImport.update.mock.calls[0][0];
 
   beforeEach(() => {
+    catalogCacheMock = {
+      invalidate: vi.fn(),
+    };
     prismaMock = {
       catalogImport: {
         create: vi.fn().mockResolvedValue({
@@ -52,7 +59,10 @@ describe('CatalogService', () => {
         Promise.all(operations),
       ),
     };
-    service = new CatalogService(prismaMock as unknown as PrismaService);
+    service = new CatalogService(
+      prismaMock as unknown as PrismaService,
+      catalogCacheMock as unknown as CatalogCacheService,
+    );
   });
 
   describe('importFromCsv', () => {

@@ -111,7 +111,9 @@ function containsTokenSequence(
  *   3. Pedagogical phase ascending (fundamentals before meta-frameworks).
  *   4. Alphabetical by id (deterministic fallback).
  */
-export function orderForLearning<T extends Identifiable & { level: number }>(
+export function orderForLearning<
+  T extends Identifiable & { level: number; slug?: string },
+>(
   selected: readonly T[],
   candidates: readonly T[],
   getRequiredIds: (candidate: T) => readonly string[],
@@ -121,7 +123,9 @@ export function orderForLearning<T extends Identifiable & { level: number }>(
     [...selected].sort((left, right) => {
       const levelDiff = left.level - right.level;
       if (levelDiff !== 0) return levelDiff;
-      const phaseDiff = resolvePhase(left.id) - resolvePhase(right.id);
+      const leftKey = left.slug ?? left.id;
+      const rightKey = right.slug ?? right.id;
+      const phaseDiff = resolvePhase(leftKey) - resolvePhase(rightKey);
       if (phaseDiff !== 0) return phaseDiff;
       return left.id.localeCompare(right.id);
     }),

@@ -6,7 +6,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
-  CourseStatus,
   PrerequisiteType,
   RoadmapItemType,
   type SkillCategory,
@@ -39,6 +38,7 @@ import {
   PrerequisiteResolutionError,
   PrerequisiteResolutionFailure,
 } from './utils/roadmap-prerequisites.util.js';
+import { CatalogCacheService } from '../catalog/catalog-cache.service.js';
 
 function domainError(
   code: string,
@@ -57,6 +57,7 @@ export class RoadmapGenerationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly generator: RoadmapGeneratorOrchestrator,
+    private readonly catalogCache: CatalogCacheService,
   ) {}
 
   async generate(userId: string | undefined, dto: GenerateRoadmapDto) {
@@ -79,11 +80,7 @@ export class RoadmapGenerationService {
           ],
         });
 
-    const coursesQuery = this.prisma.course.findMany({
-      where: { status: CourseStatus.ACTIVE },
-      include: { skills: true, prerequisites: true },
-      orderBy: { id: 'asc' },
-    });
+    const coursesQuery = this.catalogCache.getActiveCatalog();
 
     const [assessment, fetchedCourses] = await Promise.all([
       assessmentQuery,
@@ -111,9 +108,9 @@ export class RoadmapGenerationService {
       throw domainError('CATALOG_EMPTY', 'There are no active courses.');
     }
 
-    const targetCategory = dto.goal
-      ? resolveGoalCategory(dto.goal.description)
-      : captured.assessment.goalCategory;
+    const targetCategory =
+      (dto.goal ? resolveGoalCategory(dto.goal.description) : null) ??
+      captured.assessment.goalCategory;
     if (!targetCategory) {
       throw domainError(
         dto.goal ? 'GOAL_UNSUPPORTED' : 'GOAL_REQUIRED',
