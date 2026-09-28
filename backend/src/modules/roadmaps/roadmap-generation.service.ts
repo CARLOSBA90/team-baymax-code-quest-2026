@@ -128,6 +128,7 @@ export class RoadmapGenerationService {
             : HIGH_RESOURCE_BUDGET;
     const canonicalCatalog = captured.courses.map((course) => ({
       id: course.id,
+      slug: course.slug,
       title: course.title,
       description: course.description,
       url: course.url,
@@ -150,6 +151,7 @@ export class RoadmapGenerationService {
       )
       .map((course) => ({
         id: course.id,
+        slug: course.slug,
         title: course.title,
         description: course.description,
         level: course.level,

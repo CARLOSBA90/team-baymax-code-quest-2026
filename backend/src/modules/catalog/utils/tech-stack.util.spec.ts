@@ -14,6 +14,20 @@ describe('resolveTechStack', () => {
     expect(resolveTechStack('nextjs-full-stack')).toBe(TechStack.REACT);
   });
 
+  it('identifies Node / NestJS ecosystem by slug fragment', () => {
+    expect(resolveTechStack('nestjs-microservicios')).toBe(TechStack.NODE);
+    // base NestJS course has slug 'nest'
+    expect(resolveTechStack('nest')).toBe(TechStack.NODE);
+    expect(resolveTechStack('nest-graphql')).toBe(TechStack.NODE);
+  });
+
+  it('identifies .NET ecosystem by slug fragment', () => {
+    expect(resolveTechStack('dotnet-avanzado')).toBe(TechStack.DOTNET);
+    expect(resolveTechStack('net-backend')).toBe(TechStack.DOTNET);
+    expect(resolveTechStack('net-pruebascompletas')).toBe(TechStack.DOTNET);
+    expect(resolveTechStack('netfullstack')).toBe(TechStack.DOTNET);
+  });
+
   it('identifies Angular ecosystem by slug fragment', () => {
     expect(resolveTechStack('angular-avanzado')).toBe(TechStack.ANGULAR);
     expect(resolveTechStack('rxjs-reactive')).toBe(TechStack.ANGULAR);
@@ -35,6 +49,8 @@ describe('resolveTechStack', () => {
     expect(resolveTechStack('kafka-springboot-event-driven')).toBe(
       TechStack.JAVA,
     );
+    // springboot without hyphen (e.g. 'springboot-mvc-hexagonal')
+    expect(resolveTechStack('springboot-mvc-hexagonal')).toBe(TechStack.JAVA);
   });
 
   it('identifies Go ecosystem by slug fragment', () => {

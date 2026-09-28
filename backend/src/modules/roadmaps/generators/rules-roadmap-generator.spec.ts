@@ -22,7 +22,8 @@ function context(): RoadmapGeneratorContext {
     maximumItems: 2,
     candidates: [
       {
-        id: 'advanced',
+        id: 'cuid-advanced',
+        slug: 'advanced',
         title: 'Advanced API',
         description: null,
         level: 3,
@@ -30,7 +31,8 @@ function context(): RoadmapGeneratorContext {
         skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
       },
       {
-        id: 'intermediate',
+        id: 'cuid-intermediate',
+        slug: 'intermediate',
         title: 'Intermediate API',
         description: null,
         level: 2,
@@ -38,7 +40,8 @@ function context(): RoadmapGeneratorContext {
         skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
       },
       {
-        id: 'frontend',
+        id: 'cuid-frontend',
+        slug: 'frontend',
         title: 'Frontend',
         description: null,
         level: 1,
@@ -59,8 +62,8 @@ describe('RulesRoadmapGenerator', () => {
     expect(first).toEqual(second);
     expect(first.provider).toBe(RoadmapGeneratorProvider.RULES);
     expect(first.items.map(({ courseId }) => courseId)).toEqual([
-      'intermediate',
-      'advanced',
+      'cuid-intermediate',
+      'cuid-advanced',
     ]);
   });
 
@@ -87,7 +90,8 @@ describe('RulesRoadmapGenerator', () => {
       maximumItems: 10,
       candidates: [
         {
-          id: 'vue-cero-a-experto',
+          id: 'cuid-vue',
+          slug: 'vue-cero-a-experto',
           title: 'Vue: Cero a Experto',
           description: null,
           level: 1,
@@ -95,7 +99,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.FRONTEND, weight: 1 }],
         },
         {
-          id: 'nuxt',
+          id: 'cuid-nuxt',
+          slug: 'nuxt',
           title: 'Nuxt Profesional',
           description: null,
           level: 2,
@@ -103,7 +108,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.FRONTEND, weight: 1 }],
         },
         {
-          id: 'astro',
+          id: 'cuid-astro',
+          slug: 'astro',
           title: 'Astro',
           description: null,
           level: 1,
@@ -111,7 +117,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.FRONTEND, weight: 1 }],
         },
         {
-          id: 'react-de-cero',
+          id: 'cuid-react',
+          slug: 'react-de-cero',
           title: 'React: De cero',
           description: null,
           level: 1,
@@ -119,7 +126,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.FRONTEND, weight: 1 }],
         },
         {
-          id: 'angular',
+          id: 'cuid-angular',
+          slug: 'angular',
           title: 'Angular',
           description: null,
           level: 1,
@@ -127,7 +135,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.FRONTEND, weight: 1 }],
         },
         {
-          id: 'tailwindcss-para-desarrolladores',
+          id: 'cuid-tailwind',
+          slug: 'tailwindcss-para-desarrolladores',
           title: 'TailwindCSS',
           description: null,
           level: 1,
@@ -141,13 +150,13 @@ describe('RulesRoadmapGenerator', () => {
     const ids = result.items.map(({ courseId }) => courseId);
 
     // Vue and Nuxt must be included; rivals must be excluded
-    expect(ids).toContain('vue-cero-a-experto');
-    expect(ids).toContain('nuxt');
-    expect(ids).not.toContain('astro');
-    expect(ids).not.toContain('react-de-cero');
-    expect(ids).not.toContain('angular');
+    expect(ids).toContain('cuid-vue');
+    expect(ids).toContain('cuid-nuxt');
+    expect(ids).not.toContain('cuid-astro');
+    expect(ids).not.toContain('cuid-react');
+    expect(ids).not.toContain('cuid-angular');
     // Tailwind is CROSS_CUTTING → must be included
-    expect(ids).toContain('tailwindcss-para-desarrolladores');
+    expect(ids).toContain('cuid-tailwind');
   });
 
   it('excludes rival backend stacks when goal specifies Python', async () => {
@@ -161,7 +170,8 @@ describe('RulesRoadmapGenerator', () => {
       maximumItems: 10,
       candidates: [
         {
-          id: 'python',
+          id: 'cuid-python',
+          slug: 'python',
           title: 'Python: De Cero a Experto',
           description: null,
           level: 1,
@@ -169,7 +179,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
         },
         {
-          id: 'fastapi',
+          id: 'cuid-fastapi',
+          slug: 'fastapi',
           title: 'FastAPI',
           description: null,
           level: 2,
@@ -177,7 +188,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
         },
         {
-          id: 'django',
+          id: 'cuid-django',
+          slug: 'django',
           title: 'Django',
           description: null,
           level: 2,
@@ -185,7 +197,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
         },
         {
-          id: 'java',
+          id: 'cuid-java',
+          slug: 'java',
           title: 'Java',
           description: null,
           level: 1,
@@ -193,7 +206,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
         },
         {
-          id: 'golang-fundamentos-lenguaje',
+          id: 'cuid-golang',
+          slug: 'golang-fundamentos-lenguaje',
           title: 'Golang: Fundamentos',
           description: null,
           level: 1,
@@ -201,7 +215,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
         },
         {
-          id: 'sql-con-postgres',
+          id: 'cuid-sql',
+          slug: 'sql-con-postgres',
           title: 'SQL con PostgreSQL',
           description: null,
           level: 1,
@@ -214,14 +229,14 @@ describe('RulesRoadmapGenerator', () => {
     const result = await rulesGenerator.generate(input);
     const ids = result.items.map(({ courseId }) => courseId);
 
-    expect(ids).toContain('python');
-    expect(ids).toContain('fastapi');
-    expect(ids).toContain('django');
+    expect(ids).toContain('cuid-python');
+    expect(ids).toContain('cuid-fastapi');
+    expect(ids).toContain('cuid-django');
     // SQL is DATABASE_CORE → compatible
-    expect(ids).toContain('sql-con-postgres');
+    expect(ids).toContain('cuid-sql');
     // Java and Go are rival backend stacks
-    expect(ids).not.toContain('java');
-    expect(ids).not.toContain('golang-fundamentos-lenguaje');
+    expect(ids).not.toContain('cuid-java');
+    expect(ids).not.toContain('cuid-golang');
   });
 
   it('excludes rival mobile stack when goal specifies Flutter', async () => {
@@ -235,7 +250,8 @@ describe('RulesRoadmapGenerator', () => {
       maximumItems: 10,
       candidates: [
         {
-          id: 'dart-cero-hasta-detalles',
+          id: 'cuid-dart',
+          slug: 'dart-cero-hasta-detalles',
           title: 'Dart',
           description: null,
           level: 1,
@@ -243,7 +259,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.MOBILE, weight: 1 }],
         },
         {
-          id: 'flutter-movil-cero-a-experto',
+          id: 'cuid-flutter',
+          slug: 'flutter-movil-cero-a-experto',
           title: 'Flutter: Cero a Experto',
           description: null,
           level: 2,
@@ -251,7 +268,8 @@ describe('RulesRoadmapGenerator', () => {
           skills: [{ category: SkillCategory.MOBILE, weight: 1 }],
         },
         {
-          id: 'react-native-expo',
+          id: 'cuid-rn',
+          slug: 'react-native-expo',
           title: 'React Native con Expo',
           description: null,
           level: 1,
@@ -264,8 +282,93 @@ describe('RulesRoadmapGenerator', () => {
     const result = await rulesGenerator.generate(input);
     const ids = result.items.map(({ courseId }) => courseId);
 
-    expect(ids).toContain('dart-cero-hasta-detalles');
-    expect(ids).toContain('flutter-movil-cero-a-experto');
-    expect(ids).not.toContain('react-native-expo');
+    expect(ids).toContain('cuid-dart');
+    expect(ids).toContain('cuid-flutter');
+    expect(ids).not.toContain('cuid-rn');
+  });
+
+  it('detects React Native goal before React (regex ordering bug regression)', async () => {
+    // 'react native' in goal must NOT resolve to REACT stack.
+    // If it did, flutter-movil-cero-a-experto would pass the filter
+    // (FLUTTER is not a REACT rival), mixing both mobile stacks.
+    const rulesGenerator = generator();
+    const input: RoadmapGeneratorContext = {
+      targetCategory: SkillCategory.MOBILE,
+      goalDescription: 'Quiero aprender React Native con Expo para móviles',
+      declaredLevel: DeclaredLevel.BEGINNER,
+      profileScores: {},
+      weeklyHours: 10,
+      maximumItems: 10,
+      candidates: [
+        {
+          id: 'cuid-rn',
+          slug: 'react-native-expo',
+          title: 'React Native con Expo',
+          description: null,
+          level: 1,
+          durationHours: 20,
+          skills: [{ category: SkillCategory.MOBILE, weight: 1 }],
+        },
+        {
+          id: 'cuid-flutter',
+          slug: 'flutter-movil-cero-a-experto',
+          title: 'Flutter: Cero a Experto',
+          description: null,
+          level: 2,
+          durationHours: 25,
+          skills: [{ category: SkillCategory.MOBILE, weight: 1 }],
+        },
+      ],
+    };
+
+    const result = await rulesGenerator.generate(input);
+    const ids = result.items.map(({ courseId }) => courseId);
+
+    expect(ids).toContain('cuid-rn');
+    expect(ids).not.toContain('cuid-flutter');
+  });
+
+  it('ignores cross-domain goal (Vue goal on BACKEND roadmap) and falls back to catalog-based detection', async () => {
+    // goalDescription mentions Vue (FRONTEND stack) but targetCategory = BACKEND.
+    // The goal should be ignored and catalog-based detection should run instead.
+    const rulesGenerator = generator();
+    const input: RoadmapGeneratorContext = {
+      targetCategory: SkillCategory.BACKEND,
+      goalDescription: 'Me gusta Vue pero quiero trabajar en backend',
+      declaredLevel: DeclaredLevel.BEGINNER,
+      profileScores: {},
+      weeklyHours: 10,
+      maximumItems: 10,
+      candidates: [
+        {
+          id: 'cuid-python',
+          slug: 'python',
+          title: 'Python',
+          description: null,
+          level: 1,
+          durationHours: 20,
+          skills: [{ category: SkillCategory.BACKEND, weight: 1 }],
+        },
+        {
+          id: 'cuid-java',
+          slug: 'java',
+          title: 'Java',
+          description: null,
+          level: 1,
+          durationHours: 20,
+          skills: [{ category: SkillCategory.BACKEND, weight: 0.9 }],
+        },
+      ],
+    };
+
+    const result = await rulesGenerator.generate(input);
+    const ids = result.items.map(({ courseId }) => courseId);
+
+    // Both courses must pass: goal-stack (VUE) is cross-domain, so catalog-based
+    // detection wins (PYTHON). JAVA is a PYTHON rival, so it would be excluded.
+    // But since goal is ignored and catalog detection returns PYTHON,
+    // java IS a rival and is excluded.
+    expect(ids).toContain('cuid-python');
+    expect(ids).not.toContain('cuid-java');
   });
 });

@@ -66,7 +66,7 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
       primaryStack === null
         ? categoryMatching
         : categoryMatching.filter((candidate) =>
-            areStacksCompatible(primaryStack, resolveTechStack(candidate.id)),
+            areStacksCompatible(primaryStack, resolveTechStack(candidate.slug)),
           );
 
     // ── Step 4: Sort and select up to maximumItems ───────────────────────────
@@ -107,7 +107,9 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
    * Detects the primary TechStack for the roadmap.
    *
    * Heuristic (in priority order):
-   *  1. If `goalDescription` explicitly names a technology, use that stack.
+   *  1. If `goalDescription` explicitly names a technology, use that stack —
+   *     but only when the detected stack belongs to the same domain as
+   *     `targetCategory` (e.g. a Vue goal on a BACKEND roadmap is ignored).
    *  2. Otherwise, pick the TechStack of the candidate with the highest weight
    *     for the target category (excluding CROSS_CUTTING stacks, as they do
    *     not indicate a specific technology preference).
@@ -119,10 +121,13 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
     context: RoadmapGeneratorContext,
   ): TechStack | null {
     // 1. Goal-based detection: check if the goal description mentions a
-    //    well-known technology keyword that maps unambiguously to a stack.
+    //    well-known technology keyword that maps unambiguously to a stack
+    //    AND belongs to the same domain as the target category.
     if (context.goalDescription) {
       const goalStack = this.stackFromGoal(context.goalDescription);
-      if (goalStack !== null) return goalStack;
+      if (goalStack !== null && this.stackMatchesCategory(goalStack, context.targetCategory)) {
+        return goalStack;
+      }
     }
 
     // 2. Catalog-based detection: pick the stack of the top-weight candidate.
@@ -132,7 +137,7 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
         this.targetWeight(a, context.targetCategory),
     );
     for (const candidate of sorted) {
-      const stack = resolveTechStack(candidate.id);
+      const stack = resolveTechStack(candidate.slug);
       if (
         stack !== TechStack.CROSS_CUTTING &&
         stack !== TechStack.DATABASE_CORE &&
@@ -148,9 +153,18 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
   /**
    * Maps technology keywords found in a free-text goal description to a
    * concrete TechStack.  Returns null when no keyword is recognised.
+   *
+   * IMPORTANT: more-specific patterns must appear before more-general ones
+   * (e.g. React Native / Expo before React) to avoid false matches.
    */
   private stackFromGoal(goal: string): TechStack | null {
     const lower = goal.toLowerCase();
+
+    // Mobile stacks (check before React to avoid 'react native' → REACT)
+    if (/\breact[\s-]?native\b/.test(lower) || /\bexpo\b/.test(lower))
+      return TechStack.REACT_NATIVE;
+    if (/\bflutter\b/.test(lower) || /\bdart\b/.test(lower))
+      return TechStack.FLUTTER;
 
     // Frontend stacks (order matters: check more specific first)
     if (/\bnuxt\b/.test(lower) || /\bvue\b/.test(lower))
@@ -174,10 +188,7 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
       /\bfastapi\b/.test(lower)
     )
       return TechStack.PYTHON;
-    if (
-      /\bjava\b/.test(lower) ||
-      /\bspring\b/.test(lower)
-    )
+    if (/\bjava\b/.test(lower) || /\bspring\b/.test(lower))
       return TechStack.JAVA;
     if (/\bgolang\b/.test(lower) || /\b(?<![a-z])go(?![a-z])/.test(lower))
       return TechStack.GO;
@@ -186,16 +197,44 @@ export class RulesRoadmapGenerator implements RoadmapGenerator, OnModuleInit {
     if (/\b\.?net\b/.test(lower) || /\bc#\b/.test(lower))
       return TechStack.DOTNET;
 
-    // Mobile stacks
-    if (
-      /\bflutter\b/.test(lower) ||
-      /\bdart\b/.test(lower)
-    )
-      return TechStack.FLUTTER;
-    if (/\breact.?native\b/.test(lower) || /\bexpo\b/.test(lower))
-      return TechStack.REACT_NATIVE;
-
     return null;
+  }
+
+  /**
+   * Returns true when the given TechStack belongs to the same domain
+   * (frontend / backend / mobile) as the target SkillCategory.
+   *
+   * Cross-cutting stacks (CROSS_CUTTING, DATABASE_CORE, DEVOPS_CORE) do not
+   * belong to any specific domain and are treated as incompatible with all
+   * categories for the purposes of goal-stack validation.
+   */
+  private stackMatchesCategory(
+    stack: TechStack,
+    targetCategory: RoadmapGeneratorContext['targetCategory'],
+  ): boolean {
+    const FRONTEND_STACKS = new Set([
+      TechStack.VUE,
+      TechStack.REACT,
+      TechStack.ANGULAR,
+      TechStack.ASTRO,
+      TechStack.QWIK,
+    ]);
+    const BACKEND_STACKS = new Set([
+      TechStack.NODE,
+      TechStack.PYTHON,
+      TechStack.JAVA,
+      TechStack.GO,
+      TechStack.PHP,
+      TechStack.DOTNET,
+    ]);
+    const MOBILE_STACKS = new Set([TechStack.FLUTTER, TechStack.REACT_NATIVE]);
+
+    const category = targetCategory as string;
+    if (category === 'FRONTEND') return FRONTEND_STACKS.has(stack);
+    if (category === 'BACKEND') return BACKEND_STACKS.has(stack);
+    if (category === 'MOBILE') return MOBILE_STACKS.has(stack);
+    // For other categories (WEB_FUNDAMENTALS, DEVOPS, etc.) skip goal-stack filtering.
+    return false;
   }
 
   private targetWeight(
