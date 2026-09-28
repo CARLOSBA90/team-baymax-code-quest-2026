@@ -1,5 +1,6 @@
 export * from "./api-error-code";
 export * from "./assessment-labels";
+export * from "./assessment-submit-errors";
 export * from "./auth-client";
 export * from "./auth-errors";
 export * from "./chunk-error-reload";

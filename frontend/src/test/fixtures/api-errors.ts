@@ -29,3 +29,8 @@ export function buildAxiosError(
 export function buildNetworkError(): AxiosError {
   return new AxiosError("Network Error", "ERR_NETWORK");
 }
+
+/** Error de Axios por techo de espera agotado (sin `response`, con código de aborto). */
+export function buildTimeoutError(code: "ECONNABORTED" | "ETIMEDOUT" = "ECONNABORTED"): AxiosError {
+  return new AxiosError("timeout of 60000ms exceeded", code);
+}

@@ -57,6 +57,7 @@ export default defineConfig({
         "src/{components,pages}/auth/**",
         "src/lib/user-initials.ts",
         "src/lib/assessment-labels.ts",
+        "src/lib/assessment-submit-errors.ts",
         "src/lib/roadmaps-location-state.ts",
         "src/lib/roadmap-{detail,filters,labels,presentation}.ts",
         "src/lib/roadmap-delete-errors.ts",

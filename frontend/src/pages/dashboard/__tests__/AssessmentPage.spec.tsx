@@ -1,11 +1,17 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ASSESSMENT_QUESTIONS_STALE_TIME, assessmentsKeys } from "@/api/queries/assessments";
 import { getAssessmentQuestions, getRoadmaps, submitAssessment } from "@/api/services";
+import { MAX_GENERATING_REOPENS } from "@/components/assessment";
+import {
+  ASSESSMENT_GENERATING_STAGES,
+  ASSESSMENT_GENERATING_TITLE,
+  ASSESSMENT_SUBMIT_TIMEOUT_MESSAGE,
+} from "@/lib";
 import { AssessmentPage, RoadmapsPage } from "@/pages";
-import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
+import { buildAxiosError, buildNetworkError, buildTimeoutError } from "@/test/fixtures/api-errors";
 import {
   ASSESSMENT_QUESTIONS_MOCK,
   buildAssessmentResultFailedMock,
@@ -38,6 +44,14 @@ const FAILED_NOTICE =
 const DETAIL_PATH = `/dashboard/roadmaps/${MOCK_GENERATED_ROADMAP_ID}`;
 const DETAIL_STUB = "Detalle de la ruta";
 const SUBMIT_NAME = "Descubrir mi ruta de aprendizaje";
+
+const [SAVING_STAGE, ANALYZING_STAGE, BUILDING_STAGE] = ASSESSMENT_GENERATING_STAGES;
+// `announcement` es `string | null` en el tipo; que estas dos no sean nulas lo fija el spec de
+// `assessment-labels`.
+const SAVING_ANNOUNCEMENT = SAVING_STAGE.announcement ?? "";
+const BUILDING_ANNOUNCEMENT = BUILDING_STAGE.announcement ?? "";
+const SCROLL_LOCK = "overflow-hidden";
+const BACKEND_400_MESSAGE = "Faltan respuestas del cuestionario";
 
 function LocationProbe() {
   return <p data-testid="location">{useLocation().pathname}</p>;
@@ -107,6 +121,41 @@ function deferred<T>() {
 async function expectExitNavigates(user: User) {
   await user.click(screen.getByRole("button", { name: "Salir" }));
   expect(location()).toBe("/dashboard/roadmaps");
+}
+
+/** Texto visible de la etapa dentro del diálogo de espera. */
+function stageText() {
+  return screen.getByTestId("assessment-generating-stage").textContent;
+}
+
+/**
+ * La live region de la espera vive dentro del `<dialog>` (todo lo que queda fuera de un modal es
+ * inerte) y no tiene `role`: se busca por `data-testid`, nunca por rol.
+ */
+function announcer() {
+  return screen.getByTestId("assessment-generating-announcer");
+}
+
+function queryAnnouncer() {
+  return screen.queryByTestId("assessment-generating-announcer");
+}
+
+/** Textos a los que apunta el `aria-describedby` del diálogo de espera. */
+function describedTexts() {
+  const ids = screen.getByRole("dialog").getAttribute("aria-describedby")?.split(" ") ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent);
+}
+
+function generatingDialog() {
+  return screen.getByRole("dialog", { name: ASSESSMENT_GENERATING_TITLE });
+}
+
+/** Cierre del `<dialog>` por el navegador (CloseWatcher, gesto atrás de Android). */
+function closeDialogNatively() {
+  const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+  act(() => {
+    dialog.close();
+  });
 }
 
 describe("AssessmentPage", () => {
@@ -552,6 +601,316 @@ describe("AssessmentPage", () => {
       expect(screen.getByRole("group", { name: FIRST.text })).toBeInTheDocument();
       expect(screen.queryByText("Cargando preguntas…")).not.toBeInTheDocument();
       await waitFor(() => expect(getAssessmentQuestions).toHaveBeenCalledTimes(1));
+    });
+  });
+
+  describe("diálogo de espera", () => {
+    /** Responde todo, pulsa el CTA y devuelve el diálogo de espera ya abierto. */
+    async function submitAndWait(user: User) {
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+      return screen.findByRole("dialog", { name: ASSESSMENT_GENERATING_TITLE });
+    }
+
+    it("no aparece antes de enviar, ni su live region", async () => {
+      // El bloqueo se comprueba al empezar este test, no al final del anterior.
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      // La región se monta con el diálogo: sin espera en curso no hay ninguna.
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+      expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(0);
+    });
+
+    it("con el envío en curso abre el diálogo en la primera etapa y bloquea el scroll", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      const dialog = await submitAndWait(user);
+
+      expect(dialog).toHaveAccessibleName(ASSESSMENT_GENERATING_TITLE);
+      expect(stageText()).toBe(SAVING_STAGE.message);
+      expect(document.documentElement).toHaveClass(SCROLL_LOCK);
+      const sending = screen.getByRole("button", { name: "Enviando…" });
+      expect(sending).toBeDisabled();
+      expect(sending).toHaveAttribute("aria-busy", "true");
+    });
+
+    it("al resolver con la ruta generada cierra el diálogo, libera el scroll y navega al detalle", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      await submitAndWait(user);
+      await act(async () => request.resolve(buildAssessmentResultMock({ answers: [] })));
+
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
+      expect(location()).toBe(DETAIL_PATH);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      // Cerrado el diálogo (y desmontada la página al navegar) se va su live region.
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+    });
+
+    it("al fallar con 400 cierra el diálogo y muestra el mensaje del backend sin perder respuestas", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      await submitAndWait(user);
+      await act(async () => request.reject(buildAxiosError(400, BACKEND_400_MESSAGE)));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(BACKEND_400_MESSAGE);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      expect(location()).toBe("/dashboard/roadmaps/new");
+      expect(
+        within(screen.getByRole("group", { name: LAST.text })).getAllByRole("radio")[0],
+      ).toBeChecked();
+    });
+
+    it("«Salir» no navega durante el envío y vuelve a funcionar tras el error", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      await submitAndWait(user);
+      const exit = screen.getByRole("button", { name: "Salir" });
+      expect(exit).toBeDisabled();
+      await user.click(exit);
+
+      expect(location()).toBe("/dashboard/roadmaps/new");
+      expect(generatingDialog()).toBeInTheDocument();
+
+      await act(async () => request.reject(buildNetworkError()));
+      expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+
+      await expectExitNavigates(user);
+    });
+
+    it("el reintento vuelve a abrir el diálogo en la primera etapa y borra el aviso anterior", async () => {
+      vi.mocked(submitAssessment).mockRejectedValueOnce(buildAxiosError(400, BACKEND_400_MESSAGE));
+      const { user } = renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(BACKEND_400_MESSAGE);
+
+      // La respuesta del reintento se encola cuando la primera ya se consumió: `restoreMocks` no
+      // vacía las colas de `mock*Once` y el sobrante se filtraría al test siguiente.
+      const retry = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(retry.promise);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+
+      expect(
+        await screen.findByRole("dialog", { name: ASSESSMENT_GENERATING_TITLE }),
+      ).toBeVisible();
+      expect(stageText()).toBe(SAVING_STAGE.message);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("la espera agotada muestra el mensaje dedicado y deja el cuestionario recuperable", async () => {
+      const consoleSpies = (["log", "info", "warn", "error"] as const).map((method) =>
+        vi.spyOn(console, method),
+      );
+      vi.mocked(submitAssessment).mockRejectedValueOnce(buildTimeoutError());
+      const { user } = renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(ASSESSMENT_SUBMIT_TIMEOUT_MESSAGE);
+      expect(alert).not.toHaveTextContent(NETWORK_MESSAGE);
+      expect(ASSESSMENT_SUBMIT_TIMEOUT_MESSAGE).not.toBe(NETWORK_MESSAGE);
+      expect(location()).toBe("/dashboard/roadmaps/new");
+      expect(
+        within(screen.getByRole("group", { name: LAST.text })).getAllByRole("radio")[0],
+      ).toBeChecked();
+      expect(screen.getByRole("button", { name: SUBMIT_NAME })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Salir" })).toBeEnabled();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      for (const spy of consoleSpies) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    });
+
+    it("un cierre nativo durante el envío restablece la espera", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      await submitAndWait(user);
+      closeDialogNatively();
+
+      expect(generatingDialog()).toBeInTheDocument();
+      expect(document.documentElement).toHaveClass(SCROLL_LOCK);
+      expect(stageText()).toBe(SAVING_STAGE.message);
+    });
+
+    it("superada la cota deja de reabrir sin perder el envío ni las respuestas", async () => {
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      const { user } = renderPage();
+
+      await submitAndWait(user);
+      for (let i = 0; i <= MAX_GENERATING_REOPENS; i += 1) {
+        closeDialogNatively();
+      }
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
+      expect(screen.getByRole("button", { name: "Enviando…" })).toBeDisabled();
+      expect(
+        within(screen.getByRole("group", { name: LAST.text })).getAllByRole("radio")[0],
+      ).toBeChecked();
+
+      await act(async () => request.resolve(buildAssessmentResultMock({ answers: [] })));
+
+      expect(await screen.findByText(DETAIL_STUB)).toBeInTheDocument();
+      expect(location()).toBe(DETAIL_PATH);
+    });
+  });
+
+  describe("narración de la espera", () => {
+    // Testing Library solo detecta los temporizadores falsos de Jest: sin el stub global los
+    // `findBy*` se cuelgan. Aislado en este describe; el resto del fichero usa relojes reales.
+    function useFakeTimersForTestingLibrary() {
+      vi.useFakeTimers();
+      vi.stubGlobal("jest", { advanceTimersByTime: vi.advanceTimersByTime.bind(vi) });
+      return userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) });
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    async function advance(ms: number) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    }
+
+    /** Deja un envío en curso y el diálogo abierto, sin depender de `waitFor`. */
+    async function startSubmit(user: User) {
+      await screen.findByRole("group", { name: FIRST.text });
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+      await advance(0);
+      expect(generatingDialog()).toBeInTheDocument();
+    }
+
+    it("avanza de etapa por tiempo y la última aguanta", async () => {
+      const user = useFakeTimersForTestingLibrary();
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      renderPage();
+
+      await startSubmit(user);
+      expect(stageText()).toBe(SAVING_STAGE.message);
+
+      await advance(6_999);
+      expect(stageText()).toBe(SAVING_STAGE.message);
+
+      await advance(1);
+      expect(stageText()).toBe(ANALYZING_STAGE.message);
+
+      await advance(11_000);
+      expect(stageText()).toBe(BUILDING_STAGE.message);
+
+      await advance(102_000);
+      expect(stageText()).toBe(BUILDING_STAGE.message);
+      expect(generatingDialog()).toBeInTheDocument();
+    });
+
+    it("la live region anuncia solo la primera y la última etapa, y se va con el diálogo", async () => {
+      const user = useFakeTimersForTestingLibrary();
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      renderPage();
+
+      await screen.findByRole("group", { name: FIRST.text });
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+
+      await answerAll(user);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+      await advance(0);
+
+      // Dentro del `<dialog>`: `showModal()` deja inerte el resto del documento y el contenido
+      // inerte no llega a las tecnologías de apoyo.
+      expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+      expect(generatingDialog().contains(announcer())).toBe(true);
+      expect(announcer()).toHaveTextContent(SAVING_ANNOUNCEMENT);
+      // La primera etapa además se lee al abrir porque cuelga de la descripción del diálogo.
+      expect(describedTexts()).toContain(SAVING_STAGE.message);
+
+      await advance(7_000);
+      expect(stageText()).toBe(ANALYZING_STAGE.message);
+      expect(announcer()).toHaveTextContent(SAVING_ANNOUNCEMENT);
+
+      await advance(11_000);
+      expect(stageText()).toBe(BUILDING_STAGE.message);
+      expect(announcer()).toHaveTextContent(BUILDING_ANNOUNCEMENT);
+
+      await act(async () => request.reject(buildNetworkError()));
+      await advance(0);
+
+      expect(screen.getByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+    });
+
+    it("el reintento narra otra vez desde la primera etapa", async () => {
+      const user = useFakeTimersForTestingLibrary();
+      const first = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(first.promise);
+      renderPage();
+
+      await startSubmit(user);
+      await advance(18_000);
+      expect(stageText()).toBe(BUILDING_STAGE.message);
+
+      await act(async () => first.reject(buildAxiosError(400, BACKEND_400_MESSAGE)));
+      await advance(0);
+      expect(screen.getByRole("alert")).toHaveTextContent(BACKEND_400_MESSAGE);
+
+      const retry = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(retry.promise);
+      await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
+      await advance(0);
+
+      expect(generatingDialog()).toBeInTheDocument();
+      expect(stageText()).toBe(SAVING_STAGE.message);
+      expect(announcer()).toHaveTextContent(SAVING_ANNOUNCEMENT);
+    });
+
+    it("terminado el envío no quedan temporizadores vivos", async () => {
+      const errorSpy = vi.spyOn(console, "error");
+      const user = useFakeTimersForTestingLibrary();
+      const request = deferred<AssessmentResult>();
+      vi.mocked(submitAssessment).mockReturnValue(request.promise);
+      renderPage();
+
+      await startSubmit(user);
+      await advance(7_000);
+      await act(async () => request.reject(buildNetworkError()));
+      await advance(0);
+      expect(screen.getByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+
+      await advance(120_000);
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+      expect(errorSpy).not.toHaveBeenCalled();
     });
   });
 });
