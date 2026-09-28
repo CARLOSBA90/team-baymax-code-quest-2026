@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { RoadmapGoalType } from '../roadmaps/roadmap.constants.js';
 import { RoadmapGenerationService } from '../roadmaps/roadmap-generation.service.js';
 import type { QuestionsListResponseDto } from './dto/question-response.dto.js';
 import type {
@@ -104,6 +105,13 @@ export class AssessmentsService {
       } else {
         const generated = await this.roadmapGenerationService.generate(userId, {
           assessmentId: assessment.id,
+          goal: profile.preferredStack
+            ? {
+                type: RoadmapGoalType.SKILL,
+                description: profile.preferredStack,
+              }
+            : undefined,
+          weeklyHours: profile.weeklyHours,
         });
         roadmap = {
           status: 'GENERATED',
@@ -179,13 +187,23 @@ export class AssessmentsService {
     profile: CalculatedProfile,
     validatedAnswers: ValidatedAnswer[],
   ): Promise<AssessmentResultDto> {
+    const profileScoresData = {
+      ...profile.profileScores,
+      ...(profile.preferredStack
+        ? { preferredStack: profile.preferredStack }
+        : {}),
+      ...(profile.weeklyHours !== undefined
+        ? { weeklyHours: profile.weeklyHours }
+        : {}),
+    };
+
     const assessment = await this.prisma.assessment.create({
       data: {
         userId,
         version: 1,
         completedAt: new Date(),
         goalCategory: profile.goalCategory,
-        profileScores: profile.profileScores,
+        profileScores: profileScoresData,
         answers: {
           create: validatedAnswers.map((ans) => ({
             questionId: ans.questionId,

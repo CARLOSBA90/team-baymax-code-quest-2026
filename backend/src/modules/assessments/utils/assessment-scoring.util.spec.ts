@@ -65,4 +65,41 @@ describe('calculateProfile', () => {
     expect(result.profileScores.TESTING).toBe(15);
     expect(result.profileScores.DEVOPS).toBe(0);
   });
+
+  it('extracts preferredStack and aligns goalCategory when tech stack is selected', () => {
+    const answers: ValidatedAnswer[] = [
+      {
+        questionId: 'q-1',
+        optionId: 'opt-frontend',
+        optionValue: 5,
+        questionCategory: SkillCategory.WEB_FUNDAMENTALS,
+        isGoalQuestion: true,
+        optionOrder: 1, // 1 -> FRONTEND
+      },
+      {
+        questionId: 'q-2',
+        optionId: 'opt-angular',
+        optionValue: 3,
+        questionCategory: SkillCategory.WEB_FUNDAMENTALS,
+        isGoalQuestion: false,
+        isTechStackQuestion: true,
+        optionOrder: 1, // 1 -> Angular
+      },
+      {
+        questionId: 'q-8',
+        optionId: 'opt-time',
+        optionValue: 2,
+        questionCategory: SkillCategory.WEB_FUNDAMENTALS,
+        isGoalQuestion: false,
+        isTimeQuestion: true,
+        optionOrder: 2, // 2 -> 5 hours
+      },
+    ];
+
+    const result = calculateProfile(answers);
+
+    expect(result.goalCategory).toBe(SkillCategory.FRONTEND);
+    expect(result.preferredStack).toBe('Angular');
+    expect(result.weeklyHours).toBe(5);
+  });
 });

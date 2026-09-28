@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CatalogModule } from '../catalog/catalog.module.js';
 import { ProgressModule } from '../progress/progress.module.js';
 import { GeneratorProbeService } from './generators/generator-probe.service.js';
 import { RoadmapGenerationService } from './roadmap-generation.service.js';
@@ -12,7 +13,7 @@ import { GeneratorConfigurationService } from './generators/generator-configurat
 import { GeneratorConfigurationController } from './generator-configuration.controller.js';
 
 @Module({
-  imports: [ProgressModule],
+  imports: [ProgressModule, CatalogModule],
   controllers: [RoadmapsController, GeneratorConfigurationController],
   providers: [
     GeneratorProbeService,

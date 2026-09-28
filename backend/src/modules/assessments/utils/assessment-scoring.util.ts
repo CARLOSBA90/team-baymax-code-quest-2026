@@ -1,7 +1,10 @@
 import { SkillCategory } from '../../../generated/prisma/enums.js';
 import {
+  CATEGORY_BY_TECH_STACK_OPTION,
   GOAL_BY_OPTION_ORDER,
   SCORE_MULTIPLIER,
+  TECH_STACK_BY_OPTION_ORDER,
+  WEEKLY_HOURS_BY_OPTION_ORDER,
 } from '../constants/assessment.constants.js';
 import type {
   CalculatedProfile,
@@ -26,11 +29,25 @@ export function calculateProfile(
   };
 
   let goalCategory: SkillCategory = SkillCategory.WEB_FUNDAMENTALS;
+  let preferredStack: string | undefined;
+  let weeklyHours: number | undefined;
 
   for (const ans of validatedAnswers) {
     if (ans.isGoalQuestion) {
       goalCategory =
         GOAL_BY_OPTION_ORDER[ans.optionOrder] ?? SkillCategory.WEB_FUNDAMENTALS;
+    }
+
+    if (ans.isTechStackQuestion) {
+      preferredStack = TECH_STACK_BY_OPTION_ORDER[ans.optionOrder];
+      const stackCategory = CATEGORY_BY_TECH_STACK_OPTION[ans.optionOrder];
+      if (stackCategory) {
+        goalCategory = stackCategory;
+      }
+    }
+
+    if (ans.isTimeQuestion) {
+      weeklyHours = WEEKLY_HOURS_BY_OPTION_ORDER[ans.optionOrder];
     }
 
     const points = ans.optionValue * SCORE_MULTIPLIER;
@@ -46,5 +63,5 @@ export function calculateProfile(
     }
   }
 
-  return { goalCategory, profileScores };
+  return { goalCategory, profileScores, preferredStack, weeklyHours };
 }

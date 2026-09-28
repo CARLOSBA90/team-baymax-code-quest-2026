@@ -70,6 +70,58 @@ const questionsToSeed: SeedQuestion[] = [
   {
     order: 2,
     category: SkillCategory.WEB_FUNDAMENTALS,
+    text: '¿En qué framework, lenguaje o tecnología principal deseas especializarte?',
+    options: [
+      {
+        order: 1,
+        value: 3,
+        text: 'Angular (Ecosistema empresarial de Google con TypeScript)',
+      },
+      {
+        order: 2,
+        value: 3,
+        text: 'React & Next.js (Ecosistema moderno de interfaces y fullstack)',
+      },
+      {
+        order: 3,
+        value: 3,
+        text: 'Vue.js & Nuxt (Ecosistema web progresivo y reactivo)',
+      },
+      {
+        order: 4,
+        value: 3,
+        text: 'Node.js & NestJS (Backend modular y escalable con TypeScript)',
+      },
+      {
+        order: 5,
+        value: 3,
+        text: 'Python & FastAPI / IA (APIs modernas y soluciones con IA)',
+      },
+      {
+        order: 6,
+        value: 3,
+        text: 'Java & Spring Boot (Arquitectura empresarial y microservicios)',
+      },
+      {
+        order: 7,
+        value: 3,
+        text: 'Flutter & Dart (Desarrollo móvil multiplataforma para iOS y Android)',
+      },
+      {
+        order: 8,
+        value: 3,
+        text: 'C# & .NET (Desarrollo backend robusto con Microsoft)',
+      },
+      {
+        order: 9,
+        value: 1,
+        text: 'Sin preferencia específica (Recomiéndame según mi nivel)',
+      },
+    ],
+  },
+  {
+    order: 3,
+    category: SkillCategory.WEB_FUNDAMENTALS,
     text: '¿Cómo describirías tu nivel actual de lógica y fundamentos de programación?',
     options: [
       { order: 1, value: 1, text: 'Nunca he escrito una línea de código' },
@@ -91,7 +143,7 @@ const questionsToSeed: SeedQuestion[] = [
     ],
   },
   {
-    order: 3,
+    order: 4,
     category: SkillCategory.FRONTEND,
     text: '¿Cuál es tu experiencia construyendo interfaces con frameworks web modernos?',
     options: [
@@ -118,7 +170,7 @@ const questionsToSeed: SeedQuestion[] = [
     ],
   },
   {
-    order: 4,
+    order: 5,
     category: SkillCategory.BACKEND,
     text: '¿Cuál es tu nivel desarrollando APIs y trabajando con bases de datos?',
     options: [
@@ -145,7 +197,7 @@ const questionsToSeed: SeedQuestion[] = [
     ],
   },
   {
-    order: 5,
+    order: 6,
     category: SkillCategory.BACKEND,
     text: '¿Cómo te gustaría integrar Inteligencia Artificial en tu ruta de aprendizaje?',
     options: [
@@ -172,7 +224,7 @@ const questionsToSeed: SeedQuestion[] = [
     ],
   },
   {
-    order: 6,
+    order: 7,
     category: SkillCategory.DEVOPS,
     text: '¿Tienes interés en complementar tu formación con DevOps o Testing?',
     options: [
@@ -194,7 +246,7 @@ const questionsToSeed: SeedQuestion[] = [
     ],
   },
   {
-    order: 7,
+    order: 8,
     category: SkillCategory.WEB_FUNDAMENTALS,
     text: '¿Cuánto tiempo estimado puedes dedicar al estudio de forma semanal?',
     options: [
@@ -220,38 +272,71 @@ const questionsToSeed: SeedQuestion[] = [
 async function seedQuestions() {
   console.log('Iniciando seed de preguntas para CodeQuest...');
 
-  // Evitar fallos por restricciones de clave foránea o duplicados si ya existen preguntas
-  const existingQuestionsCount = await prisma.question.count();
-  if (existingQuestionsCount > 0) {
-    console.log(
-      `✓ Ya existen ${existingQuestionsCount} preguntas en la base de datos. Saltando seed.`,
-    );
-    return;
-  }
-
   for (const q of questionsToSeed) {
-    const createdQuestion = await prisma.question.create({
-      data: {
-        order: q.order,
-        category: q.category,
-        text: q.text,
-        active: true,
-        options: {
-          create: q.options.map((opt) => ({
-            order: opt.order,
-            value: opt.value,
-            text: opt.text,
-          })),
-        },
-      },
-      include: {
-        options: true,
-      },
+    const existing = await prisma.question.findFirst({
+      where: { order: q.order },
+      include: { options: true },
     });
 
-    console.log(
-      `✓ Pregunta ${createdQuestion.order} creada con ${createdQuestion.options.length} opciones [${createdQuestion.category}]`,
-    );
+    if (!existing) {
+      const createdQuestion = await prisma.question.create({
+        data: {
+          order: q.order,
+          category: q.category,
+          text: q.text,
+          active: true,
+          options: {
+            create: q.options.map((opt) => ({
+              order: opt.order,
+              value: opt.value,
+              text: opt.text,
+            })),
+          },
+        },
+        include: {
+          options: true,
+        },
+      });
+
+      console.log(
+        `✓ Pregunta ${createdQuestion.order} creada con ${createdQuestion.options.length} opciones [${createdQuestion.category}]`,
+      );
+    } else {
+      await prisma.question.update({
+        where: { id: existing.id },
+        data: {
+          category: q.category,
+          text: q.text,
+          active: true,
+        },
+      });
+
+      for (const opt of q.options) {
+        const existingOpt = existing.options.find((o) => o.order === opt.order);
+        if (existingOpt) {
+          await prisma.questionOption.update({
+            where: { id: existingOpt.id },
+            data: {
+              text: opt.text,
+              value: opt.value,
+            },
+          });
+        } else {
+          await prisma.questionOption.create({
+            data: {
+              questionId: existing.id,
+              order: opt.order,
+              value: opt.value,
+              text: opt.text,
+            },
+          });
+        }
+      }
+
+      console.log(
+        `✓ Pregunta ${q.order} sincronizada con sus opciones [${q.category}]`,
+      );
+    }
   }
 }
 
