@@ -3,6 +3,8 @@ import type { DeclaredLevel } from '../roadmap.constants.js';
 
 export interface GeneratorCandidate {
   id: string;
+  /** URL-safe slug from the catalog, used for stack/phase resolution. */
+  slug: string;
   title: string;
   description: string | null;
   level: number;

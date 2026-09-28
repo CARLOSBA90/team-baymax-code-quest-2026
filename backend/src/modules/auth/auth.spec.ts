@@ -149,11 +149,12 @@ describe('auth configuration', () => {
     it('configures email/password with min length 6 and optional verification by default', async () => {
       const { config } = await load();
 
-      expect(config.emailAndPassword).toEqual({
+      expect(config.emailAndPassword).toMatchObject({
         enabled: true,
         minPasswordLength: 6,
         requireEmailVerification: false,
       });
+      expect(typeof config.emailAndPassword.sendResetPassword).toBe('function');
     });
 
     it('configures email verification on sign-up without sendOnSignIn', async () => {

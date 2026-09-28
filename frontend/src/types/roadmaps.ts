@@ -65,3 +65,201 @@ export interface RoadmapsListResponseDto {
   meta: PageMeta;
   counts: RoadmapCounts;
 }
+
+/**
+ * Tipo de un paso de la ruta. Unión abierta: el backend puede añadir tipos nuevos y el front
+ * los tolera (se muestran, no se rompen).
+ */
+export type RoadmapItemType = "COURSE" | "MEDIA" | "CHALLENGE" | (string & {});
+
+/** Tipo de seguimiento de un paso. Unión abierta (desconocido → `canTrack` devuelve `false`). */
+export type RoadmapTrackingType =
+  | "VIDEO"
+  | "READING"
+  | "COMPLETION"
+  | "LESSONS"
+  | "CHALLENGE"
+  | (string & {});
+
+/** Estado de presentación de un paso, derivado con `getItemState`. */
+export type RoadmapItemState = "completed" | "in_progress" | "next" | "pending";
+
+/** `tracking` de un ítem de `content[]` en el cable. `report_interval_seconds` se ignora. */
+export interface RoadmapItemTrackingDto {
+  type: RoadmapTrackingType;
+  enabled: boolean;
+  disabled_reason: string | null;
+}
+
+/** Lección de un `syllabus.sections[]` en el cable. */
+export interface SyllabusLessonDto {
+  lesson_id: string;
+  title: string;
+  type: string;
+  free_preview: boolean;
+  completed: boolean;
+  position_seconds: number | null;
+}
+
+/** Sección de un `syllabus.sections[]` en el cable. */
+export interface SyllabusSectionDto {
+  title: string;
+  lessons: SyllabusLessonDto[];
+}
+
+/** `syllabus.next_lesson` / `next_step.lesson` en el cable (misma forma). */
+export interface SyllabusNextLessonDto {
+  lesson_id: string;
+  title: string;
+  section_title: string;
+  position: number;
+  position_seconds: number | null;
+}
+
+/** `content[].syllabus` de `GET /roadmaps/:id` en el cable. `null` si no aplica. */
+export interface SyllabusDto {
+  total_lessons: number;
+  completed_lessons: number;
+  last_lesson_id: string | null;
+  next_lesson: SyllabusNextLessonDto | null;
+  sections: SyllabusSectionDto[];
+}
+
+/** Lección de un `Syllabus.sections[]`, mapeada a camelCase. */
+export interface SyllabusLesson {
+  lessonId: string;
+  title: string;
+  type: string;
+  freePreview: boolean;
+  completed: boolean;
+  positionSeconds: number | null;
+}
+
+/** Sección de un `Syllabus.sections[]`, mapeada a camelCase. */
+export interface SyllabusSection {
+  title: string;
+  lessons: SyllabusLesson[];
+}
+
+/** `Syllabus.nextLesson` / `RoadmapNextStep.lesson` (misma forma), mapeada a camelCase. */
+export interface SyllabusNextLesson {
+  lessonId: string;
+  title: string;
+  sectionTitle: string;
+  position: number;
+  positionSeconds: number | null;
+}
+
+/** Temario de un `RoadmapItem` de tipo `LESSONS`. `null` si no aplica. */
+export interface Syllabus {
+  totalLessons: number;
+  completedLessons: number;
+  lastLessonId: string | null;
+  nextLesson: SyllabusNextLesson | null;
+  sections: SyllabusSection[];
+}
+
+/**
+ * Ítem de `content[]` de `GET /roadmaps/:id` en el cable. Solo los campos consumidos:
+ * `reason`, `details`, `resume` y `progress_version` se ignoran.
+ */
+export interface RoadmapItemDto {
+  roadmap_item_id: string;
+  type: RoadmapItemType;
+  order: number;
+  course_id: string | null;
+  name: string;
+  description: string | null;
+  image: string | null;
+  url: string | null;
+  level: RoadmapLevel | null;
+  estimated_minutes: number | null;
+  progress: number;
+  tracking: RoadmapItemTrackingDto;
+  started_at: string | null;
+  completed_at: string | null;
+  syllabus: SyllabusDto | null;
+}
+
+/** `next_step` de `GET /roadmaps/:id` en el cable. */
+export interface RoadmapNextStepDto {
+  roadmap_item_id: string;
+  name: string;
+  url: string | null;
+  lesson: SyllabusNextLessonDto | null;
+}
+
+/**
+ * `data` de `GET /roadmaps/:id` en el cable (snake_case). Solo campos consumidos: `generator`,
+ * `courses`, `reason`, `details`, `resume` y `progress_version` se ignoran. Solo la usa el
+ * service (y las fixtures de test); la UI consume `RoadmapDetail`.
+ */
+export interface RoadmapDetailDto {
+  id: string;
+  name: string;
+  summary: string;
+  status: RoadmapStatus;
+  progress: number;
+  last_activity: string;
+  paused_at: string | null;
+  activity_version: number;
+  content: RoadmapItemDto[];
+  next_step: RoadmapNextStepDto | null;
+}
+
+export interface RoadmapItemTracking {
+  type: RoadmapTrackingType;
+  enabled: boolean;
+  disabledReason: string | null;
+}
+
+export interface RoadmapItem {
+  roadmapItemId: string;
+  type: RoadmapItemType;
+  order: number;
+  courseId: string | null;
+  name: string;
+  description: string | null;
+  image: string | null;
+  url: string | null;
+  level: RoadmapLevel | null;
+  estimatedMinutes: number | null;
+  /** 0-100, puede traer decimales (33.33). */
+  progress: number;
+  tracking: RoadmapItemTracking;
+  startedAt: string | null;
+  completedAt: string | null;
+  syllabus: Syllabus | null;
+}
+
+export interface RoadmapNextStep {
+  roadmapItemId: string;
+  name: string;
+  url: string | null;
+  lesson: SyllabusNextLesson | null;
+}
+
+export interface RoadmapDetail {
+  id: string;
+  name: string;
+  summary: string;
+  status: RoadmapStatus;
+  /** 0-100, puede traer decimales. */
+  progress: number;
+  lastActivity: string;
+  pausedAt: string | null;
+  activityVersion: number;
+  /** Ordenados por `order`. */
+  items: RoadmapItem[];
+  nextStep: RoadmapNextStep | null;
+}
+
+/**
+ * Body de `PATCH /roadmaps/:id/pause`. En camelCase: el DTO de entrada del back lo es (excepción
+ * frente al resto del cable, en snake_case). `expectedActivityVersion` = `activityVersion` del
+ * detalle pintado (control de concurrencia optimista: 409 `ROADMAP_VERSION_CONFLICT`).
+ */
+export interface SetRoadmapPausedBody {
+  paused: boolean;
+  expectedActivityVersion: number;
+}

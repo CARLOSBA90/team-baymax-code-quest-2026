@@ -1,0 +1,192 @@
+import {
+  canTrack,
+  getStepLabel,
+  getTrackingUnavailableMessage,
+  isLessonChecklistItem,
+} from "@/lib";
+import type { RoadmapItem as RoadmapItemData, RoadmapItemState, SyllabusLesson } from "@/types";
+import { CompleteButton } from "./CompleteButton";
+import { ExternalCourseLink } from "./ExternalCourseLink";
+import { ItemMeta } from "./ItemMeta";
+import { ItemStateDot } from "./ItemStateDot";
+import { ItemStatusChip } from "./ItemStatusChip";
+import { ItemThumbnail } from "./ItemThumbnail";
+import { LessonChecklist } from "./LessonChecklist";
+
+/** Bloqueo compartido del checklist de lecciones (todos los ítems comparten una sola mutación). */
+export interface LessonTracking {
+  locked: boolean;
+  pendingKey: string | null;
+}
+
+export interface RoadmapItemProps {
+  item: RoadmapItemData;
+  /** Posición 1-based en la lista (no el `order` del ítem). */
+  stepNumber: number;
+  total: number;
+  state: RoadmapItemState;
+  isLast: boolean;
+  isPaused: boolean;
+  /** Id del párrafo del banner de pausa; describe el botón deshabilitado en PAUSED. */
+  pausedDescriptionId?: string;
+  /** Pide completar este paso (abre la confirmación en el compositor). */
+  onComplete: (item: RoadmapItemData) => void;
+  /** Id del h3; destino de foco (`tabIndex={-1}`) tras completar. */
+  headingId: string;
+  /**
+   * Bloquea «Marcar como completado» mientras pausar/reanudar está en curso (sin describirlo: es
+   * transitorio). En pausa el botón ya está deshabilitado por `isPaused`.
+   */
+  completeDisabled?: boolean;
+  /** Marca/desmarca una lección del temario (checklist de un ítem `LESSONS` con temario real). */
+  onToggleLesson?: (item: RoadmapItemData, lesson: SyllabusLesson) => void;
+  /** Bloqueo/lección en curso compartido por el checklist de todos los ítems del timeline. */
+  lessonTracking?: LessonTracking;
+}
+
+const CARD_CLASSES: Record<RoadmapItemState, string> = {
+  pending: "bg-bg-item border-border-item",
+  next: "bg-bg-item-next border-border-item-next",
+  in_progress: "bg-bg-item border-border-item-active",
+  completed: "bg-bg-item-done border-border-item-done",
+};
+
+/**
+ * Paso del timeline: nodo y riel decorativos (`aria-hidden`), miniatura, h3 con la posición como
+ * texto real («Paso i de N: …»), chip, meta, descripción y acciones. Completar llama a
+ * `onComplete(item)`; en pausa el botón se deshabilita y se describe con el párrafo del banner.
+ * Sin atenuación en pausa. El h3 lleva `id` y `tabIndex={-1}` para recibir el foco tras completar.
+ *
+ * Mobile-first con un solo DOM: en móvil no hay riel/nodo y el estado lo muestra el punto
+ * `item-state-dot` dentro del h3; la fila del título es `display: contents`, así `order-*` pone el
+ * chip bajo la meta (solo visual; la lectura sigue h3 → chip → meta). Desde `sm:` la tarjeta vuelve
+ * a miniatura | cuerpo + acciones. Acciones en DOM enlace → completar → mensaje de tracking, que
+ * desde `sm:` se pinta a la izquierda (`sm:order-first`).
+ */
+export function RoadmapItem({
+  item,
+  stepNumber,
+  total,
+  state,
+  isLast,
+  isPaused,
+  pausedDescriptionId,
+  onComplete,
+  headingId,
+  completeDisabled = false,
+  onToggleLesson,
+  lessonTracking = { locked: false, pendingKey: null },
+}: RoadmapItemProps) {
+  const isCompleted = state === "completed";
+  const isLessonItem = isLessonChecklistItem(item);
+  const trackingMessage = isCompleted ? null : getTrackingUnavailableMessage(item.tracking);
+  const canComplete = !isCompleted && canTrack(item.tracking);
+  // Un curso con temario también se marca entero (atajo bulk), pero su botón vive dentro del
+  // checklist, no en la fila de acciones: así se lee como «marcar todas estas lecciones».
+  const showCompleteButton = canComplete && !isLessonItem;
+  const showCompleteAll = canComplete && isLessonItem;
+
+  const handleToggleLesson = (lessonId: string) => {
+    if (!onToggleLesson || item.syllabus === null) return;
+    const lesson = item.syllabus.sections
+      .flatMap((section) => section.lessons)
+      .find((candidate) => candidate.lessonId === lessonId);
+    if (lesson) onToggleLesson(item, lesson);
+  };
+
+  return (
+    <li className="relative pb-3.5 last:pb-0 sm:pl-7 lg:pl-11" data-state={state}>
+      {isLast ? null : (
+        <span
+          aria-hidden="true"
+          data-testid="timeline-rail"
+          className={`absolute top-[30px] bottom-0 left-[13px] hidden w-0.5 sm:block ${isCompleted ? "bg-rail-done" : "bg-rail"}`}
+        />
+      )}
+      <ItemStateDot
+        testId="timeline-node"
+        state={state}
+        className="absolute top-[22px] left-[7px] hidden size-3.5 sm:flex"
+      />
+      <div
+        data-testid="timeline-card"
+        className={`grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 rounded-2xl border p-3.5 [grid-template-areas:'thumb_body'_'actions_actions'_'lessons_lessons'] sm:grid-rows-[auto_1fr] sm:gap-x-4 sm:px-[18px] sm:py-4 sm:[grid-template-areas:'thumb_body'_'thumb_actions'_'lessons_lessons'] ${CARD_CLASSES[state]}`}
+      >
+        <ItemThumbnail
+          key={item.image ?? "none"}
+          src={item.image}
+          type={item.type}
+          size="md"
+          tone={isCompleted ? "done" : "default"}
+          className="[grid-area:thumb] self-start"
+        />
+        <div className="[grid-area:body] flex min-w-0 flex-col gap-1.5">
+          <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-1.5">
+            <h3
+              id={headingId}
+              tabIndex={-1}
+              className="line-clamp-2 font-body font-semibold text-[15px] text-text-primary outline-none"
+            >
+              <ItemStateDot
+                testId="item-state-dot"
+                state={state}
+                className="mr-2 inline-flex size-3.75 align-[-2px] sm:hidden"
+              />
+              <span className="sr-only">{getStepLabel(stepNumber, total)}:</span>{" "}
+              <span aria-hidden="true">{stepNumber} ·</span> {item.name}
+            </h3>
+            <ItemStatusChip
+              state={state}
+              progress={item.progress}
+              className="order-2 self-start sm:order-none sm:self-auto"
+            />
+          </div>
+          <ItemMeta item={item} className="order-1 sm:order-none" />
+          {item.description ? (
+            <p className="order-3 line-clamp-1 font-body text-[13px] text-text-secondary sm:order-none sm:line-clamp-2">
+              {item.description}
+            </p>
+          ) : null}
+        </div>
+        {item.url || showCompleteButton || trackingMessage ? (
+          <div className="[grid-area:actions] mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+            {item.url ? (
+              <ExternalCourseLink
+                url={item.url}
+                itemName={item.name}
+                variant={state === "next" ? "next" : "ghost"}
+              />
+            ) : null}
+            {showCompleteButton ? (
+              <CompleteButton
+                itemName={item.name}
+                describedBy={isPaused ? pausedDescriptionId : undefined}
+                disabled={isPaused || completeDisabled}
+                onClick={() => onComplete(item)}
+              />
+            ) : null}
+            {trackingMessage ? (
+              <p className="min-w-0 font-body text-[12.5px] text-text-muted sm:order-first sm:mr-auto">
+                {trackingMessage}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {isLessonItem && item.syllabus !== null ? (
+          <div className="[grid-area:lessons] mt-3">
+            <LessonChecklist
+              item={item}
+              headingId={headingId}
+              locked={lessonTracking.locked}
+              pendingKey={lessonTracking.pendingKey}
+              onToggle={(lessonId) => handleToggleLesson(lessonId)}
+              onCompleteAll={showCompleteAll ? () => onComplete(item) : undefined}
+              completeAllDisabled={isPaused || completeDisabled}
+              completeAllDescribedBy={isPaused ? pausedDescriptionId : undefined}
+            />
+          </div>
+        ) : null}
+      </div>
+    </li>
+  );
+}

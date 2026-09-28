@@ -1,3 +1,8 @@
+import {
+  PEDAGOGICAL_PHASE_DEFAULT,
+  PHASE_BY_SLUG_FRAGMENT,
+} from './roadmap-pedagogy.util.js';
+
 export enum PrerequisiteResolutionFailure {
   CYCLE = 'CYCLE',
   LIMIT_EXCEEDED = 'LIMIT_EXCEEDED',
@@ -62,19 +67,71 @@ export function orderWithRequiredPrerequisites<T extends Identifiable>(
 }
 
 /**
- * Learning order: lower levels first, keeping the generator's order within a
- * level (Array#sort is stable); required prerequisites still come first.
+ * Resolves the pedagogical phase (1–4) for a course slug.
+ *
+ * Uses the same token-sequence matching as `tech-stack.util.ts`:
+ *  - Split slug and fragment by hyphens.
+ *  - A fragment matches when its tokens appear as a contiguous sub-sequence
+ *    of the slug's tokens.
+ *  - Returns PEDAGOGICAL_PHASE_DEFAULT (3) when no fragment matches.
  */
-export function orderForLearning<T extends Identifiable & { level: number }>(
+export function resolvePhase(slug: string): number {
+  const slugTokens = slug.toLowerCase().split('-');
+  for (const [fragment, phase] of PHASE_BY_SLUG_FRAGMENT) {
+    const fragTokens = fragment.toLowerCase().split('-');
+    if (containsTokenSequence(slugTokens, fragTokens)) return phase;
+  }
+  return PEDAGOGICAL_PHASE_DEFAULT;
+}
+
+function containsTokenSequence(
+  haystack: readonly string[],
+  needle: readonly string[],
+): boolean {
+  if (needle.length === 0) return true;
+  for (let i = 0; i <= haystack.length - needle.length; i++) {
+    let match = true;
+    for (let j = 0; j < needle.length; j++) {
+      if (haystack[i + j] !== needle[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return true;
+  }
+  return false;
+}
+
+/**
+ * Learning order with pedagogical phase tie-breaking.
+ *
+ * Sort priority:
+ *   1. Prerequisite relationships (topological, via DFS).
+ *   2. Course `level` ascending (beginner before advanced).
+ *   3. Pedagogical phase ascending (fundamentals before meta-frameworks).
+ *   4. Alphabetical by id (deterministic fallback).
+ */
+export function orderForLearning<
+  T extends Identifiable & { level: number; slug?: string },
+>(
   selected: readonly T[],
   candidates: readonly T[],
   getRequiredIds: (candidate: T) => readonly string[],
   maximumItems: number,
 ): T[] {
   return orderWithRequiredPrerequisites(
-    [...selected].sort((left, right) => left.level - right.level),
+    [...selected].sort((left, right) => {
+      const levelDiff = left.level - right.level;
+      if (levelDiff !== 0) return levelDiff;
+      const leftKey = left.slug ?? left.id;
+      const rightKey = right.slug ?? right.id;
+      const phaseDiff = resolvePhase(leftKey) - resolvePhase(rightKey);
+      if (phaseDiff !== 0) return phaseDiff;
+      return left.id.localeCompare(right.id);
+    }),
     candidates,
     getRequiredIds,
     maximumItems,
   );
 }
+

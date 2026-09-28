@@ -1,9 +1,18 @@
-import { apiClient, del } from "@/api/client";
+import { apiClient, del, get, patch } from "@/api/client";
 import type {
+  RoadmapDetail,
+  RoadmapDetailDto,
+  RoadmapItem,
+  RoadmapItemDto,
   RoadmapSummary,
   RoadmapSummaryDto,
   RoadmapsListResponseDto,
   RoadmapsListResult,
+  SetRoadmapPausedBody,
+  Syllabus,
+  SyllabusDto,
+  SyllabusNextLesson,
+  SyllabusNextLessonDto,
 } from "@/types";
 
 /**
@@ -58,4 +67,122 @@ export async function getRoadmaps(): Promise<RoadmapsListResult> {
  */
 export function deleteRoadmap(id: string): Promise<{ id: string }> {
   return del<{ id: string }>(`/roadmaps/${encodeURIComponent(id)}`);
+}
+
+// Mapeo campo a campo explícito (nunca spread del DTO): así no se cuelan en el dominio los campos
+// que el front ignora (`reason`, `details`, `resume`, `progress_version`,
+// `tracking.report_interval_seconds`…).
+function toRoadmapItem(dto: RoadmapItemDto): RoadmapItem {
+  return {
+    roadmapItemId: dto.roadmap_item_id,
+    type: dto.type,
+    order: dto.order,
+    courseId: dto.course_id,
+    name: dto.name,
+    description: dto.description,
+    image: dto.image,
+    url: dto.url,
+    level: dto.level,
+    estimatedMinutes: dto.estimated_minutes,
+    progress: dto.progress,
+    tracking: {
+      type: dto.tracking.type,
+      enabled: dto.tracking.enabled,
+      disabledReason: dto.tracking.disabled_reason,
+    },
+    startedAt: dto.started_at,
+    completedAt: dto.completed_at,
+    syllabus: toSyllabus(dto.syllabus),
+  };
+}
+
+/**
+ * `syllabus.next_lesson` / `next_step.lesson` (misma forma en el cable) → camelCase. Mapeo campo
+ * a campo, nunca spread.
+ */
+function toSyllabusNextLesson(dto: SyllabusNextLessonDto | null): SyllabusNextLesson | null {
+  if (dto === null) return null;
+  return {
+    lessonId: dto.lesson_id,
+    title: dto.title,
+    sectionTitle: dto.section_title,
+    position: dto.position,
+    positionSeconds: dto.position_seconds,
+  };
+}
+
+/** `content[].syllabus` → `Syllabus` camelCase. Mapeo campo a campo, nunca spread. */
+function toSyllabus(dto: SyllabusDto | null): Syllabus | null {
+  if (dto === null) return null;
+  return {
+    totalLessons: dto.total_lessons,
+    completedLessons: dto.completed_lessons,
+    lastLessonId: dto.last_lesson_id,
+    nextLesson: toSyllabusNextLesson(dto.next_lesson),
+    sections: dto.sections.map((section) => ({
+      title: section.title,
+      lessons: section.lessons.map((lesson) => ({
+        lessonId: lesson.lesson_id,
+        title: lesson.title,
+        type: lesson.type,
+        freePreview: lesson.free_preview,
+        completed: lesson.completed,
+        positionSeconds: lesson.position_seconds,
+      })),
+    })),
+  };
+}
+
+/**
+ * `data` de `GET /roadmaps/:id` → `RoadmapDetail` camelCase. Ordena los ítems por `order` (sobre
+ * una copia: el DTO no se muta) y descarta `generator`, `courses` y `reason`.
+ */
+export function toRoadmapDetail(dto: RoadmapDetailDto): RoadmapDetail {
+  return {
+    id: dto.id,
+    name: dto.name,
+    summary: dto.summary,
+    status: dto.status,
+    progress: dto.progress,
+    lastActivity: dto.last_activity,
+    pausedAt: dto.paused_at,
+    activityVersion: dto.activity_version,
+    items: [...dto.content].sort((a, b) => a.order - b.order).map(toRoadmapItem),
+    nextStep:
+      dto.next_step === null
+        ? null
+        : {
+            roadmapItemId: dto.next_step.roadmap_item_id,
+            name: dto.next_step.name,
+            url: dto.next_step.url,
+            lesson: toSyllabusNextLesson(dto.next_step.lesson),
+          },
+  };
+}
+
+/**
+ * `GET /roadmaps/{id}`: detalle de una ruta del usuario. `get` sí vale (la respuesta es `{ data }`
+ * sin `meta`). Los errores (404 `ROADMAP_NOT_FOUND` para inexistente/mal formado/ajeno, red…) se
+ * propagan tal cual.
+ */
+export async function getRoadmap(id: string): Promise<RoadmapDetail> {
+  return toRoadmapDetail(await get<RoadmapDetailDto>(`/roadmaps/${encodeURIComponent(id)}`));
+}
+
+/**
+ * `PATCH /roadmaps/{id}/pause`: pausa (`paused: true`) o reanuda (`false`) la ruta. El body va en
+ * camelCase (el DTO de entrada del back lo es) y se construye campo a campo: no se cuela ninguna
+ * otra clave. La respuesta es el detalle completo (mismo serializer que `GET /roadmaps/:id`), así
+ * que se mapea con `toRoadmapDetail`. Los errores (404, 409 `ROADMAP_VERSION_CONFLICT` /
+ * `INVALID_ROADMAP_TRANSITION`, red…) se propagan tal cual.
+ */
+export async function setRoadmapPaused(
+  id: string,
+  { paused, expectedActivityVersion }: SetRoadmapPausedBody,
+): Promise<RoadmapDetail> {
+  const dto = await patch<RoadmapDetailDto, SetRoadmapPausedBody>(
+    `/roadmaps/${encodeURIComponent(id)}/pause`,
+    { paused, expectedActivityVersion },
+  );
+  return toRoadmapDetail(dto);
 }

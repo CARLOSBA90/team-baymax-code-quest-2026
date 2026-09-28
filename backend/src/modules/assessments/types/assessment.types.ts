@@ -9,6 +9,7 @@ export interface QuestionOptionSummary {
 export interface QuestionWithOptions {
   id: string;
   order: number;
+  text?: string;
   category: SkillCategory;
   options: QuestionOptionSummary[];
 }
@@ -19,10 +20,14 @@ export interface ValidatedAnswer {
   optionValue: number;
   questionCategory: SkillCategory;
   isGoalQuestion: boolean;
+  isTechStackQuestion?: boolean;
+  isTimeQuestion?: boolean;
   optionOrder: number;
 }
 
 export interface CalculatedProfile {
   goalCategory: SkillCategory;
   profileScores: Record<SkillCategory, number>;
+  preferredStack?: string;
+  weeklyHours?: number;
 }

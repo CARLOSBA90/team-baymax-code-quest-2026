@@ -10,7 +10,11 @@ import {
   useSubmitAssessment,
 } from "@/api/queries/assessments";
 import { roadmapsKeys } from "@/api/queries/roadmaps";
-import { getAssessmentQuestions, submitAssessment } from "@/api/services";
+import {
+  getAssessmentQuestions,
+  SUBMIT_ASSESSMENT_TIMEOUT_MS,
+  submitAssessment,
+} from "@/api/services";
 import { buildAxiosError } from "@/test/fixtures/api-errors";
 import { ASSESSMENT_QUESTIONS_MOCK, buildAssessmentResultMock } from "@/test/fixtures/assessments";
 
@@ -54,7 +58,13 @@ describe("assessments.service", () => {
 
     await expect(submitAssessment(INPUT)).resolves.toEqual(result);
     expect(post).toHaveBeenCalledTimes(1);
-    expect(post).toHaveBeenCalledWith("/assessments/submit", INPUT);
+    expect(post).toHaveBeenCalledWith("/assessments/submit", INPUT, {
+      timeout: SUBMIT_ASSESSMENT_TIMEOUT_MS,
+    });
+  });
+
+  it("el submit lleva un techo de espera por petición de 60 s", () => {
+    expect(SUBMIT_ASSESSMENT_TIMEOUT_MS).toBe(60_000);
   });
 
   it("submitAssessment propaga el mismo error cuando post rechaza", async () => {
@@ -131,7 +141,9 @@ describe("useSubmitAssessment", () => {
     await act(async () => {
       await expect(result.current.mutateAsync(INPUT)).resolves.toEqual(assessmentResult);
     });
-    expect(post).toHaveBeenCalledWith("/assessments/submit", INPUT);
+    expect(post).toHaveBeenCalledWith("/assessments/submit", INPUT, {
+      timeout: SUBMIT_ASSESSMENT_TIMEOUT_MS,
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(assessmentResult);
   });

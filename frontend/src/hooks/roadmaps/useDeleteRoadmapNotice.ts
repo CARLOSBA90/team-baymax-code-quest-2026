@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
+import type { NoticeVariant } from "@/components/ui";
 
 interface DeleteNotice {
   message: string;
+  variant: NoticeVariant;
   /** Entrada del historial (`location.key`) en la que se mostró. */
   key: string;
 }
@@ -10,8 +12,10 @@ interface DeleteNotice {
 export interface DeleteRoadmapNotice {
   /** Mensaje visible, o `null` si no hay aviso para la entrada actual. */
   message: string | null;
+  /** Variante del aviso visible (`success` cuando no se indica otra al mostrarlo). */
+  variant: NoticeVariant;
   /** Muestra (o reemplaza) el aviso en la entrada actual del historial. */
-  show: (message: string) => void;
+  show: (message: string, variant?: NoticeVariant) => void;
 }
 
 /**
@@ -28,7 +32,9 @@ export function useDeleteRoadmapNotice(): DeleteRoadmapNotice {
     setNotice(null);
   }
 
-  const show = (message: string) => setNotice({ message, key: location.key });
+  const show = (message: string, variant: NoticeVariant = "success") =>
+    setNotice({ message, variant, key: location.key });
 
-  return { message: notice?.key === location.key ? notice.message : null, show };
+  const current = notice?.key === location.key ? notice : null;
+  return { message: current?.message ?? null, variant: current?.variant ?? "success", show };
 }

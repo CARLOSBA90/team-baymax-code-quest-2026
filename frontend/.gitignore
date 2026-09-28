@@ -29,5 +29,6 @@ dist-ssr
 
 design-specs/
 openspec/
+artboards/
 
 .DS_Store

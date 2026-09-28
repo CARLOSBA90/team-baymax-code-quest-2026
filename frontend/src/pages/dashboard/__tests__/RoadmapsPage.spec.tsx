@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useLogout, useSession } from "@/api/queries/auth";
 import { deleteRoadmap, getRoadmaps } from "@/api/services";
 import { DashboardLayout } from "@/components/layouts";
-import { ASSESSMENT_COMPLETED_STATE } from "@/lib";
+import { ASSESSMENT_COMPLETED_STATE, buildRoadmapDeletedState } from "@/lib";
 import { RoadmapsPage } from "@/pages";
 import { buildAxiosError, buildNetworkError } from "@/test/fixtures/api-errors";
 import {
@@ -22,8 +22,8 @@ vi.mock("@/api/services", () => ({ getRoadmaps: vi.fn(), deleteRoadmap: vi.fn() 
 // Solo lo usa el `DashboardLayout` del test de la pill del sidebar.
 vi.mock("@/api/queries/auth", () => ({ useSession: vi.fn(), useLogout: vi.fn() }));
 
-const SUCCESS_NOTICE =
-  "¡Cuestionario completado! Guardamos tus respuestas; pronto verás aquí tu ruta recomendada.";
+const ASSESSMENT_NOTICE =
+  "Guardamos tus respuestas del cuestionario, pero no pudimos generar tu ruta. Vuelve a intentarlo en unos minutos.";
 
 const FE = "Frontend moderno con React";
 const BE = "Backend con Node y NestJS";
@@ -156,7 +156,7 @@ function renderHarness(previous = "/dashboard/roadmaps/new") {
 }
 
 function notice() {
-  return screen.getByText(SUCCESS_NOTICE);
+  return screen.getByText(ASSESSMENT_NOTICE);
 }
 
 /** Espera a que `RoadmapsPage` limpie el `state` de la entrada con `replace`. */
@@ -449,7 +449,7 @@ describe("RoadmapsPage", () => {
       });
 
       await waitForList();
-      expect(screen.getByText(SUCCESS_NOTICE)).toHaveAttribute("role", "status");
+      expect(screen.getByText(ASSESSMENT_NOTICE)).toHaveAttribute("role", "status");
       expect(tableNames()).toEqual(ALL_NAMES);
     });
   });
@@ -536,7 +536,9 @@ describe("RoadmapsPage", () => {
       await openDeleteDialog(user);
       await user.click(confirmButton());
 
-      expect(await screen.findByText(FE_DELETED_NOTICE)).toHaveAttribute("role", "status");
+      const deletedNotice = await screen.findByText(FE_DELETED_NOTICE);
+      expect(deletedNotice).toHaveAttribute("role", "status");
+      expect(deletedNotice).toHaveClass("bg-notice-success-bg");
       expect(deleteRoadmap).toHaveBeenCalledTimes(1);
       expect(vi.mocked(deleteRoadmap).mock.calls[0][0]).toBe(FE_ID);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -626,7 +628,9 @@ describe("RoadmapsPage", () => {
       await openDeleteDialog(user);
       await user.click(confirmButton());
 
-      expect(await screen.findByText(NOT_FOUND_NOTICE)).toHaveAttribute("role", "status");
+      const notFoundNotice = await screen.findByText(NOT_FOUND_NOTICE);
+      expect(notFoundNotice).toHaveAttribute("role", "status");
+      expect(notFoundNotice).toHaveClass("bg-notice-info-bg");
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(tableNames()).not.toContain(FE);
       expect(screen.queryByText("Roadmap not found.")).not.toBeInTheDocument();
@@ -756,7 +760,7 @@ describe("RoadmapsPage", () => {
   describe("aviso de cuestionario completado", () => {
     it("sin state no muestra el aviso", () => {
       renderWithProviders(<RoadmapsPage />, { route: "/dashboard/roadmaps" });
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("con el state de cuestionario completado muestra el aviso y después limpia el state", async () => {
@@ -781,7 +785,7 @@ describe("RoadmapsPage", () => {
       renderWithProviders(<RoadmapsPage />, {
         route: { pathname: "/dashboard/roadmaps", state },
       });
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("al remontar sobre la misma entrada (≈ recarga) no vuelve a mostrar el aviso", async () => {
@@ -792,7 +796,7 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Remontar" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("con atrás y adelante no vuelve a mostrar el aviso", async () => {
@@ -805,7 +809,7 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Adelante" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
       expect(screen.getByTestId("location-state")).toHaveTextContent("null");
     });
 
@@ -819,18 +823,18 @@ describe("RoadmapsPage", () => {
 
       await user.click(screen.getByRole("button", { name: "Atrás" }));
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Adelante" }));
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
     });
 
     it("si llega el state con la página ya montada, muestra el aviso y limpia el state", async () => {
       const user = renderHarness("/dashboard/roadmaps");
       await expectStateCleared();
       await user.click(screen.getByRole("button", { name: "Atrás" }));
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Completar" }));
 
@@ -850,7 +854,119 @@ describe("RoadmapsPage", () => {
       await user.click(screen.getByRole("button", { name: "Salir" }));
 
       expect(screen.getByRole("heading", { level: 1, name: "Mis Rutas" })).toBeInTheDocument();
-      expect(screen.queryByText(SUCCESS_NOTICE)).not.toBeInTheDocument();
+      expect(screen.queryByText(ASSESSMENT_NOTICE)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("aviso de ruta eliminada desde el detalle", () => {
+    const DELETED_NAME = "Frontend moderno";
+    const DELETED_NOTICE = `Ruta «${DELETED_NAME}» eliminada`;
+    const NOT_FOUND_NOTICE = "Esa ruta ya no existe. Hemos actualizado tu lista.";
+
+    beforeEach(() => {
+      vi.mocked(getRoadmaps).mockResolvedValue(ROADMAPS_LIST_RESULT);
+      vi.mocked(deleteRoadmap).mockResolvedValue({ id: "rm-backend-nest" });
+    });
+
+    function StateProbe() {
+      const location = useLocation();
+      return <p data-testid="location-state">{JSON.stringify(location.state ?? null)}</p>;
+    }
+
+    function renderArrival(state: unknown) {
+      renderWithProviders(
+        <>
+          <Routes>
+            <Route path="/dashboard/roadmaps" element={<RoadmapsPage />} />
+          </Routes>
+          <StateProbe />
+        </>,
+        { initialEntries: [{ pathname: "/dashboard/roadmaps", state }] },
+      );
+      return userEvent.setup();
+    }
+
+    function heading() {
+      return screen.getByRole("heading", { level: 1, name: "Mis Rutas" });
+    }
+
+    it("muestra el aviso success con el nombre, enfoca el h1 y limpia el state", async () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+
+      expect(screen.getByText(DELETED_NOTICE)).toHaveAttribute("role", "status");
+      await waitFor(() => expect(heading()).toHaveFocus());
+      await expectStateCleared();
+      await waitForList();
+      expect(screen.getByText(DELETED_NOTICE)).toBeInTheDocument();
+      expect(screen.getAllByText(DELETED_NOTICE)).toHaveLength(1);
+    });
+
+    it("con notFound muestra el aviso neutro de 404 como info", async () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, true));
+
+      const notFoundNotice = screen.getByText(NOT_FOUND_NOTICE);
+      expect(notFoundNotice).toHaveAttribute("role", "status");
+      expect(notFoundNotice).toHaveClass("bg-notice-info-bg");
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+      await waitFor(() => expect(heading()).toHaveFocus());
+      await expectStateCleared();
+    });
+
+    it("un borrado real (200) muestra el aviso como success", () => {
+      renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+
+      expect(screen.getByText(DELETED_NOTICE)).toHaveClass("bg-notice-success-bg");
+    });
+
+    it("cambiar de filtro oculta el aviso y no vuelve", async () => {
+      const user = renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+      await expectStateCleared();
+      await waitForList();
+
+      await user.click(filterButton(/^Completadas/));
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+
+      await user.click(filterButton(/^Todas/));
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+    });
+
+    it("borrar otra ruta desde la lista deja solo el aviso nuevo", async () => {
+      const user = renderArrival(buildRoadmapDeletedState(DELETED_NAME, false));
+      await expectStateCleared();
+      await waitForList();
+
+      await user.click(within(table()).getByRole("button", { name: `Más acciones para ${BE}` }));
+      await user.click(screen.getByRole("menuitem", { name: "Eliminar ruta" }));
+      await user.click(screen.getByRole("button", { name: "Eliminar ruta" }));
+
+      expect(await screen.findByText(`Ruta «${BE}» eliminada`)).toBeInTheDocument();
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["{ foo: 1 }", { foo: 1 }],
+      ["nombre vacío", { roadmapDeleted: { name: "", notFound: false } }],
+      ["notFound no booleano", { roadmapDeleted: { name: DELETED_NAME, notFound: "no" } }],
+    ])(
+      "con un state de otra forma (%s) no muestra aviso ni mueve el foco",
+      async (_label, state) => {
+        renderArrival(state);
+
+        await waitForList();
+        expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+        expect(screen.queryByText(NOT_FOUND_NOTICE)).not.toBeInTheDocument();
+        expect(heading()).not.toHaveFocus();
+      },
+    );
+
+    it("el state de cuestionario completado sigue mostrando su aviso sin mover el foco", async () => {
+      renderArrival(ASSESSMENT_COMPLETED_STATE);
+
+      expect(screen.getByText(ASSESSMENT_NOTICE)).toHaveAttribute("role", "status");
+      await expectStateCleared();
+      await waitForList();
+      expect(screen.queryByText(DELETED_NOTICE)).not.toBeInTheDocument();
+      expect(heading()).not.toHaveFocus();
     });
   });
 });

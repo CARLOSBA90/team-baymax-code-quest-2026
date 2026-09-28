@@ -3,8 +3,8 @@ import { GhostButton, Modal, Notice, PrimaryButton } from "@/components/ui";
 import type { RoadmapSummary } from "@/types";
 
 export interface DeleteRoadmapDialogProps {
-  /** Ruta a eliminar; `null` = diálogo cerrado. */
-  roadmap: RoadmapSummary | null;
+  /** Ruta a eliminar (solo se usa su nombre); `null` = diálogo cerrado. */
+  roadmap: Pick<RoadmapSummary, "name"> | null;
   /** Borrado en curso: botones deshabilitados y X/Esc/backdrop ignorados. */
   pending: boolean;
   /** Error ya traducido al español; se muestra como alerta dentro del diálogo. */

@@ -70,9 +70,11 @@ const EXPECTED_FIELDS: Record<
   [TrackingType.COMPLETION]: [['completed']],
   [TrackingType.READING]: [['completed']],
   // A lesson is marked/unmarked, or its player reports the current second.
+  // 'completed' alone (without lesson_id) is a bulk-complete/undo shortcut.
   [TrackingType.LESSONS]: [
     ['lesson_id', 'completed'],
     ['lesson_id', 'position_seconds'],
+    ['completed'], // bulk-complete shortcut: marks/unmarks all lessons at once
   ],
   [TrackingType.VIDEO]: [['position_seconds']],
   [TrackingType.CHALLENGE]: [['submission']],
@@ -302,24 +304,38 @@ export class ProgressService {
               'SYLLABUS_MISSING',
               'This course has no syllabus to track.',
             );
-          const lessonId = dto.lesson_id!;
-          if (!policy.lessonIds.includes(lessonId))
-            throw invalid(
-              'LESSON_NOT_IN_ITEM',
-              'The lesson does not belong to this course.',
-            );
           const done = new Set(state.completedLessons ?? []);
-          if (dto.position_seconds !== undefined) {
-            // Playback report: remember the second to resume this lesson.
-            nextState.lessonPositions = {
-              ...state.lessonPositions,
-              [lessonId]: dto.position_seconds,
-            };
-            nextState.lastLessonId = lessonId;
-          } else if (dto.completed) {
-            done.add(lessonId);
-            nextState.lastLessonId = lessonId;
-          } else done.delete(lessonId);
+          if (dto.lesson_id === undefined) {
+            // ── Bulk shortcut: no lesson_id → mark / unmark all lessons ──
+            // { completed: true }  → completes the whole course at once.
+            // { completed: false } → resets all progress back to 0 %.
+            if (dto.completed) {
+              policy.lessonIds.forEach((id) => done.add(id));
+              nextState.lastLessonId =
+                policy.lessonIds[policy.lessonIds.length - 1] ?? undefined;
+            } else {
+              done.clear();
+              nextState.lastLessonId = undefined;
+            }
+          } else {
+            const lessonId = dto.lesson_id;
+            if (!policy.lessonIds.includes(lessonId))
+              throw invalid(
+                'LESSON_NOT_IN_ITEM',
+                'The lesson does not belong to this course.',
+              );
+            if (dto.position_seconds !== undefined) {
+              // Playback report: remember the second to resume this lesson.
+              nextState.lessonPositions = {
+                ...state.lessonPositions,
+                [lessonId]: dto.position_seconds,
+              };
+              nextState.lastLessonId = lessonId;
+            } else if (dto.completed) {
+              done.add(lessonId);
+              nextState.lastLessonId = lessonId;
+            } else done.delete(lessonId);
+          }
           nextState.completedLessons = policy.lessonIds.filter((id) =>
             done.has(id),
           );

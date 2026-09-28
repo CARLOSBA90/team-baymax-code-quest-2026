@@ -7,6 +7,7 @@ import {
 } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { DEFAULT_LIMIT, DEFAULT_PAGE } from './catalog.constants.js';
+import { CatalogCacheService } from './catalog-cache.service.js';
 import type { CoursesPageResponseDto } from './dto/course-response.dto.js';
 import type { FindCoursesQueryDto } from './dto/find-courses-query.dto.js';
 import type { ImportResultResponseDto } from './dto/import-catalog.dto.js';
@@ -29,7 +30,10 @@ interface UpsertCounts {
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogCache?: CatalogCacheService,
+  ) {}
 
   /**
    * Importa cursos desde el contenido de un CSV y registra la operación
@@ -105,6 +109,7 @@ export class CatalogService {
       data: { status: CourseStatus.INACTIVE },
     });
 
+    if (count > 0) this.catalogCache?.invalidate();
     return count;
   }
 
@@ -139,6 +144,10 @@ export class CatalogService {
           finishedAt,
         },
       });
+
+      // Invalidate the in-memory catalog cache so the next roadmap generation
+      // picks up the freshly imported courses.
+      this.catalogCache?.invalidate();
 
       return {
         message: `Importación finalizada: ${counts.created} creados, ${counts.updated} actualizados, ${counts.unchanged} sin cambios, ${errors.length} con errores`,

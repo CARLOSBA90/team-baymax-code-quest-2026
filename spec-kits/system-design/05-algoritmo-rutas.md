@@ -317,3 +317,77 @@ El contrato `RoadmapGeneratorService` permite intercambiar la implementacion sin
 
 Cuando el Camino A funcione y haya tiempo, extraer la logica de scoring a `RoadmapGeneratorVectorService`
 y cambiar la inyeccion en el modulo.
+
+---
+
+## Coherencia de Stack y Orden Pedagogico (implementado en `feat/backend-roadmap-stack-coherence`)
+
+### Arquitectura del pipeline de generacion
+
+```
+Candidatos del catalogo
+        │
+        ▼
+┌─────────────────────────┐
+│  1. Deteccion de Stack  │  stackFromGoal(goalDescription) o top-weight candidate
+│     Primario            │  → TechStack: VUE | REACT | PYTHON | JAVA | FLUTTER ...
+└─────────────────────────┘
+        │
+        ▼
+┌─────────────────────────┐
+│  2. Filtro de           │  areStacksCompatible(primary, candidate)
+│     Compatibilidad      │  → excluye stacks rivales, mantiene CROSS_CUTTING
+└─────────────────────────┘
+        │
+        ▼
+┌─────────────────────────┐
+│  3. Seleccion por Peso  │  RulesRoadmapGenerator: sort por weight + distancia al nivel
+│     y Nivel             │  → lista de cursos candidatos seleccionados
+└─────────────────────────┘
+        │
+        ▼
+┌─────────────────────────┐
+│  4. Orden Pedagogico    │  orderForLearning: level asc → fase pedagogica asc → id asc
+│     (topologico+fases)  │  con prerequisitos REQUIRED siempre antes del dependiente
+└─────────────────────────┘
+        │
+        ▼
+     Roadmap coherente y secuencial
+```
+
+### Fases pedagogicas
+
+Cuando dos cursos tienen el mismo `level`, se desempata por fase:
+
+| Fase | Tipo                        | Ejemplos                           |
+|------|-----------------------------|------------------------------------|
+| 1    | Lenguaje / Fundamentos      | Python, Java, Dart, TypeScript, JS |
+| 2    | Framework primario          | Vue, Flutter, Django, Spring Boot  |
+| 3    | Tooling / Estado / Estilos  | TailwindCSS, Pinia, Zustand        |
+| 4    | Meta-frameworks / Avanzado  | Nuxt, Next.js, Microservicios      |
+
+La logica de fases esta en:
+- `backend/src/modules/roadmaps/utils/roadmap-pedagogy.util.ts`
+- `backend/src/modules/roadmaps/utils/roadmap-prerequisites.util.ts` (`orderForLearning`)
+
+### Restriccion de stack en NVIDIA
+
+El system prompt del generador NVIDIA incluye la regla `STACK COHERENCE RULE` que instruye al LLM a:
+1. Elegir exactamente **un ecosistema** por roadmap.
+2. Nunca mezclar Vue/Nuxt con React/Angular/Astro en un mismo roadmap.
+3. Nunca mezclar Python con Java, Go, PHP o .NET.
+4. Nunca mezclar Flutter con React Native.
+5. Seguir el `ORDERING RULE`: fundamentals → framework → tooling → meta-frameworks.
+
+### Archivos nuevos
+
+| Archivo | Proposito |
+|---------|-----------|
+| `catalog/constants/tech-stack.constants.ts` | Enum `TechStack`, grupos de rivales, tabla de fragmentos |
+| `catalog/utils/tech-stack.util.ts` | `resolveTechStack`, `areStacksCompatible` |
+| `catalog/utils/tech-stack.util.spec.ts` | Tests unitarios (23 casos) |
+| `catalog/ingestion/prerequisites.importer.ts` | Upsert de prereqs por slug |
+| `catalog/ingestion/prerequisites.importer.spec.ts` | Tests unitarios (5 casos) |
+| `prisma/seed/prerequisites.json` | Datos canonicos de prerrequisitos |
+| `roadmaps/utils/roadmap-pedagogy.util.ts` | Tabla de fases pedagogicas |
+| `roadmaps/roadmap-generation.service.spec.ts` | Tests de integracion E2E (14 casos) |

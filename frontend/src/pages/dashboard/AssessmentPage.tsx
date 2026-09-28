@@ -3,14 +3,22 @@ import { Link, useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "@/api/errors";
 import { useAssessmentQuestions, useSubmitAssessment } from "@/api/queries/assessments";
 import {
+  AssessmentGeneratingDialog,
   AssessmentWizard,
   AssessmentWizardSkeleton,
   ChevronRightIcon,
   CloseIcon,
 } from "@/components/assessment";
 import { GhostButton, NebulaSurface, Notice, PrimaryButton } from "@/components/ui";
-import { ASSESSMENT_COMPLETED_STATE, getAssessmentSubtitle } from "@/lib";
-import type { AssessmentAnswer } from "@/types";
+import { useAssessmentGeneratingStage } from "@/hooks";
+import {
+  ASSESSMENT_COMPLETED_STATE,
+  ASSESSMENT_SUBMIT_TIMEOUT_MESSAGE,
+  getAssessmentSubtitle,
+  getRoadmapPath,
+  isAssessmentSubmitTimeoutError,
+} from "@/lib";
+import type { AssessmentAnswer, AssessmentResult } from "@/types";
 
 function AssessmentBreadcrumb() {
   return (
@@ -51,17 +59,35 @@ function AssessmentLoadError({ message, onRetry }: AssessmentLoadErrorProps) {
   );
 }
 
+// Copy del aviso de envío: dedicado si se agotó el techo de espera del cliente; en cualquier
+// otro caso, exactamente el mensaje de siempre. Vive aquí, y no en `src/lib`, para no crear la
+// primera arista lib → api del repo (`src/lib` no importa de `src/api`).
+function getSubmitAssessmentErrorMessage(error: unknown): string {
+  return isAssessmentSubmitTimeoutError(error)
+    ? ASSESSMENT_SUBMIT_TIMEOUT_MESSAGE
+    : getApiErrorMessage(error);
+}
+
 export const AssessmentPage = () => {
   const navigate = useNavigate();
   const { data: questions, isError, error, refetch } = useAssessmentQuestions();
   const submit = useSubmitAssessment();
+  const generating = useAssessmentGeneratingStage(submit.isPending);
 
   const handleSubmit = (answers: AssessmentAnswer[]) => {
     submit.mutate(
       { answers },
       {
-        onSuccess: () =>
-          navigate("/dashboard/roadmaps", { replace: true, state: ASSESSMENT_COMPLETED_STATE }),
+        onSuccess: (result: AssessmentResult) => {
+          // Con ruta generada se va directo a su detalle; si la generación falló (el assessment
+          // sí se guardó), a Mis Rutas con aviso. `replace`: atrás no vuelve al cuestionario.
+          const roadmapId = result.roadmap?.status === "FAILED" ? undefined : result.roadmap?.id;
+          if (roadmapId) {
+            navigate(getRoadmapPath(roadmapId), { replace: true });
+          } else {
+            navigate("/dashboard/roadmaps", { replace: true, state: ASSESSMENT_COMPLETED_STATE });
+          }
+        },
       },
     );
   };
@@ -84,7 +110,9 @@ export const AssessmentPage = () => {
   } else {
     content = (
       <div className="flex w-full max-w-3xl flex-col gap-6">
-        {submit.isError && <Notice variant="error">{getApiErrorMessage(submit.error)}</Notice>}
+        {submit.isError && (
+          <Notice variant="error">{getSubmitAssessmentErrorMessage(submit.error)}</Notice>
+        )}
         <AssessmentWizard
           questions={questions}
           onSubmit={handleSubmit}
@@ -107,6 +135,7 @@ export const AssessmentPage = () => {
         <GhostButton
           size="sm"
           className="self-start md:self-auto"
+          disabled={submit.isPending}
           onClick={() => navigate("/dashboard/roadmaps")}
         >
           <CloseIcon className="size-4" />
@@ -114,6 +143,13 @@ export const AssessmentPage = () => {
         </GhostButton>
       </header>
       <NebulaSurface>{content}</NebulaSurface>
+      {/* La live region de la espera la monta el propio diálogo: todo lo que queda fuera de un
+          `<dialog>` modal es inerte y no llega a las tecnologías de apoyo. */}
+      <AssessmentGeneratingDialog
+        open={submit.isPending}
+        stage={generating.stage}
+        announcement={generating.announcement}
+      />
     </section>
   );
 };

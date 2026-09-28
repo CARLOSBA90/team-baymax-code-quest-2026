@@ -1,0 +1,384 @@
+import type {
+  RoadmapItem,
+  RoadmapItemState,
+  RoadmapItemTracking,
+  RoadmapItemType,
+  RoadmapNextStep,
+  SyllabusLesson,
+} from "@/types";
+import { ROADMAP_LEVEL_LABELS } from "./roadmap-labels";
+import { clampProgress } from "./roadmap-presentation";
+
+/** Progreso (0-100) a partir del cual un ítem cuenta como completado. */
+export const ITEM_COMPLETED_PROGRESS = 100;
+
+/**
+ * Tipos de tracking que el front puede marcar como completados. `LESSONS` entra por el atajo bulk
+ * del back (`completed` sin `lesson_id`): marca el temario entero de una vez, para quien ya hizo
+ * el curso fuera de la plataforma y no va a pulsar 151 casillas.
+ */
+const TRACKABLE_TYPES: ReadonlySet<string> = new Set(["COMPLETION", "READING", "LESSONS"]);
+
+const SECOND_MS = 1000;
+const MINUTE_MS = 60 * SECOND_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const SHORT_DATE_THRESHOLD_MS = 7 * DAY_MS;
+
+const RELATIVE = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+const SHORT_DATE = new Intl.DateTimeFormat("es", { day: "numeric", month: "short" });
+const SHORT_DATE_WITH_YEAR = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const LONG_DATE = new Intl.DateTimeFormat("es", { day: "numeric", month: "long" });
+const LONG_DATE_WITH_YEAR = new Intl.DateTimeFormat("es", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+export function isItemCompleted(item: Pick<RoadmapItem, "progress">): boolean {
+  return item.progress >= ITEM_COMPLETED_PROGRESS;
+}
+
+/** Precedencia: completed > next (id === nextStepId) > in_progress (empezado) > pending. */
+export function getItemState(
+  item: Pick<RoadmapItem, "roadmapItemId" | "progress" | "startedAt">,
+  nextStepId?: string | null,
+): RoadmapItemState {
+  if (isItemCompleted(item)) return "completed";
+  if (item.roadmapItemId === nextStepId) return "next";
+  if (item.startedAt !== null) return "in_progress";
+  return "pending";
+}
+
+/** Solo COMPLETION y READING habilitados se completan desde el front; tipos desconocidos → false. */
+export function canTrack(tracking: Pick<RoadmapItemTracking, "type" | "enabled">): boolean {
+  return tracking.enabled && TRACKABLE_TYPES.has(tracking.type);
+}
+
+export function getCompletedCount(items: Pick<RoadmapItem, "progress">[]): number {
+  return items.filter(isItemCompleted).length;
+}
+
+/** Suma de `estimatedMinutes`; `null` cuenta como 0. */
+export function getTotalMinutes(items: Pick<RoadmapItem, "estimatedMinutes">[]): number {
+  return items.reduce((total, item) => total + (item.estimatedMinutes ?? 0), 0);
+}
+
+/** Como `getTotalMinutes` pero sin los completados; los parciales cuentan enteros. */
+export function getRemainingMinutes(
+  items: Pick<RoadmapItem, "estimatedMinutes" | "progress">[],
+): number {
+  return getTotalMinutes(items.filter((item) => !isItemCompleted(item)));
+}
+
+/** «45 min» por debajo de una hora; si no, horas redondeadas («26 h»). Nunca decimales. */
+export function formatHours(minutes: number): string {
+  const rounded = Math.round(Math.max(0, minutes));
+  if (rounded < 60) return `${rounded} min`;
+  return `${Math.round(rounded / 60)} h`;
+}
+
+/**
+ * Relativo largo («hace 2 horas», «ayer», «anteayer») por debajo de 7 días; desde 7 días fecha
+ * corta («12 ago»), con año solo si difiere del de `now` («12 ago 2025»). El año se compara en
+ * zona local, la misma que usan los formatters. Futuro → «ahora»; ISO inválido → "".
+ */
+export function formatRelative(iso: string, now: Date = new Date()): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "";
+
+  const elapsed = Math.max(0, now.getTime() - time);
+  if (elapsed < MINUTE_MS) return RELATIVE.format(-Math.floor(elapsed / SECOND_MS), "second");
+  if (elapsed < HOUR_MS) return RELATIVE.format(-Math.floor(elapsed / MINUTE_MS), "minute");
+  if (elapsed < DAY_MS) return RELATIVE.format(-Math.floor(elapsed / HOUR_MS), "hour");
+  if (elapsed < SHORT_DATE_THRESHOLD_MS) {
+    return RELATIVE.format(-Math.floor(elapsed / DAY_MS), "day");
+  }
+
+  return formatShortDate(iso, now);
+}
+
+/**
+ * Fecha corta («12 ago»), con año solo si difiere del de `now` («12 ago 2025»). El año se compara
+ * en zona local, la misma que usan los formatters. ISO inválido → "".
+ */
+export function formatShortDate(iso: string, now: Date = new Date()): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "";
+
+  const then = new Date(time);
+  const formatter = then.getFullYear() === now.getFullYear() ? SHORT_DATE : SHORT_DATE_WITH_YEAR;
+  return formatter.format(then);
+}
+
+/**
+ * Fecha larga («3 de septiembre»), con año solo si difiere del de `now` («3 de septiembre de
+ * 2025»). El año se compara en zona local. ISO inválido → "".
+ */
+export function formatLongDate(iso: string, now: Date = new Date()): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return "";
+
+  const then = new Date(time);
+  const formatter = then.getFullYear() === now.getFullYear() ? LONG_DATE : LONG_DATE_WITH_YEAR;
+  return formatter.format(then);
+}
+
+/** «1 de 4 pasos»; singular «paso» si el total es 1. */
+export function getRoadmapStepsProgressLabel(completed: number, total: number): string {
+  return `${completed} de ${total} ${total === 1 ? "paso" : "pasos"}`;
+}
+
+export interface ItemCompletedAnnouncementInput {
+  /** Nombre del paso completado. */
+  name: string;
+  /** Progreso de la ruta (0-100, se redondea y limita). */
+  progress: number;
+  /** Pasos completados de la ruta tras completar este. */
+  completed: number;
+  total: number;
+  /** La ruta ha quedado COMPLETED. */
+  roadmapCompleted: boolean;
+}
+
+/**
+ * Anuncio (live region) tras completar un paso: «{name} marcado como completado. Progreso de la
+ * ruta: 60 por ciento, 3 de 5 pasos.», con « Completaste la ruta.» al final si la ruta terminó.
+ */
+export function getItemCompletedAnnouncement({
+  name,
+  progress,
+  completed,
+  total,
+  roadmapCompleted,
+}: ItemCompletedAnnouncementInput): string {
+  const steps = getRoadmapStepsProgressLabel(completed, total);
+  const base = `${name} marcado como completado. Progreso de la ruta: ${clampProgress(progress)} por ciento, ${steps}.`;
+  return roadmapCompleted ? `${base} Completaste la ruta.` : base;
+}
+
+/** «2 de 5 pasos completados»; singular «1 de 1 paso completado». */
+export function getStepsCompletedLabel(completed: number, total: number): string {
+  const suffix = total === 1 ? "completado" : "completados";
+  return `${getRoadmapStepsProgressLabel(completed, total)} ${suffix}`;
+}
+
+/** `aria-valuetext` de la barra global: «40 por ciento. 2 de 5 pasos completados.» */
+export function getRoadmapProgressValueText(
+  progress: number,
+  completed: number,
+  total: number,
+): string {
+  return `${clampProgress(progress)} por ciento. ${getStepsCompletedLabel(completed, total)}.`;
+}
+
+export interface RoadmapProgressSummaryInput {
+  completed: number;
+  total: number;
+  totalMinutes: number;
+  remainingMinutes: number;
+  isCompleted: boolean;
+}
+
+export interface RoadmapProgressSummaryParts {
+  /** «2 de 5 pasos»; siempre presente. */
+  steps: string;
+  /** «77 h en total»; `null` sin minutos. */
+  total: string | null;
+  /** «quedan ~51 h»; `null` si la ruta está completada o no queda tiempo. */
+  remaining: string | null;
+}
+
+/** Partes del resumen de progreso por separado (para ocultar «en total» en móvil). */
+export function getRoadmapProgressSummaryParts({
+  completed,
+  total,
+  totalMinutes,
+  remainingMinutes,
+  isCompleted,
+}: RoadmapProgressSummaryInput): RoadmapProgressSummaryParts {
+  return {
+    steps: getRoadmapStepsProgressLabel(completed, total),
+    total: totalMinutes > 0 ? `${formatHours(totalMinutes)} en total` : null,
+    remaining:
+      !isCompleted && remainingMinutes > 0 ? `quedan ~${formatHours(remainingMinutes)}` : null,
+  };
+}
+
+/**
+ * «2 de 5 pasos · 77 h en total · quedan ~51 h»: las partes de `getRoadmapProgressSummaryParts`
+ * no nulas unidas con « · ».
+ */
+export function getRoadmapProgressSummary(input: RoadmapProgressSummaryInput): string {
+  const { steps, total, remaining } = getRoadmapProgressSummaryParts(input);
+  return [steps, total, remaining].filter(Boolean).join(" · ");
+}
+
+/**
+ * Texto del panel de ruta completada: «5 de 5 pasos · 77 h de estudio. Ya puedes crear otra ruta
+ * para seguir avanzando.». Sin minutos se omiten las horas.
+ */
+export function getCompletedSummary(total: number, totalMinutes: number): string {
+  const steps = getRoadmapStepsProgressLabel(total, total);
+  const study = totalMinutes > 0 ? ` · ${formatHours(totalMinutes)} de estudio` : "";
+  return `${steps}${study}. Ya puedes crear otra ruta para seguir avanzando.`;
+}
+
+/** «Paso 3 de 5»; `stepNumber` es la posición 1-based en la lista, no el `order` del ítem. */
+export function getStepLabel(stepNumber: number, total: number): string {
+  return `Paso ${stepNumber} de ${total}`;
+}
+
+const ITEM_TYPE_LABELS: Record<string, string | null> = {
+  COURSE: null,
+  MEDIA: "Recurso",
+  CHALLENGE: "Reto",
+};
+
+/** COURSE → `null` (sin etiqueta); MEDIA → «Recurso»; CHALLENGE → «Reto»; desconocido → crudo. */
+export function getItemTypeLabel(type: RoadmapItemType): string | null {
+  return Object.hasOwn(ITEM_TYPE_LABELS, type) ? ITEM_TYPE_LABELS[type] : type;
+}
+
+export interface ItemMetaOptions {
+  /** Posición del paso («Paso i de N»); se omite si no se pasa. */
+  step?: { number: number; total: number };
+  now?: Date;
+}
+
+/**
+ * Meta de un ítem unida con « · »: [«Paso i de N»?, tipo?, nivel?, duración?, «completado el …»?].
+ * Las partes nulas o inválidas se omiten sin separadores sobrantes.
+ */
+export function getItemMeta(
+  item: Pick<RoadmapItem, "type" | "level" | "estimatedMinutes" | "completedAt">,
+  { step, now = new Date() }: ItemMetaOptions = {},
+): string {
+  const parts: string[] = [];
+  if (step) parts.push(getStepLabel(step.number, step.total));
+  const typeLabel = getItemTypeLabel(item.type);
+  if (typeLabel) parts.push(typeLabel);
+  if (item.level) parts.push(ROADMAP_LEVEL_LABELS[item.level]);
+  if (item.estimatedMinutes !== null) parts.push(formatHours(item.estimatedMinutes));
+  const completedOn = item.completedAt ? formatShortDate(item.completedAt, now) : "";
+  if (completedOn) parts.push(`completado el ${completedOn}`);
+  return parts.join(" · ");
+}
+
+const TRACKING_METADATA_MESSAGE = "Aún no podemos registrar el avance de este curso.";
+const TRACKING_GENERIC_MESSAGE = "No se puede marcar como completado desde aquí.";
+const TRACKING_AUTOMATIC_MESSAGE = "El avance de este curso se registra automáticamente.";
+const TRACKING_CHALLENGE_MESSAGE = "El avance se registra al enviar el reto.";
+
+/** Texto por `disabledReason` (códigos de `backend/src/modules/progress/progress.constants.ts`). */
+export const TRACKING_UNAVAILABLE_MESSAGES: Readonly<Record<string, string>> = {
+  TRACKING_METADATA_MISSING: TRACKING_METADATA_MESSAGE,
+  SYLLABUS_MISSING: TRACKING_METADATA_MESSAGE,
+};
+
+/**
+ * Por qué un ítem no se marca a mano (`null` si `canTrack`). Precedencia: `disabledReason` (código
+ * conocido → su texto, desconocido → genérico) > VIDEO automático > CHALLENGE > genérico.
+ * Nunca devuelve el código crudo. `LESSONS` con temario ya es `canTrack` (atajo bulk), así que
+ * solo llega aquí sin temario, por su `disabledReason` (`SYLLABUS_MISSING`).
+ */
+export function getTrackingUnavailableMessage(tracking: RoadmapItemTracking): string | null {
+  if (canTrack(tracking)) return null;
+  if (tracking.disabledReason) {
+    return Object.hasOwn(TRACKING_UNAVAILABLE_MESSAGES, tracking.disabledReason)
+      ? TRACKING_UNAVAILABLE_MESSAGES[tracking.disabledReason]
+      : TRACKING_GENERIC_MESSAGE;
+  }
+  if (tracking.enabled && tracking.type === "VIDEO") return TRACKING_AUTOMATIC_MESSAGE;
+  if (tracking.type === "CHALLENGE") return TRACKING_CHALLENGE_MESSAGE;
+  return TRACKING_GENERIC_MESSAGE;
+}
+
+export interface NextStepItem {
+  item: RoadmapItem;
+  /** Posición 1-based en la lista. */
+  stepNumber: number;
+}
+
+/** Ítem de «Continúa aquí» por `nextStep.roadmapItemId`; `null` sin siguiente paso o id huérfano. */
+export function getNextStepItem(
+  items: RoadmapItem[],
+  nextStep: RoadmapNextStep | null,
+): NextStepItem | null {
+  if (!nextStep) return null;
+  const index = items.findIndex((item) => item.roadmapItemId === nextStep.roadmapItemId);
+  return index === -1 ? null : { item: items[index], stepNumber: index + 1 };
+}
+
+/** Id estable del h3 de un paso del timeline (destino de foco): `${prefix}step-${id}`. */
+export function getItemHeadingId(prefix: string, roadmapItemId: string): string {
+  return `${prefix}step-${roadmapItemId}`;
+}
+
+/**
+ * `true` solo si el ítem es `LESSONS` y tiene un `syllabus` real con al menos una lección.
+ * `LESSONS` con `syllabus: null` (p. ej. `SYLLABUS_MISSING`) u otro tipo de tracking → `false`
+ * (nunca un checklist vacío).
+ */
+export function isLessonChecklistItem(item: Pick<RoadmapItem, "tracking" | "syllabus">): boolean {
+  return (
+    item.tracking.type === "LESSONS" && item.syllabus !== null && item.syllabus.totalLessons > 0
+  );
+}
+
+/** «12 lecciones»; singular «1 lección». */
+export function getLessonsCountLabel(total: number): string {
+  return `${total} ${total === 1 ? "lección" : "lecciones"}`;
+}
+
+/** «3 de 12 lecciones»; singular «lección» si el total es 1. */
+export function getLessonsProgressLabel(completed: number, total: number): string {
+  return `${completed} de ${getLessonsCountLabel(total)}`;
+}
+
+/** `"completed"`/`"pending"` directo de `lesson.completed` (sin cálculo, a diferencia de `getItemState`). */
+export function getLessonState(lesson: Pick<SyllabusLesson, "completed">): "completed" | "pending" {
+  return lesson.completed ? "completed" : "pending";
+}
+
+/** Id estable del `<ul>` del checklist de lecciones: `${prefix}lessons-${id}`. */
+export function getLessonListId(prefix: string, roadmapItemId: string): string {
+  return `${prefix}lessons-${roadmapItemId}`;
+}
+
+export interface LessonToggledAnnouncementInput {
+  lessonTitle: string;
+  marked: boolean;
+  itemName: string;
+  /**
+   * Parte de la firma por paridad con `getItemCompletedAnnouncement`; no se usa en el texto
+   * actual (no se desestructura, así oxlint `noUnusedVariables` no se dispara).
+   */
+  itemProgress: number;
+  completedLessons: number;
+  totalLessons: number;
+  roadmapCompleted: boolean;
+}
+
+/**
+ * Anuncio (live region) tras marcar/desmarcar una lección: «{lessonTitle} marcada como
+ * completada. {getLessonsProgressLabel(...)} en {itemName}.», con « Completaste la ruta.» si se
+ * marcó (nunca al desmarcar) y la ruta quedó completada.
+ */
+export function getLessonToggledAnnouncement({
+  lessonTitle,
+  marked,
+  itemName,
+  completedLessons,
+  totalLessons,
+  roadmapCompleted,
+}: LessonToggledAnnouncementInput): string {
+  const progress = getLessonsProgressLabel(completedLessons, totalLessons);
+  const state = marked ? "completada" : "pendiente";
+  const base = `${lessonTitle} marcada como ${state}. ${progress} en ${itemName}.`;
+  return marked && roadmapCompleted ? `${base} Completaste la ruta.` : base;
+}

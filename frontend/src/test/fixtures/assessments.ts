@@ -96,6 +96,8 @@ export const ASSESSMENT_QUESTIONS_MOCK: AssessmentQuestion[] = [
   },
 ];
 
+export const MOCK_GENERATED_ROADMAP_ID = "mock-generated-roadmap";
+
 /** `input` no se usa para puntuar: el mock no calcula `profileScores`. */
 export function buildAssessmentResultMock(_input: SubmitAssessmentInput): AssessmentResult {
   const now = new Date().toISOString();
@@ -107,5 +109,14 @@ export function buildAssessmentResultMock(_input: SubmitAssessmentInput): Assess
     profileScores: null,
     completedAt: now,
     createdAt: now,
+    roadmap: { status: "GENERATED", id: MOCK_GENERATED_ROADMAP_ID },
+  };
+}
+
+/** Envío correcto cuya ruta no se pudo generar: el back responde 201 sin `roadmap.id`. */
+export function buildAssessmentResultFailedMock(input: SubmitAssessmentInput): AssessmentResult {
+  return {
+    ...buildAssessmentResultMock(input),
+    roadmap: { status: "FAILED", message: "No se pudo generar la ruta de aprendizaje." },
   };
 }

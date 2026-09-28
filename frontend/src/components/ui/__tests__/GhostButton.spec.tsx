@@ -60,6 +60,13 @@ describe("GhostButton", () => {
     expect(screen.getByRole("button", { name: "Anterior" })).toHaveClass("h-11", "px-5");
   });
 
+  it('aplica h-12 con size="lg"', () => {
+    renderWithProviders(<GhostButton size="lg">Continuar</GhostButton>);
+    const button = screen.getByRole("button", { name: "Continuar" });
+    expect(button).toHaveClass("h-12", "px-5");
+    for (const cls of ["h-11", "h-10"]) expect(button).not.toHaveClass(cls);
+  });
+
   it("añade className a las clases base", () => {
     renderWithProviders(<GhostButton className="w-full">Salir</GhostButton>);
     const button = screen.getByRole("button", { name: "Salir" });

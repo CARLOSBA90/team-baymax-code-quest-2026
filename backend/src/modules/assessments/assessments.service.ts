@@ -1,13 +1,17 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { RoadmapGoalType } from '../roadmaps/roadmap.constants.js';
+import { RoadmapGenerationService } from '../roadmaps/roadmap-generation.service.js';
 import type { QuestionsListResponseDto } from './dto/question-response.dto.js';
 import type {
   AssessmentResultDto,
   AssessmentResultResponseDto,
+  RoadmapGenerationResultDto,
   SubmitAssessmentDto,
 } from './dto/submit-assessment.dto.js';
 import type {
@@ -19,7 +23,12 @@ import { AssessmentValidator } from './validators/assessment.validator.js';
 
 @Injectable()
 export class AssessmentsService {
-  constructor(private readonly prisma: PrismaService) { }
+  private readonly logger = new Logger(AssessmentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly roadmapGenerationService: RoadmapGenerationService,
+  ) {}
 
   /**
    * Obtiene la lista completa de preguntas activas con sus opciones para el cuestionario. 
@@ -81,7 +90,52 @@ export class AssessmentsService {
       validatedAnswers,
     );
 
-    return { data: assessment };
+    let roadmap: RoadmapGenerationResultDto;
+    try {
+      const existingRoadmap = await this.prisma.roadmap.findFirst({
+        where: { assessmentId: assessment.id },
+        select: { id: true },
+      });
+
+      if (existingRoadmap) {
+        roadmap = {
+          status: 'EXISTS',
+          id: existingRoadmap.id,
+        };
+      } else {
+        const generated = await this.roadmapGenerationService.generate(userId, {
+          assessmentId: assessment.id,
+          goal: profile.preferredStack
+            ? {
+                type: RoadmapGoalType.SKILL,
+                description: profile.preferredStack,
+              }
+            : undefined,
+          weeklyHours: profile.weeklyHours,
+        });
+        roadmap = {
+          status: 'GENERATED',
+          id: generated.data.id,
+        };
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `No se pudo auto-generar la ruta para el assessment ${assessment.id}: ${errorMessage}`,
+      );
+      roadmap = {
+        status: 'FAILED',
+        message: 'No se pudo generar la ruta de aprendizaje.',
+      };
+    }
+
+    return {
+      data: {
+        ...assessment,
+        roadmap,
+      },
+    };
   }
 
   /**
@@ -133,13 +187,23 @@ export class AssessmentsService {
     profile: CalculatedProfile,
     validatedAnswers: ValidatedAnswer[],
   ): Promise<AssessmentResultDto> {
+    const profileScoresData = {
+      ...profile.profileScores,
+      ...(profile.preferredStack
+        ? { preferredStack: profile.preferredStack }
+        : {}),
+      ...(profile.weeklyHours !== undefined
+        ? { weeklyHours: profile.weeklyHours }
+        : {}),
+    };
+
     const assessment = await this.prisma.assessment.create({
       data: {
         userId,
         version: 1,
         completedAt: new Date(),
         goalCategory: profile.goalCategory,
-        profileScores: profile.profileScores,
+        profileScores: profileScoresData,
         answers: {
           create: validatedAnswers.map((ans) => ({
             questionId: ans.questionId,

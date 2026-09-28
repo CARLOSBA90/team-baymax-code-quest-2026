@@ -56,6 +56,12 @@ describe("DeleteRoadmapDialog", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("acepta un objeto con solo el nombre (p. ej. el detalle de la ruta)", () => {
+    renderDialog({ roadmap: { name: "Frontend moderno" } });
+
+    expect(screen.getByRole("dialog", { name: "¿Eliminar Frontend moderno?" })).toBeInTheDocument();
+  });
+
   it("el botón 'Eliminar ruta' usa la variante danger (roja), no el acento", () => {
     renderDialog();
 

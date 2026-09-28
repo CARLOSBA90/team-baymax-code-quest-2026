@@ -19,6 +19,12 @@ export interface DropdownMenuProps {
   /** Borde del disparador al que se alinea el menú. Por defecto "end". */
   align?: "start" | "end";
   triggerClassName?: string;
+  /**
+   * Deshabilita el disparador: no abre con clic ni teclado y cierra el menú si estaba abierto. Usa
+   * `aria-disabled` (no `disabled`) para que el disparador conserve el foco si lo tenía (un
+   * `disabled` nativo lo tira a `<body>` en Chromium) y siga en el orden de tabulación.
+   */
+  disabled?: boolean;
 }
 
 type InitialFocus = "first" | "last";
@@ -41,7 +47,8 @@ function getEnabledItems(items: (HTMLButtonElement | null)[]) {
  * Menú desplegable accesible (patrón WAI-ARIA "menu button"). Se abre con clic, Enter, Espacio
  * o flecha abajo (flecha arriba enfoca el último item); dentro, flechas cíclicas y Home/End.
  * Esc cierra y devuelve el foco al disparador; también se cierra al pulsar fuera o cuando el
- * foco sale del componente, de modo que solo queda un menú abierto a la vez.
+ * foco sale del componente, de modo que solo queda un menú abierto a la vez. Con `disabled` el
+ * disparador queda `aria-disabled` y no abre.
  */
 export function DropdownMenu({
   triggerLabel,
@@ -49,8 +56,11 @@ export function DropdownMenu({
   items,
   align = "end",
   triggerClassName = "",
+  disabled = false,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
+  // Deshabilitado con el menú abierto → se cierra (ajuste de estado durante el render).
+  if (disabled && open) setOpen(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -99,7 +109,14 @@ export function DropdownMenu({
     triggerRef.current?.focus();
   };
 
+  const handleTriggerClick = () => {
+    if (disabled) return;
+    if (open) setOpen(false);
+    else openMenu("first");
+  };
+
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       openMenu(event.key === "ArrowUp" ? "last" : "first");
@@ -150,9 +167,10 @@ export function DropdownMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => (open ? setOpen(false) : openMenu("first"))}
+        aria-disabled={disabled || undefined}
+        onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
-        className={`flex cursor-pointer items-center justify-center rounded-lg outline-none focus-visible:shadow-ring-focus ${triggerClassName}`}
+        className={`flex cursor-pointer items-center justify-center rounded-lg outline-none focus-visible:shadow-ring-focus aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${triggerClassName}`}
       >
         {trigger}
       </button>
