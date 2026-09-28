@@ -12,6 +12,8 @@ export interface AssessmentGeneratingDialogProps {
   open: boolean;
   /** Etapa visible (`null` mientras no hay espera). */
   stage: AssessmentGeneratingStage | null;
+  /** Texto de la live region interna; `""` no anuncia nada. */
+  announcement: string;
 }
 
 /** Reaperturas permitidas tras un cierre nativo del `<dialog>` antes de rendirse. */
@@ -23,10 +25,22 @@ export const MAX_GENERATING_REOPENS = 2;
  * ellos). Si el navegador cierra el `<dialog>` por su cuenta (CloseWatcher, gesto atrás de
  * Android) la espera se restablece, hasta `MAX_GENERATING_REOPENS` veces por envío; superada la
  * cota se deja de reabrir y el `Modal` se desmonta, liberando el bloqueo de scroll.
+ *
+ * La live region de la espera vive **dentro** del `<dialog>`: `showModal()` deja inerte todo lo
+ * que queda fuera y el contenido inerte no llega a las tecnologías de apoyo, así que una región
+ * a nivel de página no anunciaría nada mientras el diálogo está abierto. Como la región se monta
+ * junto con el texto de la primera etapa (y eso no se anuncia de forma fiable), esa primera etapa
+ * se comunica encadenándola en la descripción del diálogo (`aria-describedby`); la región cubre
+ * los **cambios** posteriores, que sí se anuncian.
  */
-export function AssessmentGeneratingDialog({ open, stage }: AssessmentGeneratingDialogProps) {
+export function AssessmentGeneratingDialog({
+  open,
+  stage,
+  announcement,
+}: AssessmentGeneratingDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
+  const stageId = useId();
   const contentRef = useRef<HTMLDivElement>(null);
   const [reopens, setReopens] = useState(0);
 
@@ -54,7 +68,9 @@ export function AssessmentGeneratingDialog({ open, stage }: AssessmentGenerating
       onClose={handleClose}
       hideCloseButton
       aria-labelledby={titleId}
-      aria-describedby={descriptionId}
+      // La etapa visible se encadena a la descripción (varios idrefs) para que se lea al abrir.
+      // Sin etapa no hay panel, así que tampoco se referencia ningún id inexistente.
+      aria-describedby={stage ? `${descriptionId} ${stageId}` : undefined}
     >
       {stage ? (
         <div
@@ -79,6 +95,7 @@ export function AssessmentGeneratingDialog({ open, stage }: AssessmentGenerating
             {ASSESSMENT_GENERATING_DESCRIPTION}
           </p>
           <p
+            id={stageId}
             data-testid="assessment-generating-stage"
             className="font-body font-semibold text-[15px] text-accent-soft"
           >
@@ -86,6 +103,15 @@ export function AssessmentGeneratingDialog({ open, stage }: AssessmentGenerating
           </p>
         </div>
       ) : null}
+      {/* Sin `role`, para no interferir con los `getByRole("status")` del esqueleto de la página. */}
+      <p
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="assessment-generating-announcer"
+      >
+        {announcement}
+      </p>
     </Modal>
   );
 }

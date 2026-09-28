@@ -17,9 +17,14 @@ const SCROLL_LOCK = "overflow-hidden";
 interface HarnessProps {
   initialOpen?: boolean;
   initialStage?: AssessmentGeneratingStage | null;
+  announcement?: string;
 }
 
-function Harness({ initialOpen = true, initialStage = SAVING }: HarnessProps) {
+function Harness({
+  initialOpen = true,
+  initialStage = SAVING,
+  announcement = SAVING.announcement ?? "",
+}: HarnessProps) {
   const [open, setOpen] = useState(initialOpen);
   const [stage, setStage] = useState<AssessmentGeneratingStage | null>(initialStage);
 
@@ -31,7 +36,7 @@ function Harness({ initialOpen = true, initialStage = SAVING }: HarnessProps) {
       <button type="button" onClick={() => setStage(BUILDING)}>
         avanzar
       </button>
-      <AssessmentGeneratingDialog open={open} stage={stage} />
+      <AssessmentGeneratingDialog open={open} stage={stage} announcement={announcement} />
     </>
   );
 }
@@ -66,11 +71,34 @@ describe("AssessmentGeneratingDialog", () => {
 
     const dialog = screen.getByRole("dialog", { name: ASSESSMENT_GENERATING_TITLE });
     expect(dialog).toHaveAccessibleName(ASSESSMENT_GENERATING_TITLE);
-    expect(dialog).toHaveAccessibleDescription(ASSESSMENT_GENERATING_DESCRIPTION);
+    expect(dialog).toHaveAccessibleDescription(
+      `${ASSESSMENT_GENERATING_DESCRIPTION} ${SAVING.message}`,
+    );
     expect(
       within(dialog).getByRole("heading", { name: ASSESSMENT_GENERATING_TITLE }),
     ).toBeVisible();
     expect(screen.getByTestId("assessment-generating-stage")).toHaveTextContent(SAVING.message);
+  });
+
+  it("la descripción encadena el párrafo de espera y el de la etapa, y ambos idrefs existen", () => {
+    renderWithProviders(<Harness />);
+
+    const ids = getDialog().getAttribute("aria-describedby")?.split(" ") ?? [];
+    expect(ids).toHaveLength(2);
+    const [description, stage] = ids.map((id) => document.getElementById(id));
+    expect(description).toHaveTextContent(ASSESSMENT_GENERATING_DESCRIPTION);
+    expect(stage).toBe(screen.getByTestId("assessment-generating-stage"));
+    expect(stage).toHaveTextContent(SAVING.message);
+  });
+
+  it("al cambiar de etapa la descripción sigue apuntando al párrafo de la etapa visible", () => {
+    renderWithProviders(<Harness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "avanzar" }));
+
+    expect(getDialog()).toHaveAccessibleDescription(
+      `${ASSESSMENT_GENERATING_DESCRIPTION} ${BUILDING.message}`,
+    );
   });
 
   it("abierto: bloquea el scroll de la página", () => {
@@ -186,7 +214,55 @@ describe("AssessmentGeneratingDialog", () => {
   it("abierto sin etapa: el diálogo existe pero no pinta el panel", () => {
     renderWithProviders(<Harness initialStage={null} />);
 
-    expect(getDialog()).toBeInTheDocument();
+    const dialog = getDialog();
+    expect(dialog).toBeInTheDocument();
     expect(screen.queryByTestId("assessment-generating-panel")).not.toBeInTheDocument();
+    // Sin etapa no hay párrafos que describir: nada de idrefs colgando de nodos inexistentes.
+    expect(dialog).not.toHaveAttribute("aria-describedby");
+    expect(dialog).toHaveAccessibleDescription("");
+  });
+
+  describe("live region de la espera", () => {
+    it("vive dentro del <dialog>, donde no la alcanza la inertness del fondo", () => {
+      renderWithProviders(<Harness />);
+
+      const dialog = getDialog();
+      const region = screen.getByTestId("assessment-generating-announcer");
+      expect(dialog.contains(region)).toBe(true);
+      expect(region).toHaveAttribute("aria-live", "polite");
+      expect(region).toHaveAttribute("aria-atomic", "true");
+      expect(region).toHaveClass("sr-only");
+      // Sin `role`: no debe colisionar con los `getByRole("status")` de la página.
+      expect(region).not.toHaveAttribute("role");
+      expect(region).toHaveTextContent(SAVING.announcement ?? "");
+    });
+
+    it("está montada siempre que el diálogo está abierto, incluso sin etapa", () => {
+      renderWithProviders(<Harness initialStage={null} announcement="" />);
+
+      const region = screen.getByTestId("assessment-generating-announcer");
+      expect(getDialog().contains(region)).toBe(true);
+      expect(region).toBeEmptyDOMElement();
+    });
+
+    it("no forma parte del nombre ni de la descripción del diálogo", () => {
+      renderWithProviders(<Harness />);
+
+      const dialog = getDialog();
+      expect(dialog).toHaveAccessibleName(ASSESSMENT_GENERATING_TITLE);
+      expect(dialog).toHaveAccessibleDescription(
+        `${ASSESSMENT_GENERATING_DESCRIPTION} ${SAVING.message}`,
+      );
+    });
+
+    it("cerrado el diálogo no queda región (la monta y desmonta con él)", () => {
+      renderWithProviders(<Harness initialOpen={false} />);
+
+      expect(screen.queryByTestId("assessment-generating-announcer")).not.toBeInTheDocument();
+
+      toggleOpen();
+
+      expect(screen.getByTestId("assessment-generating-announcer")).toBeInTheDocument();
+    });
   });
 });

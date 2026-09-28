@@ -128,9 +128,22 @@ function stageText() {
   return screen.getByTestId("assessment-generating-stage").textContent;
 }
 
-/** La live region de la espera no tiene `role`: se busca por `data-testid`, nunca por rol. */
+/**
+ * La live region de la espera vive dentro del `<dialog>` (todo lo que queda fuera de un modal es
+ * inerte) y no tiene `role`: se busca por `data-testid`, nunca por rol.
+ */
 function announcer() {
   return screen.getByTestId("assessment-generating-announcer");
+}
+
+function queryAnnouncer() {
+  return screen.queryByTestId("assessment-generating-announcer");
+}
+
+/** Textos a los que apunta el `aria-describedby` del diálogo de espera. */
+function describedTexts() {
+  const ids = screen.getByRole("dialog").getAttribute("aria-describedby")?.split(" ") ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent);
 }
 
 function generatingDialog() {
@@ -600,7 +613,7 @@ describe("AssessmentPage", () => {
       return screen.findByRole("dialog", { name: ASSESSMENT_GENERATING_TITLE });
     }
 
-    it("no aparece antes de enviar y la live region está montada y vacía", async () => {
+    it("no aparece antes de enviar, ni su live region", async () => {
       // El bloqueo se comprueba al empezar este test, no al final del anterior.
       expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
       renderPage();
@@ -609,7 +622,9 @@ describe("AssessmentPage", () => {
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
-      expect(announcer()).toBeEmptyDOMElement();
+      // La región se monta con el diálogo: sin espera en curso no hay ninguna.
+      expect(queryAnnouncer()).not.toBeInTheDocument();
+      expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(0);
     });
 
     it("con el envío en curso abre el diálogo en la primera etapa y bloquea el scroll", async () => {
@@ -639,8 +654,8 @@ describe("AssessmentPage", () => {
       expect(location()).toBe(DETAIL_PATH);
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(document.documentElement).not.toHaveClass(SCROLL_LOCK);
-      // La página se desmontó al navegar: con ella se va su live region.
-      expect(screen.queryByTestId("assessment-generating-announcer")).not.toBeInTheDocument();
+      // Cerrado el diálogo (y desmontada la página al navegar) se va su live region.
+      expect(queryAnnouncer()).not.toBeInTheDocument();
     });
 
     it("al fallar con 400 cierra el diálogo y muestra el mensaje del backend sin perder respuestas", async () => {
@@ -817,22 +832,26 @@ describe("AssessmentPage", () => {
       expect(generatingDialog()).toBeInTheDocument();
     });
 
-    it("la live region anuncia solo la primera y la última etapa, y se vacía al terminar", async () => {
+    it("la live region anuncia solo la primera y la última etapa, y se va con el diálogo", async () => {
       const user = useFakeTimersForTestingLibrary();
       const request = deferred<AssessmentResult>();
       vi.mocked(submitAssessment).mockReturnValue(request.promise);
       renderPage();
 
       await screen.findByRole("group", { name: FIRST.text });
-      expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
-      expect(announcer()).toBeEmptyDOMElement();
+      expect(queryAnnouncer()).not.toBeInTheDocument();
 
       await answerAll(user);
       await user.click(screen.getByRole("button", { name: SUBMIT_NAME }));
       await advance(0);
 
-      expect(generatingDialog().contains(announcer())).toBe(false);
+      // Dentro del `<dialog>`: `showModal()` deja inerte el resto del documento y el contenido
+      // inerte no llega a las tecnologías de apoyo.
+      expect(document.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+      expect(generatingDialog().contains(announcer())).toBe(true);
       expect(announcer()).toHaveTextContent(SAVING_ANNOUNCEMENT);
+      // La primera etapa además se lee al abrir porque cuelga de la descripción del diálogo.
+      expect(describedTexts()).toContain(SAVING_STAGE.message);
 
       await advance(7_000);
       expect(stageText()).toBe(ANALYZING_STAGE.message);
@@ -846,7 +865,7 @@ describe("AssessmentPage", () => {
       await advance(0);
 
       expect(screen.getByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
-      expect(announcer()).toBeEmptyDOMElement();
+      expect(queryAnnouncer()).not.toBeInTheDocument();
     });
 
     it("el reintento narra otra vez desde la primera etapa", async () => {
@@ -889,7 +908,7 @@ describe("AssessmentPage", () => {
       await advance(120_000);
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-      expect(announcer()).toBeEmptyDOMElement();
+      expect(queryAnnouncer()).not.toBeInTheDocument();
       expect(screen.getByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
       expect(errorSpy).not.toHaveBeenCalled();
     });

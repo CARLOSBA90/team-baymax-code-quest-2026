@@ -143,19 +143,13 @@ export const AssessmentPage = () => {
         </GhostButton>
       </header>
       <NebulaSurface>{content}</NebulaSurface>
-      <AssessmentGeneratingDialog open={submit.isPending} stage={generating.stage} />
-      {/* Siempre montada: una live region que aparece junto con su texto no se anuncia de forma
-          fiable (mismo patrón que `roadmap-detail-announcer`). Va fuera del diálogo porque
-          `ui/Modal` desmonta sus hijos mientras está cerrado. Sin `role`, para no interferir con
-          los `getByRole("status")` del esqueleto. */}
-      <p
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-        data-testid="assessment-generating-announcer"
-      >
-        {generating.announcement}
-      </p>
+      {/* La live region de la espera la monta el propio diálogo: todo lo que queda fuera de un
+          `<dialog>` modal es inerte y no llega a las tecnologías de apoyo. */}
+      <AssessmentGeneratingDialog
+        open={submit.isPending}
+        stage={generating.stage}
+        announcement={generating.announcement}
+      />
     </section>
   );
 };
