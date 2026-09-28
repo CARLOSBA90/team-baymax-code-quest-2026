@@ -62,45 +62,50 @@ export class RoadmapGenerationService {
   async generate(userId: string | undefined, dto: GenerateRoadmapDto) {
     if (!userId) throw new UnauthorizedException();
 
-    const captured = await this.prisma.$transaction(
-      async (tx) => {
-        const assessment = dto.assessmentId
-          ? await tx.assessment.findFirst({
-              where: { id: dto.assessmentId, userId },
-            })
-          : await tx.assessment.findFirst({
-              where: { userId, completedAt: { not: null } },
-              orderBy: [
-                { completedAt: 'desc' },
-                { createdAt: 'desc' },
-                { id: 'desc' },
-              ],
-            });
-
-        if (!assessment) {
-          throw new NotFoundException({
-            statusCode: HttpStatus.NOT_FOUND,
-            error: 'Not Found',
-            code: 'ASSESSMENT_NOT_FOUND',
-            message: 'No completed assessment was found for this user.',
-          });
-        }
-        if (!assessment.completedAt) {
-          throw domainError(
-            'ASSESSMENT_REQUIRED',
-            'The selected assessment is not complete.',
-          );
-        }
-
-        const courses = await tx.course.findMany({
-          where: { status: CourseStatus.ACTIVE },
-          include: { skills: true, prerequisites: true },
-          orderBy: { id: 'asc' },
+    // ── Parallel reads: assessment and active catalog ──────────────────────
+    // Fetching both in parallel avoids 4 sequential round-trips
+    // (BEGIN / SELECT assessment / SELECT courses / COMMIT) that a
+    // RepeatableRead transaction would impose.
+    const assessmentQuery = dto.assessmentId
+      ? this.prisma.assessment.findFirst({
+          where: { id: dto.assessmentId, userId },
+        })
+      : this.prisma.assessment.findFirst({
+          where: { userId, completedAt: { not: null } },
+          orderBy: [
+            { completedAt: 'desc' },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
         });
-        return { assessment, courses };
-      },
-      { isolationLevel: 'RepeatableRead' },
-    );
+
+    const coursesQuery = this.prisma.course.findMany({
+      where: { status: CourseStatus.ACTIVE },
+      include: { skills: true, prerequisites: true },
+      orderBy: { id: 'asc' },
+    });
+
+    const [assessment, fetchedCourses] = await Promise.all([
+      assessmentQuery,
+      coursesQuery,
+    ]);
+
+    if (!assessment) {
+      throw new NotFoundException({
+        statusCode: HttpStatus.NOT_FOUND,
+        error: 'Not Found',
+        code: 'ASSESSMENT_NOT_FOUND',
+        message: 'No completed assessment was found for this user.',
+      });
+    }
+    if (!assessment.completedAt) {
+      throw domainError(
+        'ASSESSMENT_REQUIRED',
+        'The selected assessment is not complete.',
+      );
+    }
+
+    const captured = { assessment, courses: fetchedCourses };
 
     if (captured.courses.length === EMPTY_COLLECTION_SIZE) {
       throw domainError('CATALOG_EMPTY', 'There are no active courses.');
@@ -228,8 +233,20 @@ export class RoadmapGenerationService {
     }
 
     // Each course copies its syllabus so progress can be tracked per lesson.
+    // Strict projection: fetch only the fields required by buildSyllabusSnapshot
+    // to minimise transfer size (avoids SELECT * on a table with 400-800 rows).
     const lessons = await this.prisma.courseLesson.findMany({
       where: { courseId: { in: ordered.map((course) => course.id) } },
+      select: {
+        id: true,
+        courseId: true,
+        sectionOrder: true,
+        sectionTitle: true,
+        title: true,
+        type: true,
+        freePreview: true,
+        order: true,
+      },
       orderBy: [{ courseId: 'asc' }, { order: 'asc' }],
     });
     const syllabusByCourse = new Map(
