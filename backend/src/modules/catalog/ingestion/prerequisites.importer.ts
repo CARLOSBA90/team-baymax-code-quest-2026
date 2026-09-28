@@ -24,6 +24,9 @@ export interface PrerequisiteImportResult {
  * resolved to their database IDs; entries whose slugs do not exist in the
  * catalog are silently skipped (logged in `result.skipped`).
  *
+ * Self-referential entries (same slug on both sides, or both slugs resolve to
+ * the same course ID) are also skipped and logged as invalid.
+ *
  * This function is idempotent – running it multiple times on the same dataset
  * does not duplicate rows.
  */
@@ -53,6 +56,12 @@ export async function importPrerequisites(
 
     if (!courseId || !prerequisiteCourseId) {
       result.skipped.push(`${entry.courseSlug} → ${entry.prerequisiteSlug}`);
+      continue;
+    }
+
+    // Reject self-referential entries: a course cannot be its own prerequisite.
+    if (courseId === prerequisiteCourseId) {
+      result.skipped.push(`${entry.courseSlug} → ${entry.prerequisiteSlug} (self-reference)`);
       continue;
     }
 

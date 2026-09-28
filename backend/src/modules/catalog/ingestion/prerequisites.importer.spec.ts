@@ -109,4 +109,19 @@ describe('importPrerequisites', () => {
     expect(result.upserted).toBe(0);
     expect(result.skipped).toHaveLength(0);
   });
+
+  it('skips self-referential entries where courseSlug === prerequisiteSlug', async () => {
+    // Both sides resolve to the same ID → self-reference, must be skipped.
+    const slugToId: Record<string, string> = { vue: 'id-vue' };
+    const prisma = makePrisma(slugToId);
+
+    const result = await importPrerequisites(prisma as never, [
+      { courseSlug: 'vue', prerequisiteSlug: 'vue' },
+    ]);
+
+    expect(result.upserted).toBe(0);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]).toContain('self-reference');
+    expect(prisma._upsert).not.toHaveBeenCalled();
+  });
 });

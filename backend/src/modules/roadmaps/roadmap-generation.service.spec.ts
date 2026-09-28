@@ -32,6 +32,7 @@ function candidate(
 ) {
   return {
     id,
+    slug: id,   // In integration tests the id already uses the course slug.
     title: id,
     description: null,
     level,

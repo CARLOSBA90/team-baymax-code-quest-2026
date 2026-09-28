@@ -100,6 +100,7 @@ export const STACK_BY_SLUG_FRAGMENT: ReadonlyArray<
 
   // Node / NestJS ecosystem
   ['nestjs', TechStack.NODE],
+  ['nest', TechStack.NODE],     // slug = 'nest' (base NestJS course)
   ['express', TechStack.NODE],
   ['node', TechStack.NODE],
   ['bun', TechStack.NODE],
@@ -112,6 +113,7 @@ export const STACK_BY_SLUG_FRAGMENT: ReadonlyArray<
 
   // Java ecosystem
   ['java', TechStack.JAVA],
+  ['springboot', TechStack.JAVA], // slug fragment for 'springboot-mvc-hexagonal' etc.
   ['spring', TechStack.JAVA],
   ['kafka', TechStack.JAVA],
 
@@ -126,6 +128,8 @@ export const STACK_BY_SLUG_FRAGMENT: ReadonlyArray<
   ['laravel', TechStack.PHP],
 
   // .NET ecosystem
+  ['netfullstack', TechStack.DOTNET], // exact slug 'netfullstack' – must come before 'net'
+  ['net', TechStack.DOTNET],          // covers 'net-backend', 'net-pruebascompletas', etc.
   ['dotnet', TechStack.DOTNET],
   ['csharp', TechStack.DOTNET],
   ['blazor', TechStack.DOTNET],
