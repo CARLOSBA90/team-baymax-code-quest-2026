@@ -9,7 +9,15 @@ import {
   importSyllabus,
   type ScrapedSyllabus,
 } from '../src/modules/catalog/ingestion/syllabus.importer.js';
+import {
+  importPrerequisites,
+  type PrerequisiteEntry,
+} from '../src/modules/catalog/ingestion/prerequisites.importer.js';
 import { normalizeSlug } from '../src/modules/catalog/utils/course-normalizer.util.js';
+
+const PREREQUISITES_JSON_PATH = fileURLToPath(
+  new URL('./seed/prerequisites.json', import.meta.url),
+);
 
 const COURSES_CSV_PATH = fileURLToPath(
   new URL('./seed/courses.csv', import.meta.url),
@@ -291,11 +299,24 @@ async function seedSyllabus() {
     console.warn(`Sin curso en el catálogo: ${result.unknownSlugs.join(', ')}`);
 }
 
+/** Loads canonical course prerequisites from prisma/seed/prerequisites.json. */
+async function seedPrerequisites() {
+  console.log('Importando prerrequisitos desde prisma/seed/prerequisites.json...');
+  const entries = JSON.parse(
+    await readFile(PREREQUISITES_JSON_PATH, 'utf8'),
+  ) as PrerequisiteEntry[];
+  const result = await importPrerequisites(prisma, entries);
+  console.log(`${result.upserted} prerrequisitos importados`);
+  if (result.skipped.length > 0)
+    console.warn(`Prerrequisitos omitidos (slugs no encontrados): ${result.skipped.join(', ')}`);
+}
+
 async function main() {
   // `pnpm seed -- --solo-temario` reloads only the syllabus.
   if (!process.argv.includes('--solo-temario')) {
     await seedQuestions();
     await seedCourses();
+    await seedPrerequisites();
   }
   await seedSyllabus();
 

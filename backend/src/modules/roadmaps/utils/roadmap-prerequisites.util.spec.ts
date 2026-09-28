@@ -83,22 +83,49 @@ describe('orderForLearning', () => {
       50,
     ).map(({ id }) => id);
 
-  it('moves lower levels first and keeps the generator order within a level', () => {
+  it('moves lower levels first', () => {
     expect(
       order([
-        course('node', 1),
         course('fastapi', 2),
         course('openai', 2),
-        course('graphql', 1),
-        course('nest', 1),
+        course('python', 1),
       ]),
-    ).toEqual(['node', 'graphql', 'nest', 'fastapi', 'openai']);
+    ).toEqual(['python', 'fastapi', 'openai']);
   });
 
   it('still places a required prerequisite before its dependent course', () => {
     const nest = course('nest', 2);
-    const graphql = course('graphql', 1, ['nest']);
+    const graphql = course('nest-graphql', 1, ['nest']);
 
-    expect(order([graphql, nest])).toEqual(['nest', 'graphql']);
+    expect(order([graphql, nest])).toEqual(['nest', 'nest-graphql']);
+  });
+
+  it('uses pedagogical phase as tie-breaker within the same level', () => {
+    // vue-cero-a-experto is phase 2, nuxt is phase 4, tailwindcss is phase 3 (default)
+    expect(
+      order([
+        course('nuxt', 1),
+        course('tailwindcss-para-desarrolladores', 1),
+        course('vue-cero-a-experto', 1),
+      ]),
+    ).toEqual([
+      'vue-cero-a-experto',          // phase 2
+      'tailwindcss-para-desarrolladores', // phase 3 (default)
+      'nuxt',                        // phase 4
+    ]);
+  });
+
+  it('Python fundamentals comes before FastAPI and Django at the same level', () => {
+    expect(
+      order([
+        course('fastapi', 1),
+        course('django', 1),
+        course('python', 1),
+      ]),
+    ).toEqual([
+      'python',   // phase 1
+      'django',   // phase 2
+      'fastapi',  // phase 2
+    ]);
   });
 });

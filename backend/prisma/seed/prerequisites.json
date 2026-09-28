@@ -1,0 +1,182 @@
+[
+  {
+    "comment": "Vue ecosystem: Nuxt requires Vue, vue-intermedio requires Vue",
+    "courseSlug": "nuxt",
+    "prerequisiteSlug": "vue-cero-a-experto",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "vue-intermedio",
+    "prerequisiteSlug": "vue-cero-a-experto",
+    "type": "REQUIRED"
+  },
+
+  {
+    "comment": "Python ecosystem: Django and FastAPI require Python",
+    "courseSlug": "django",
+    "prerequisiteSlug": "python",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "fastapi",
+    "prerequisiteSlug": "python",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "python-ia-aplicada",
+    "prerequisiteSlug": "python",
+    "type": "RECOMMENDED"
+  },
+
+  {
+    "comment": "Java / Spring ecosystem: Spring Boot requires Java; Kafka and Spring AI require Spring Boot",
+    "courseSlug": "spring-boot",
+    "prerequisiteSlug": "java",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "spring-boot-microservicios",
+    "prerequisiteSlug": "spring-boot",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "spring-boot-patrones-arquitectura",
+    "prerequisiteSlug": "spring-boot",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "springboot-mvc-hexagonal",
+    "prerequisiteSlug": "spring-boot",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "kafka-springboot-event-driven",
+    "prerequisiteSlug": "spring-boot",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "spring-ai",
+    "prerequisiteSlug": "spring-boot",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "java-avanzado",
+    "prerequisiteSlug": "java",
+    "type": "REQUIRED"
+  },
+
+  {
+    "comment": "Go ecosystem: go-backend requires golang fundamentals; go-microservicios requires go-backend",
+    "courseSlug": "golang-backend-profesional",
+    "prerequisiteSlug": "golang-fundamentos-lenguaje",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "go-microservicios",
+    "prerequisiteSlug": "golang-backend-profesional",
+    "type": "REQUIRED"
+  },
+
+  {
+    "comment": "Flutter / Dart ecosystem: Flutter requires Dart; BLoC, Riverpod and intermediate require Flutter",
+    "courseSlug": "flutter-movil-cero-a-experto",
+    "prerequisiteSlug": "dart-cero-hasta-detalles",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "flutter-bloc",
+    "prerequisiteSlug": "flutter-movil-cero-a-experto",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "riverpod-con-anotaciones",
+    "prerequisiteSlug": "flutter-movil-cero-a-experto",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "flutter-movil-intermedio",
+    "prerequisiteSlug": "flutter-movil-cero-a-experto",
+    "type": "REQUIRED"
+  },
+
+  {
+    "comment": "React ecosystem: Next.js and React Pro require React; Tanstack/Zustand/Shadcn require React",
+    "courseSlug": "nextjs",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "react-pro",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "react-sockets",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "tanstack-query",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "zustand-gestor-de-estado-para-react",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "shadcn-ui",
+    "prerequisiteSlug": "react-de-cero",
+    "type": "RECOMMENDED"
+  },
+
+  {
+    "comment": "Node / NestJS ecosystem: Nest modules require base nest; node-clean-architecture requires nodejs",
+    "courseSlug": "nest-graphql",
+    "prerequisiteSlug": "nest",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "nestjs-microservicios",
+    "prerequisiteSlug": "nest",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "nestjs-reportes",
+    "prerequisiteSlug": "nest",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "nestjs-testing",
+    "prerequisiteSlug": "nest",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "node-clean-architecture",
+    "prerequisiteSlug": "nodejs-de-cero-a-experto",
+    "type": "REQUIRED"
+  },
+
+  {
+    "comment": "Angular ecosystem: advanced Angular modules require angular base",
+    "courseSlug": "angular-moderno",
+    "prerequisiteSlug": "angular",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "angular-pro",
+    "prerequisiteSlug": "angular",
+    "type": "REQUIRED"
+  },
+  {
+    "courseSlug": "angular-socket-bun",
+    "prerequisiteSlug": "angular",
+    "type": "RECOMMENDED"
+  },
+  {
+    "courseSlug": "openai-angular-nestjs",
+    "prerequisiteSlug": "angular",
+    "type": "RECOMMENDED"
+  }
+]
