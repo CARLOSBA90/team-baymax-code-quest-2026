@@ -1,4 +1,16 @@
-﻿# CodeQuest
+<div align="center">
+
+<img src="spec-kits/podium.jpg" alt="Ganadores CodeQuest 2026 - 3er lugar Team Baymax" width="420" />
+
+<img src="spec-kits/dedication-banner.svg" alt="Dedicatoria Team Baymax - 3er lugar CodeQuest 2026" width="100%" />
+
+[**@LeizarM**](https://github.com/LeizarM) &nbsp;·&nbsp; [**@kercmari**](https://github.com/kercmari) &nbsp;·&nbsp; [**@japsolo**](https://github.com/japsolo) &nbsp;·&nbsp; [**@CARLOSBA90**](https://github.com/CARLOSBA90)
+
+</div>
+
+---
+
+# CodeQuest
 
 Plataforma de aprendizaje personalizado para estudiantes de DevTalles. Genera rutas de aprendizaje adaptadas al perfil de habilidades del usuario y hace seguimiento de progreso por curso y por ruta.
 
