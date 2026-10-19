@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="470" viewBox="0 0 900 470" role="img" aria-label="Dedicatoria Team Baymax - 3er lugar CodeQuest 2026">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0618"/>
+      <stop offset="0.6" stop-color="#1c0b45"/>
+      <stop offset="1" stop-color="#3b1480"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <style>
+    text { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }
+    .eyebrow { fill: #c4b5fd; font-size: 14px; letter-spacing: 6px; font-weight: 600; }
+    .title { fill: #ffffff; font-size: 52px; font-weight: 800; letter-spacing: 2px; }
+    .pill-text { fill: #1c0b45; font-size: 15px; font-weight: 800; letter-spacing: 1px; }
+    .card { fill: #ffffff; fill-opacity: 0.06; stroke: #8b5cf6; stroke-opacity: 0.45; stroke-width: 1.5; }
+    .card-hero { fill: #fbbf24; fill-opacity: 0.09; stroke: url(#gold); stroke-width: 2; }
+    .badge { fill: url(#gold); }
+    .badge-text { fill: #1c0b45; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+    .name { fill: #ffffff; font-size: 24px; font-weight: 700; }
+    .name-hero { fill: #fde68a; font-size: 34px; font-weight: 800; }
+    .handle { fill: #c4b5fd; font-size: 17px; font-weight: 500; }
+    .quote { fill: #ffffff; font-size: 22px; font-weight: 600; font-style: italic; }
+    .quote-mark { fill: #fbbf24; font-size: 64px; font-weight: 800; }
+    .footer { fill: #a78bfa; font-size: 14px; }
+  </style>
+
+  <rect width="900" height="470" rx="24" fill="url(#bg)"/>
+  <rect x="1" y="1" width="898" height="468" rx="23" fill="none" stroke="#8b5cf6" stroke-opacity="0.5" stroke-width="2"/>
+  <circle cx="820" cy="60" r="110" fill="#7c3aed" fill-opacity="0.18"/>
+  <circle cx="70" cy="440" r="90" fill="#a78bfa" fill-opacity="0.12"/>
+
+  <text x="450" y="52" text-anchor="middle" class="eyebrow">CODEQUEST 2026 · DEDICATORIA</text>
+  <text x="450" y="112" text-anchor="middle" class="title">TEAM BAYMAX</text>
+  <rect x="340" y="132" width="220" height="32" rx="16" fill="url(#gold)"/>
+  <text x="450" y="154" text-anchor="middle" class="pill-text">3ER LUGAR</text>
+
+  <!-- Marcelo -->
+  <rect x="40" y="190" width="193" height="100" rx="18" class="card"/>
+  <rect x="40" y="190" width="6" height="100" rx="3" fill="url(#accent)"/>
+  <text x="64" y="244" class="name">Marcelo</text>
+  <text x="64" y="272" class="handle">@LeizarM</text>
+
+  <!-- Kerly -->
+  <rect x="249" y="190" width="193" height="100" rx="18" class="card"/>
+  <rect x="249" y="190" width="6" height="100" rx="3" fill="url(#accent)"/>
+  <text x="273" y="244" class="name">Kerly</text>
+  <text x="273" y="272" class="handle">@kercmari</text>
+
+  <!-- Javier (mimo crack) -->
+  <rect x="458" y="190" width="193" height="100" rx="18" class="card"/>
+  <rect x="458" y="190" width="6" height="100" rx="3" fill="url(#gold)"/>
+  <rect x="482" y="198" width="132" height="20" rx="10" class="badge"/>
+  <text x="548" y="212" text-anchor="middle" class="badge-text">CRACK DEL FRONT</text>
+  <text x="482" y="248" class="name">Javier</text>
+  <text x="482" y="274" class="handle">@japsolo</text>
+
+  <!-- Carlos -->
+  <rect x="667" y="190" width="193" height="100" rx="18" class="card"/>
+  <rect x="667" y="190" width="6" height="100" rx="3" fill="url(#accent)"/>
+  <text x="691" y="244" class="name">Carlos</text>
+  <text x="691" y="272" class="handle">@CARLOSBA90</text>
+
+  <!-- Frase -->
+  <rect x="40" y="314" width="820" height="100" rx="18" class="card card-hero"/>
+  <text x="66" y="376" class="quote-mark">&#8220;</text>
+  <text x="450" y="359" text-anchor="middle" class="quote">La dedicación y el trabajo en equipo</text>
+  <text x="450" y="391" text-anchor="middle" class="quote">impulsan grandes resultados.</text>
+
+
+  <text x="450" y="447" text-anchor="middle" class="footer">Gracias por llevarnos al podio. Seguimos construyendo.</text>
+</svg>
